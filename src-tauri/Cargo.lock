@@ -1921,6 +1921,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tokio",
+ "tonic",
 ]
 
 [[package]]

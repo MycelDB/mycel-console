@@ -1,0 +1,126 @@
+import { useState, type FormEvent } from "react";
+import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import type { CreateUserInput, UserInfo } from "../../../types/users";
+
+export type CreateUserModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (input: CreateUserInput) => Promise<UserInfo>;
+  onCreated: (user: UserInfo) => void;
+};
+
+export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUserModalProps) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [disabled, setDisabled] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!open) return null;
+
+  function reset() {
+    setUsername("");
+    setPassword("");
+    setDisabled(false);
+    setError("");
+  }
+
+  function handleClose() {
+    if (loading) return;
+    reset();
+    onClose();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError("Username is required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const user = await onCreate({
+        username: trimmedUsername,
+        password: password || undefined,
+        disabled,
+      });
+      onCreated(user);
+      reset();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Create user failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+      <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <H2>Create user</H2>
+            <Text intent="muted" size="sm" className="mt-2 text-slate-400">
+              Create a standard Mycel user. Passwords are sent to the daemon and are never returned.
+            </Text>
+          </div>
+          <button
+            type="button"
+            className="rounded px-2 py-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            onClick={handleClose}
+            disabled={loading}
+            aria-label="Close create user dialog"
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+
+        <Label className="mt-5" htmlFor="create-username">
+          Username
+        </Label>
+        <Input
+          id="create-username"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          autoFocus
+          disabled={loading}
+        />
+
+        <Label className="mt-4" htmlFor="create-password">
+          Initial password
+        </Label>
+        <Input
+          id="create-password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          disabled={loading}
+        />
+
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+            checked={disabled}
+            onChange={(event) => setDisabled(event.target.checked)}
+            disabled={loading}
+          />
+          Create disabled
+        </label>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button disabled={loading}>{loading ? "Creating…" : "Create user"}</Button>
+        </div>
+      </Form>
+    </div>
+  );
+}

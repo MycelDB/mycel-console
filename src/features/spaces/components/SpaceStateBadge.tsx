@@ -1,0 +1,30 @@
+import type { SpaceInfo } from "../../../types/spaces";
+
+export type SpaceStateBadgeProps = {
+  state?: SpaceInfo["state"];
+};
+
+const stateClasses: Record<string, string> = {
+  SPACE_STATE_ACTIVE: "border-emerald-500/30 bg-emerald-950/50 text-emerald-300",
+  SPACE_STATE_ARCHIVED: "border-amber-500/30 bg-amber-950/50 text-amber-300",
+  SPACE_STATE_UNSPECIFIED: "border-slate-600 bg-slate-900 text-slate-300",
+};
+
+const stateLabels: Record<string, string> = {
+  SPACE_STATE_ACTIVE: "Active",
+  SPACE_STATE_ARCHIVED: "Archived",
+  SPACE_STATE_UNSPECIFIED: "Unspecified",
+};
+
+export function SpaceStateBadge({ state }: SpaceStateBadgeProps) {
+  const stateKey = state || "SPACE_STATE_UNSPECIFIED";
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${
+        stateClasses[stateKey] ?? stateClasses.SPACE_STATE_UNSPECIFIED
+      }`}
+    >
+      {stateLabels[stateKey] ?? stateKey}
+    </span>
+  );
+}

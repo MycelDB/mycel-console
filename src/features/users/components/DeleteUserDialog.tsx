@@ -1,0 +1,107 @@
+import { useState, type FormEvent } from "react";
+import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import type { DeleteUserInput, UserInfo } from "../../../types/users";
+
+export type DeleteUserDialogProps = {
+  user: UserInfo | null;
+  onClose: () => void;
+  onDelete: (input: DeleteUserInput) => Promise<UserInfo>;
+  onDeleted: (user: UserInfo) => void;
+};
+
+export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteUserDialogProps) {
+  const [confirmation, setConfirmation] = useState("");
+  const [revokeSessions, setRevokeSessions] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!user) return null;
+
+  const confirmed = confirmation === user.username;
+
+  function reset() {
+    setConfirmation("");
+    setRevokeSessions(true);
+    setError("");
+  }
+
+  function handleClose() {
+    if (loading) return;
+    reset();
+    onClose();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    const currentUser = user;
+    if (!currentUser) return;
+    if (confirmation !== currentUser.username) {
+      setError("Type the username to confirm deletion");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const deleted = await onDelete({ userId: currentUser.userId, revokeSessions });
+      onDeleted(deleted);
+      reset();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete user failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+      <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
+        <H2>Delete user</H2>
+        <Text intent="muted" size="sm" className="mt-2 text-slate-400">
+          This will delete <span className="font-medium text-slate-100">{user.username}</span>. This action is destructive.
+        </Text>
+
+        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+
+        <div className="mt-5 rounded-lg border border-red-500/30 bg-red-950/30 p-3">
+          <Text size="sm" className="text-red-200">
+            Type <span className="font-mono font-semibold">{user.username}</span> to confirm.
+          </Text>
+          <Text intent="muted" size="xs" className="mt-1 text-slate-400">
+            User ID: {user.userId}
+          </Text>
+        </div>
+
+        <Label className="mt-4" htmlFor="delete-confirmation">
+          Confirmation
+        </Label>
+        <Input
+          id="delete-confirmation"
+          value={confirmation}
+          onChange={(event) => setConfirmation(event.target.value)}
+          disabled={loading}
+          autoFocus
+        />
+
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+            checked={revokeSessions}
+            onChange={(event) => setRevokeSessions(event.target.checked)}
+            disabled={loading}
+          />
+          Revoke active sessions
+        </label>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button disabled={loading || !confirmed}>{loading ? "Deleting…" : "Delete user"}</Button>
+        </div>
+      </Form>
+    </div>
+  );
+}

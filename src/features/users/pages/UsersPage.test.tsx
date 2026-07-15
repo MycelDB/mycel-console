@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { UsersPage } from "./UsersPage";
 import type { ListUsersInput, ListUsersResponse } from "../../../types/users";
 
@@ -19,7 +20,11 @@ function listUsersResponse(overrides: Partial<ListUsersResponse> = {}): ListUser
 }
 
 function renderUsersPage(listUsersService = jest.fn<Promise<ListUsersResponse>, [ListUsersInput]>().mockResolvedValue(listUsersResponse())) {
-  render(<UsersPage listUsersService={listUsersService} />);
+  render(
+    <MemoryRouter>
+      <UsersPage listUsersService={listUsersService} />
+    </MemoryRouter>,
+  );
   return { listUsersService };
 }
 
@@ -104,7 +109,11 @@ test("loads additional pages", async () => {
 test("creates a user and refreshes the list", async () => {
   const listUsersService = jest.fn<Promise<ListUsersResponse>, [ListUsersInput]>().mockResolvedValue(listUsersResponse());
   const createUserService = jest.fn().mockResolvedValue({ userId: "usr_new", username: "new-user", state: "USER_STATE_ACTIVE" });
-  render(<UsersPage listUsersService={listUsersService} createUserService={createUserService} />);
+  render(
+    <MemoryRouter>
+      <UsersPage listUsersService={listUsersService} createUserService={createUserService} />
+    </MemoryRouter>,
+  );
 
   await screen.findByText("alice");
   await userEvent.click(screen.getByRole("button", { name: /^create user$/i }));
@@ -119,7 +128,11 @@ test("creates a user and refreshes the list", async () => {
 
 test("enables a disabled user", async () => {
   const enableUserService = jest.fn().mockResolvedValue({ userId: "usr_disabled", username: "disabled-user", state: "USER_STATE_ACTIVE" });
-  render(<UsersPage listUsersService={jest.fn().mockResolvedValue(listUsersResponse())} enableUserService={enableUserService} />);
+  render(
+    <MemoryRouter>
+      <UsersPage listUsersService={jest.fn().mockResolvedValue(listUsersResponse())} enableUserService={enableUserService} />
+    </MemoryRouter>,
+  );
 
   expect(await screen.findByText("disabled-user")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));

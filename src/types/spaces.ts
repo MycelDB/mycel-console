@@ -3,10 +3,26 @@ export type SpaceState =
   | "SPACE_STATE_ACTIVE"
   | "SPACE_STATE_ARCHIVED";
 
+export type PrincipalInfo = {
+  principalType: string;
+  id: string;
+  displayName: string;
+};
+
+export type EffectiveAccessInfo = {
+  roles: string[];
+  capabilities: string[];
+};
+
 export type SpaceInfo = {
   spaceId: string;
   name: string;
+  owner?: PrincipalInfo | null;
   state?: SpaceState | string;
+  createTime?: string;
+  updateTime?: string;
+  callerAccess?: EffectiveAccessInfo | null;
+  templateUsage?: string;
 };
 
 export type ListSpacesInput = {

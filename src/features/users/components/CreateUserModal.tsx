@@ -59,18 +59,18 @@ export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUs
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <H2>Create user</H2>
-            <Text intent="muted" size="sm" className="mt-2 text-slate-400">
+            <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
               Create a standard Mycel user. Passwords are sent to the daemon and are never returned.
             </Text>
           </div>
           <button
             type="button"
-            className="rounded px-2 py-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            className="rounded px-2 py-1 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
             onClick={handleClose}
             disabled={loading}
             aria-label="Close create user dialog"
@@ -103,10 +103,10 @@ export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUs
           disabled={loading}
         />
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
             checked={disabled}
             onChange={(event) => setDisabled(event.target.checked)}
             disabled={loading}

@@ -4,7 +4,7 @@ import { LoginPage } from "./LoginPage";
 
 test("invokes login service and reports successful operator session", async () => {
   const session = {
-    addr: "127.0.0.1:9091",
+    addr: "127.0.0.1:19091",
     operatorId: "operator-1",
     username: "operator",
   };
@@ -19,10 +19,25 @@ test("invokes login service and reports successful operator session", async () =
 
   await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith(session));
   expect(loginService).toHaveBeenCalledWith({
-    addr: "127.0.0.1:9091",
+    addr: "127.0.0.1:19091",
     username: "operator",
     password: "secret",
   });
+});
+
+test("runs connection diagnostics", async () => {
+  const diagnosticsService = jest.fn().mockResolvedValue({
+    addr: "127.0.0.1:19091",
+    checks: [{ id: "tcp", label: "TCP reachable", status: "pass", detail: "Connected" }],
+  });
+
+  render(<LoginPage diagnosticsService={diagnosticsService} onLoginSuccess={jest.fn()} />);
+
+  await userEvent.click(screen.getByRole("button", { name: /run connection diagnostics/i }));
+
+  expect(await screen.findByText("Connection diagnostics")).toBeInTheDocument();
+  expect(screen.getByText(/tcp reachable/i)).toBeInTheDocument();
+  expect(diagnosticsService).toHaveBeenCalledWith(expect.objectContaining({ addr: "127.0.0.1:19091" }));
 });
 
 test("shows validation errors before calling login service", async () => {

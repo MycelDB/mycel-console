@@ -52,11 +52,11 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
         <H2>Disable user</H2>
-        <Text intent="muted" size="sm" className="mt-2 text-slate-400">
-          Disable <span className="font-medium text-slate-100">{user.username}</span> and optionally revoke active sessions.
+        <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
+          Disable <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span> and optionally revoke active sessions.
         </Text>
 
         {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
@@ -72,10 +72,10 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
           autoFocus
         />
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
             checked={revokeSessions}
             onChange={(event) => setRevokeSessions(event.target.checked)}
             disabled={loading}

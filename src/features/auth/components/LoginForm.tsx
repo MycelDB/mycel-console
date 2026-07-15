@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
-import { DEFAULT_CLUSTER_ADDR, type LoginInput } from "../../../types/auth";
+import { DEFAULT_CLUSTER_ADDR, type ConnectionDiagnosticsResponse, type LoginInput } from "../../../types/auth";
 
 export type LoginFormProps = {
   loading: boolean;
+  diagnosticsLoading?: boolean;
   error: string;
+  diagnostics?: ConnectionDiagnosticsResponse | null;
   onSubmit: (input: LoginInput) => Promise<void>;
+  onRunDiagnostics?: (input: LoginInput) => Promise<void>;
 };
 
-export function LoginForm({ loading, error, onSubmit }: LoginFormProps) {
+export function LoginForm({ loading, diagnosticsLoading = false, error, diagnostics, onSubmit, onRunDiagnostics }: LoginFormProps) {
   const [addr, setAddr] = useState(DEFAULT_CLUSTER_ADDR);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -61,9 +64,43 @@ export function LoginForm({ loading, error, onSubmit }: LoginFormProps) {
         disabled={loading}
       />
 
-      <Button className="mt-6 w-full" disabled={loading}>
-        {loading ? "Logging in…" : "Login"}
-      </Button>
+      <div className="mt-6 grid gap-2">
+        <Button className="w-full" disabled={loading || diagnosticsLoading}>
+          {loading ? "Logging in…" : "Login"}
+        </Button>
+        {onRunDiagnostics && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            disabled={loading || diagnosticsLoading || !addr.trim()}
+            onClick={() => void onRunDiagnostics({ addr, username, password })}
+          >
+            {diagnosticsLoading ? "Running diagnostics…" : "Run connection diagnostics"}
+          </Button>
+        )}
+      </div>
+
+      {diagnostics && (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
+          <Text as="p" className="font-medium text-slate-900 dark:text-slate-100">Connection diagnostics</Text>
+          <dl className="mt-3 space-y-2">
+            {diagnostics.checks.map((check) => (
+              <div key={check.id}>
+                <dt className="font-medium text-slate-900 dark:text-slate-100">{statusIcon(check.status)} {check.label}</dt>
+                <dd className="mt-0.5 text-slate-600 dark:text-slate-400">{check.detail}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
     </Form>
   );
+}
+
+function statusIcon(status: string) {
+  if (status === "pass") return "✅";
+  if (status === "warn") return "⚠️";
+  if (status === "fail") return "❌";
+  return "•";
 }

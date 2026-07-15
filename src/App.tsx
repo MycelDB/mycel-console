@@ -5,12 +5,19 @@ import { Main, Text } from "./components/typography";
 import { LoginPage } from "./features/auth";
 import { logout as logoutService, whoAmI } from "./services/adminService";
 import type { OperatorSession } from "./types/auth";
+import { storedTheme, THEME_STORAGE_KEY, type Theme } from "./types/theme";
 
 export default function App() {
   const [session, setSession] = useState<OperatorSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [theme, setTheme] = useState<Theme>(storedTheme);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +68,8 @@ export default function App() {
         session={session}
         loggingOut={loggingOut}
         logoutError={logoutError}
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
         onLogout={() => void handleLogout()}
       />
     </BrowserRouter>

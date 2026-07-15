@@ -1,11 +1,14 @@
 import { NavLink } from "react-router-dom";
 import { Text } from "../typography";
 
+import type { Theme } from "../../types/theme";
+
 const navItems = [
   { label: "Dashboard", to: "/dashboard" },
   { label: "Users", to: "/users" },
   { label: "Spaces", to: "/spaces" },
-  { label: "Domains", to: "/domains" },
+  { label: "Backups", to: "/backups" },
+  { label: "Cluster", to: "/cluster" },
   { label: "Operators", to: "/operators" },
   { label: "Semantic", to: "/semantic" },
   { label: "Maintenance", to: "/maintenance" },
@@ -13,9 +16,14 @@ const navItems = [
   { label: "Settings", to: "/settings" },
 ];
 
-export function Sidebar() {
+export type SidebarProps = {
+  theme: Theme;
+  onToggleTheme: () => void;
+};
+
+export function Sidebar({ theme, onToggleTheme }: SidebarProps) {
   return (
-    <aside className="h-full w-64 shrink-0 border-r border-slate-800 bg-slate-900/80 p-4">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900/80">
       <Text
         as="p"
         size="sm"
@@ -31,8 +39,8 @@ export function Sidebar() {
               [
                 "block rounded-md px-3 py-2 text-sm font-medium transition",
                 isActive
-                  ? "bg-sky-950 text-sky-100"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-slate-100",
+                  ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100"
+                  : "text-slate-700 hover:bg-slate-200 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100",
               ].join(" ")
             }
             to={item.to}
@@ -41,6 +49,20 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <div className="mt-auto space-y-2 pt-8">
+        <Text as="span" size="xs" intent="subtle" className="block uppercase tracking-wide">
+          Theme
+        </Text>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-200 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+        >
+          <span>{theme === "dark" ? "Dark theme" : "Light theme"}</span>
+          <span aria-hidden>{theme === "dark" ? "☾" : "☀"}</span>
+        </button>
+      </div>
     </aside>
   );
 }

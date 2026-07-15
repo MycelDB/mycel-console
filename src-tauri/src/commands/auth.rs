@@ -1,4 +1,8 @@
 use tauri::State;
+use tokio::{
+    net::TcpStream,
+    time::{timeout, Duration},
+};
 
 use crate::state::{AdminSession, AppState, OperatorSession};
 
@@ -8,6 +12,75 @@ pub struct LoginInput {
     pub addr: String,
     pub username: String,
     pub password: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionDiagnosticCheck {
+    pub id: String,
+    pub label: String,
+    pub status: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionDiagnosticsResponse {
+    pub addr: String,
+    pub checks: Vec<ConnectionDiagnosticCheck>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionDiagnosticsInput {
+    pub addr: String,
+}
+
+#[tauri::command]
+pub async fn admin_connection_diagnostics(
+    input: ConnectionDiagnosticsInput,
+) -> Result<ConnectionDiagnosticsResponse, String> {
+    let addr = input.addr.trim().to_string();
+    if addr.is_empty() {
+        return Err("Cluster gRPC address is required".to_string());
+    }
+
+    let tcp_target = addr
+        .strip_prefix("http://")
+        .or_else(|| addr.strip_prefix("https://"))
+        .unwrap_or(&addr)
+        .trim_end_matches('/')
+        .to_string();
+
+    let mut checks = Vec::new();
+    checks.push(check("address", "Address", "pass", format!("Using {addr}")));
+
+    match timeout(Duration::from_secs(3), TcpStream::connect(&tcp_target)).await {
+        Ok(Ok(_)) => checks.push(check(
+            "tcp",
+            "TCP reachable",
+            "pass",
+            format!("Connected to {tcp_target}"),
+        )),
+        Ok(Err(err)) => checks.push(check("tcp", "TCP reachable", "fail", err.to_string())),
+        Err(_) => checks.push(check(
+            "tcp",
+            "TCP reachable",
+            "fail",
+            "Timed out after 3 seconds".to_string(),
+        )),
+    }
+
+    Ok(ConnectionDiagnosticsResponse { addr, checks })
+}
+
+fn check(id: &str, label: &str, status: &str, detail: String) -> ConnectionDiagnosticCheck {
+    ConnectionDiagnosticCheck {
+        id: id.to_string(),
+        label: label.to_string(),
+        status: status.to_string(),
+        detail,
+    }
 }
 
 #[tauri::command]

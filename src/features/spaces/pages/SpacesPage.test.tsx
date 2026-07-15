@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { SpacesPage } from "./SpacesPage";
 import type { ListSpacesInput, ListSpacesResponse } from "../../../types/spaces";
 
@@ -20,7 +21,11 @@ function listSpacesResponse(overrides: Partial<ListSpacesResponse> = {}): ListSp
 function renderSpacesPage(
   listSpacesService = jest.fn<Promise<ListSpacesResponse>, [ListSpacesInput]>().mockResolvedValue(listSpacesResponse()),
 ) {
-  render(<SpacesPage listSpacesService={listSpacesService} />);
+  render(
+    <MemoryRouter>
+      <SpacesPage listSpacesService={listSpacesService} />
+    </MemoryRouter>,
+  );
   return { listSpacesService };
 }
 

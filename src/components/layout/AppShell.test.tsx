@@ -66,7 +66,7 @@ function renderShell(path = "/dashboard", onLogout = jest.fn()) {
 test("renders dashboard route", () => {
   renderShell("/dashboard");
 
-  expect(screen.getByRole("heading", { name: /cluster overview/i })).toBeInTheDocument();
+  expect(screen.getByText(/monitor mycel cluster state/i)).toBeInTheDocument();
   expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
 });
 

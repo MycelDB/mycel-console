@@ -73,12 +73,27 @@ function renderPage(overrides: Partial<Parameters<typeof BackupsPage>[0]> = {}) 
   return services;
 }
 
-test("renders policy, status, and backup files", async () => {
+async function openPolicyTab() {
+  await screen.findByText("succeeded");
+  await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
+}
+
+async function openFilesTab() {
+  await screen.findByText("succeeded");
+  await userEvent.click(screen.getByRole("tab", { name: "Files" }));
+}
+
+test("renders status, policy, and backup files tabs", async () => {
   renderPage();
 
   expect(screen.getByText(/loading backups/i)).toBeInTheDocument();
-  expect(await screen.findByDisplayValue("/data/mycel/backups")).toBeInTheDocument();
-  expect(screen.getByText("succeeded")).toBeInTheDocument();
+  expect(await screen.findByText("succeeded")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+
+  await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
+  expect(screen.getByDisplayValue("/data/mycel/backups")).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Files" }));
   expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.getByText("2.0 KB")).toBeInTheDocument();
 });
@@ -86,7 +101,8 @@ test("renders policy, status, and backup files", async () => {
 test("saves edited backup policy", async () => {
   const services = renderPage();
 
-  const dirInput = await screen.findByDisplayValue("/data/mycel/backups");
+  await openPolicyTab();
+  const dirInput = screen.getByDisplayValue("/data/mycel/backups");
   await userEvent.clear(dirInput);
   await userEvent.type(dirInput, "/new/backups");
   await userEvent.click(screen.getByRole("button", { name: /save policy/i }));
@@ -103,7 +119,7 @@ test("saves edited backup policy", async () => {
 test("updates archive format and weekly schedule fields", async () => {
   const services = renderPage();
 
-  await screen.findByDisplayValue("/data/mycel/backups");
+  await openPolicyTab();
   const [archiveFormatSelect, scheduleKindSelect] = screen.getAllByRole("combobox");
   await userEvent.selectOptions(archiveFormatSelect, "BACKUP_ARCHIVE_FORMAT_ZIP");
   await userEvent.selectOptions(scheduleKindSelect, "weekly");
@@ -124,7 +140,7 @@ test("updates archive format and weekly schedule fields", async () => {
 test("renders field hints for obscure backup settings", async () => {
   renderPage();
 
-  await screen.findByDisplayValue("/data/mycel/backups");
+  await openPolicyTab();
 
   expect(screen.getByRole("button", { name: /backup directory help/i })).toBeInTheDocument();
   expect(screen.getByText(/filesystem path on the mycel daemon/i)).toBeInTheDocument();
@@ -135,7 +151,7 @@ test("renders field hints for obscure backup settings", async () => {
 test("triggers a manual backup and refreshes", async () => {
   const services = renderPage();
 
-  await screen.findByText("backup-1.tar.zst");
+  await screen.findByText("succeeded");
   await userEvent.click(screen.getByRole("button", { name: /trigger backup/i }));
 
   await waitFor(() =>
@@ -149,6 +165,7 @@ test("triggers a manual backup and refreshes", async () => {
 test("opens a delete confirmation dialog", async () => {
   renderPage();
 
+  await openFilesTab();
   await screen.findByText("backup-1.tar.zst");
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
 
@@ -163,6 +180,7 @@ test("deletes a backup after confirmation and refreshes from the daemon", async 
     .mockResolvedValueOnce({ backups: [], nextPageToken: "" });
   const services = renderPage({ listBackupsService });
 
+  await openFilesTab();
   await screen.findByText("backup-1.tar.zst");
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
   await userEvent.click(screen.getByRole("button", { name: /delete backup/i }));

@@ -47,7 +47,6 @@ export function MembershipTable({ members }: { members: ClusterMemberInfo[] }) {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Node ID</th>
                 <th className="px-4 py-3">Backend address</th>
-                <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Joined / TTL</th>
               </tr>
             </thead>
@@ -60,7 +59,6 @@ export function MembershipTable({ members }: { members: ClusterMemberInfo[] }) {
                   <td className="px-4 py-3 font-medium"><Link className="text-sky-700 hover:underline dark:text-sky-300" to={`/cluster/nodes/${nodeKey}`}>{member.nodeName}</Link>{member.clusterBootstrap ? " · bootstrap" : ""}</td>
                   <td className="px-4 py-3 font-mono text-xs">{member.nodeId || "—"}</td>
                   <td className="px-4 py-3 font-mono">{member.backendAdvertiseAddr || "—"}</td>
-                  <td className="px-4 py-3">{member.role || "—"}</td>
                   <td className="px-4 py-3">{joinedOrTtl(member)}</td>
                 </tr>
                 );

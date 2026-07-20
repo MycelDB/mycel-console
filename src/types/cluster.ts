@@ -2,6 +2,51 @@ export type ClusterNodeState = "standalone" | "clustered" | "failed" | "stopped"
 export type ClusterMode = "standalone" | "clustered" | string;
 export type ClusterPeerState = "self" | "active" | "unreachable" | string;
 export type ClusterPeerSource = "self" | "discovered" | string;
+export type ClusterEngine = "raft" | "unspecified" | string;
+export type RaftGroupKind = "system" | "partition" | "unspecified" | string;
+export type RaftGroupHealth = "healthy" | "no_leader" | "unknown" | "unspecified" | string;
+
+export type ClusterRuntimeStatusInfo = {
+  engine: ClusterEngine;
+  clusterName?: string;
+  raftNodeCount: number;
+  raftPartitionCount: number;
+  raftReplicaFactor: number;
+  localRaftNodeId: number;
+  raftNodeAddrs: string[];
+  raftGroupCount: number;
+  raftGroupsWithLeader: number;
+};
+
+export type RaftGroupStatusInfo = {
+  groupId: string;
+  kind: RaftGroupKind;
+  partitionId?: number;
+  localNodeId: number;
+  leaderNodeId?: number;
+  preferredLeaderNodeId?: number;
+  replicaNodeIds: number[];
+  health: RaftGroupHealth;
+  term: number;
+  commitIndex: number;
+  appliedIndex: number;
+  applyLag: number;
+};
+
+export type ListRaftGroupsResponse = {
+  groups: RaftGroupStatusInfo[];
+};
+
+export type LookupSpaceRouteInput = {
+  spaceId: string;
+};
+
+export type LookupSpaceRouteResult = {
+  spaceId: string;
+  partitionId: number;
+  leaderNodeId?: number;
+  replicaNodeIds: number[];
+};
 
 export type ClusterPeerInfo = {
   nodeId?: string;
@@ -14,25 +59,11 @@ export type ClusterPeerInfo = {
   lastSeenAt?: string;
 };
 
-export type AddClusterNodeInput = {
-  nodeName: string;
-  tokenTtlSeconds?: number;
-};
-
-export type AddClusterNodeResult = {
-  nodeName: string;
-  state: "pending" | string;
-  token?: string;
-  tokenId: string;
-  expiresAt: string;
-};
-
 export type ClusterMemberInfo = {
   nodeName: string;
   nodeId?: string;
   state: "pending" | "active" | "rejected" | "removed" | string;
   backendAdvertiseAddr?: string;
-  role?: string;
   clusterBootstrap?: boolean;
   nodePublicKeyFingerprint?: string;
   tokenId?: string;
@@ -48,6 +79,14 @@ export type ListClusterMembersResponse = {
   clusterId: string;
   clusterName?: string;
   members: ClusterMemberInfo[];
+};
+
+export type ClusterHealthInfo = {
+  status: string;
+  warnings: string[];
+  activeMembers: number;
+  pendingMembers: number;
+  unreachablePeers: number;
 };
 
 export type ClusterStatusInfo = {

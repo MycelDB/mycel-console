@@ -1916,7 +1916,6 @@ name = "mycel-admin"
 version = "0.1.0"
 dependencies = [
  "mycel-sdk",
- "prost",
  "prost-types",
  "serde",
  "serde_json",
@@ -1942,6 +1941,7 @@ name = "mycel-sdk"
 version = "0.1.0"
 dependencies = [
  "mycel-proto",
+ "prost",
  "prost-types",
  "thiserror 1.0.69",
  "time",

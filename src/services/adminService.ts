@@ -9,7 +9,7 @@ import type {
   TriggerBackupResponse,
 } from "../types/backups";
 import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../types/auth";
-import type { AddClusterNodeInput, AddClusterNodeResult, ClusterStatusInfo, ListClusterMembersResponse } from "../types/cluster";
+import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, ListClusterMembersResponse, ListRaftGroupsResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
 import type {
   ApplyInferencePackageResponse,
@@ -28,6 +28,7 @@ import type {
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
 import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
+import type { GetTemplateInput, ListTemplatesInput, ListTemplatesResponse, TemplateInfo } from "../types/templates";
 import type {
   CreateUserInput,
   DeleteUserInput,
@@ -62,12 +63,24 @@ export async function getClusterStatus(): Promise<ClusterStatusInfo> {
   return invoke<ClusterStatusInfo>("admin_get_cluster_status");
 }
 
-export async function addClusterNode(input: AddClusterNodeInput): Promise<AddClusterNodeResult> {
-  return invoke<AddClusterNodeResult>("admin_add_cluster_node", { input });
+export async function getClusterRuntimeStatus(): Promise<ClusterRuntimeStatusInfo> {
+  return invoke<ClusterRuntimeStatusInfo>("admin_get_cluster_runtime_status");
+}
+
+export async function listRaftGroups(): Promise<ListRaftGroupsResponse> {
+  return invoke<ListRaftGroupsResponse>("admin_list_raft_groups");
+}
+
+export async function lookupSpaceRoute(input: LookupSpaceRouteInput): Promise<LookupSpaceRouteResult> {
+  return invoke<LookupSpaceRouteResult>("admin_lookup_space_route", { input });
 }
 
 export async function listClusterMembers(): Promise<ListClusterMembersResponse> {
   return invoke<ListClusterMembersResponse>("admin_list_cluster_members");
+}
+
+export async function getClusterHealth(): Promise<ClusterHealthInfo> {
+  return invoke<ClusterHealthInfo>("admin_get_cluster_health");
 }
 
 export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersResponse> {
@@ -88,6 +101,14 @@ export async function listSpaces(input: ListSpacesInput = {}): Promise<ListSpace
 
 export async function getSpace(spaceId: string): Promise<SpaceInfo> {
   return invoke<SpaceInfo>("admin_get_space", { spaceId });
+}
+
+export async function listTemplates(input: ListTemplatesInput): Promise<ListTemplatesResponse> {
+  return invoke<ListTemplatesResponse>("admin_list_templates", { input });
+}
+
+export async function getTemplate(input: GetTemplateInput): Promise<TemplateInfo> {
+  return invoke<TemplateInfo>("admin_get_template", { input });
 }
 
 export async function listDomains(input: ListDomainsInput): Promise<ListDomainsResponse> {

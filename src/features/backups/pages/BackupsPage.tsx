@@ -50,6 +50,7 @@ export function BackupsPage({
   const [pendingDelete, setPendingDelete] = useState<BackupSummaryInfo | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [activeTab, setActiveTab] = useState<"status" | "policy" | "files">("status");
 
   const load = useCallback(
     async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
@@ -178,8 +179,34 @@ export function BackupsPage({
         </div>
       ) : (
         <>
-          <StatusPanel status={status} />
-          {policy && (
+          <div className="border-b border-slate-200 dark:border-slate-800">
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Backup sections">
+              {[
+                ["status", "Status"],
+                ["policy", "Policy"],
+                ["files", "Files"],
+              ].map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  className={[
+                    "rounded-t-md px-4 py-2 text-sm font-medium transition",
+                    activeTab === tab
+                      ? "border border-b-white border-slate-200 bg-white text-slate-950 dark:border-slate-800 dark:border-b-slate-950 dark:bg-slate-950 dark:text-slate-100"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
+                  ].join(" ")}
+                  onClick={() => setActiveTab(tab as typeof activeTab)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {activeTab === "status" && <StatusPanel status={status} />}
+          {activeTab === "policy" && policy && (
             <PolicyPanel
               policy={policy}
               onChange={setPolicy}
@@ -187,28 +214,32 @@ export function BackupsPage({
               saving={savingPolicy}
             />
           )}
-          <BackupFilesPanel
-            backups={backups}
-            deletingBackupId={deletingBackupId}
-            onDelete={requestDeleteBackup}
-          />
+          {activeTab === "files" && (
+            <>
+              <BackupFilesPanel
+                backups={backups}
+                deletingBackupId={deletingBackupId}
+                onDelete={requestDeleteBackup}
+              />
+              {nextPageToken && (
+                <div className="flex justify-center">
+                  <Button
+                    variant="secondary"
+                    onClick={() => void load({ append: true, pageToken: nextPageToken })}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? "Loading more…" : "Load more"}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
           <DeleteBackupDialog
             backup={pendingDelete}
             deleting={Boolean(deletingBackupId)}
             onCancel={() => setPendingDelete(null)}
             onConfirm={() => void confirmDeleteBackup()}
           />
-          {nextPageToken && (
-            <div className="flex justify-center">
-              <Button
-                variant="secondary"
-                onClick={() => void load({ append: true, pageToken: nextPageToken })}
-                disabled={loadingMore}
-              >
-                {loadingMore ? "Loading more…" : "Load more"}
-              </Button>
-            </div>
-          )}
         </>
       )}
     </section>

@@ -6,7 +6,10 @@ use commands::backups::{
     admin_delete_backup, admin_get_backup_policy, admin_get_backup_status, admin_list_backups,
     admin_trigger_backup, admin_update_backup_policy,
 };
-use commands::cluster::{admin_add_cluster_node, admin_get_cluster_status, admin_list_cluster_members};
+use commands::cluster::{
+    admin_get_cluster_health, admin_get_cluster_runtime_status, admin_get_cluster_status,
+    admin_list_cluster_members, admin_list_raft_groups, admin_lookup_space_route,
+};
 use commands::domains::admin_list_domains;
 use commands::inference::{
     admin_apply_inference_package, admin_list_inference_packages,
@@ -21,6 +24,7 @@ use commands::semantic_maintenance::{
     admin_retry_semantic_maintenance_work,
 };
 use commands::spaces::{admin_get_space, admin_list_spaces};
+use commands::templates::{admin_get_template, admin_list_templates};
 use commands::users::{
     admin_create_user, admin_delete_user, admin_disable_user, admin_enable_user, admin_get_user,
     admin_list_user_sessions, admin_list_users, admin_revoke_user_session,
@@ -43,6 +47,8 @@ pub fn run() {
             admin_revoke_user_sessions,
             admin_list_spaces,
             admin_get_space,
+            admin_list_templates,
+            admin_get_template,
             admin_list_domains,
             admin_list_semantic_indexes,
             admin_get_semantic_maintenance_status,
@@ -64,7 +70,10 @@ pub fn run() {
             admin_trigger_backup,
             admin_delete_backup,
             admin_get_cluster_status,
-            admin_add_cluster_node,
+            admin_get_cluster_health,
+            admin_get_cluster_runtime_status,
+            admin_list_raft_groups,
+            admin_lookup_space_route,
             admin_list_cluster_members,
             admin_list_inference_packages,
             admin_list_model_endpoints,

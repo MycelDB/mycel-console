@@ -6,4 +6,5 @@ pub mod inference;
 pub mod semantic;
 pub mod semantic_maintenance;
 pub mod spaces;
+pub mod templates;
 pub mod users;

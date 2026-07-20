@@ -1,25 +1,40 @@
-export type TemplateState = "TEMPLATE_STATE_UNSPECIFIED" | "TEMPLATE_STATE_ACTIVE" | "TEMPLATE_STATE_ARCHIVED";
+export type TemplatePropertyInfo = {
+  name: string;
+  valueType: string;
+  required: boolean;
+  description?: string;
+};
 
 export type TemplateInfo = {
   templateId: string;
   spaceId: string;
   key: string;
   version: string;
-  displayName: string;
-  description: string;
+  displayName?: string;
+  description?: string;
   system: boolean;
-  state: TemplateState | string;
+  state: string;
+  propertiesAllowExtra: boolean;
+  propertiesForbidden: string[];
+  properties: TemplatePropertyInfo[];
+  createTime?: string;
+  updateTime?: string;
 };
 
 export type ListTemplatesInput = {
   spaceId: string;
   pageSize?: number;
   pageToken?: string;
-  includeSystem?: boolean;
   includeArchived?: boolean;
+  includeSystem?: boolean;
 };
 
 export type ListTemplatesResponse = {
   templates: TemplateInfo[];
-  nextPageToken: string;
+  nextPageToken?: string;
+};
+
+export type GetTemplateInput = {
+  spaceId: string;
+  templateId: string;
 };

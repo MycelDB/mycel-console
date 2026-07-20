@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { UserTable } from "./UserTable";
 
 test("renders empty state", () => {
@@ -9,15 +10,17 @@ test("renders empty state", () => {
 
 test("renders user rows", () => {
   render(
-    <UserTable
-      users={[
-        { userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" },
-        { userId: "usr_disabled", username: "disabled", state: "USER_STATE_DISABLED" },
-      ]}
-    />,
+    <MemoryRouter>
+      <UserTable
+        users={[
+          { userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" },
+          { userId: "usr_disabled", username: "disabled", state: "USER_STATE_DISABLED" },
+        ]}
+      />
+    </MemoryRouter>,
   );
 
-  expect(screen.getByText("alice")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/users/usr_alice");
   expect(screen.getByText("usr_alice")).toBeInTheDocument();
   expect(screen.getByText("Active")).toBeInTheDocument();
   expect(screen.getByText("disabled")).toBeInTheDocument();

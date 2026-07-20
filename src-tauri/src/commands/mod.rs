@@ -1,3 +1,10 @@
 pub mod auth;
+pub mod backups;
+pub mod cluster;
+pub mod domains;
+pub mod inference;
+pub mod semantic;
+pub mod semantic_maintenance;
 pub mod spaces;
+pub mod templates;
 pub mod users;

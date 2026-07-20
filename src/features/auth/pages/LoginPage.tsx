@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Main } from "../../../components/typography";
-import type { LoginInput, OperatorSession } from "../../../types/auth";
-import { login as defaultLogin } from "../../../services/adminService";
+import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../../../types/auth";
+import { connectionDiagnostics as defaultConnectionDiagnostics, login as defaultLogin } from "../../../services/adminService";
 import { LoginForm } from "../components/LoginForm";
 
 export type LoginPageProps = {
   onLoginSuccess: (session: OperatorSession) => void;
   loginService?: (input: LoginInput) => Promise<OperatorSession>;
+  diagnosticsService?: (input: LoginInput) => Promise<ConnectionDiagnosticsResponse>;
 };
 
 function errorMessage(err: unknown, fallback: string) {
@@ -15,9 +16,11 @@ function errorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
-export function LoginPage({ onLoginSuccess, loginService = defaultLogin }: LoginPageProps) {
+export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnosticsService = defaultConnectionDiagnostics }: LoginPageProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<ConnectionDiagnosticsResponse | null>(null);
 
   async function handleSubmit(input: LoginInput) {
     setError("");
@@ -35,9 +38,28 @@ export function LoginPage({ onLoginSuccess, loginService = defaultLogin }: Login
     }
   }
 
+  async function handleDiagnostics(input: LoginInput) {
+    setError("");
+    setDiagnosticsLoading(true);
+    try {
+      setDiagnostics(await diagnosticsService(input));
+    } catch (err) {
+      setError(errorMessage(err, "Connection diagnostics failed"));
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }
+
   return (
     <Main className="flex items-center justify-center px-4">
-      <LoginForm loading={loading} error={error} onSubmit={handleSubmit} />
+      <LoginForm
+        loading={loading}
+        diagnosticsLoading={diagnosticsLoading}
+        error={error}
+        diagnostics={diagnostics}
+        onSubmit={handleSubmit}
+        onRunDiagnostics={handleDiagnostics}
+      />
     </Main>
   );
 }

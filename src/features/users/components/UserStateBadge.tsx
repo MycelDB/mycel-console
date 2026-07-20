@@ -8,7 +8,7 @@ const stateClasses: Record<string, string> = {
   USER_STATE_ACTIVE: "border-emerald-500/30 bg-emerald-950/50 text-emerald-300",
   USER_STATE_DISABLED: "border-amber-500/30 bg-amber-950/50 text-amber-300",
   USER_STATE_DELETED: "border-red-500/30 bg-red-950/50 text-red-300",
-  USER_STATE_UNSPECIFIED: "border-slate-600 bg-slate-900 text-slate-300",
+  USER_STATE_UNSPECIFIED: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300",
 };
 
 const stateLabels: Record<string, string> = {

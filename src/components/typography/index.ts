@@ -1,5 +1,6 @@
 export { Button } from "./Button";
 export { ErrorBox } from "./ErrorBox";
+export { FieldHint } from "./FieldHint";
 export { Form } from "./Form";
 export { H2 } from "./H2";
 export { Input } from "./Input";

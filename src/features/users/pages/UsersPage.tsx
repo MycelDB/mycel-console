@@ -136,8 +136,8 @@ export function UsersPage({
           >
             Users
           </Text>
-          <H2 className="mt-2 text-slate-100">User Management</H2>
-          <Text intent="muted" className="mt-2 max-w-2xl text-slate-400">
+          <H2 className="mt-2 text-slate-900 dark:text-slate-100">User Management</H2>
+          <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
             Inspect users and prepare for user lifecycle operations.
           </Text>
         </div>
@@ -156,14 +156,14 @@ export function UsersPage({
       {error && <ErrorBox>{error}</ErrorBox>}
 
       {!loading && (
-        <Text intent="muted" size="sm" className="text-slate-400">
+        <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">
           Showing {filteredUsers.length} of {users.length} loaded user{users.length === 1 ? "" : "s"}.
         </Text>
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-8 text-center">
-          <Text intent="muted" className="text-slate-400">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-8 text-center">
+          <Text intent="muted" className="text-slate-600 dark:text-slate-400">
             Loading users…
           </Text>
         </div>

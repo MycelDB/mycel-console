@@ -1,6 +1,7 @@
-import { H2, Text } from "../../../components/typography";
+import { Text } from "../../../components/typography";
 import type { OperatorSession } from "../../../types/auth";
 import { AlarmList } from "../components/AlarmList";
+import { BackupStatusCard } from "../components/BackupStatusCard";
 import { ClusterSummaryCard } from "../components/ClusterSummaryCard";
 import { ShortcutGrid } from "../components/ShortcutGrid";
 
@@ -19,8 +20,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
         >
           Dashboard
         </Text>
-        <H2 className="mt-2 text-slate-100">Cluster Overview</H2>
-        <Text intent="muted" className="mt-2 max-w-2xl text-slate-400">
+        <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
           Monitor Mycel cluster state, alarms, and operational shortcuts from here.
         </Text>
       </div>
@@ -29,6 +29,8 @@ export function DashboardPage({ session }: DashboardPageProps) {
         <ClusterSummaryCard session={session} />
         <AlarmList />
       </div>
+
+      <BackupStatusCard />
 
       <ShortcutGrid />
     </section>

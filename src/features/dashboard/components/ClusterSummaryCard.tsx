@@ -7,18 +7,18 @@ export type ClusterSummaryCardProps = {
 
 export function ClusterSummaryCard({ session }: ClusterSummaryCardProps) {
   return (
-    <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-5">
+    <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
       <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
         Cluster
       </Text>
       <dl className="mt-5 space-y-4">
         <div>
           <dt className="text-xs uppercase tracking-wide text-slate-500">Address</dt>
-          <dd className="mt-1 font-medium text-slate-100">{session.addr}</dd>
+          <dd className="mt-1 font-medium text-slate-900 dark:text-slate-100">{session.addr}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-slate-500">Operator</dt>
-          <dd className="mt-1 font-medium text-slate-100">{session.username}</dd>
+          <dd className="mt-1 font-medium text-slate-900 dark:text-slate-100">{session.username}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-slate-500">Connection state</dt>

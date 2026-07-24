@@ -9,6 +9,7 @@ import type {
   TriggerBackupResponse,
 } from "../types/backups";
 import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../types/auth";
+import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
 import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, ListClusterMembersResponse, ListRaftGroupsResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
 import type {
@@ -53,6 +54,22 @@ export async function connectionDiagnostics(input: LoginInput): Promise<Connecti
 
 export async function logout(): Promise<void> {
   await invoke<void>("admin_logout");
+}
+
+export async function clientQueryLogin(input: ClientQueryLoginInput): Promise<ClientQuerySessionInfo> {
+  return invoke<ClientQuerySessionInfo>("admin_console_client_query_login", { input });
+}
+
+export async function clientQueryLogout(): Promise<void> {
+  return invoke<void>("admin_console_client_query_logout");
+}
+
+export async function executeGql(input: ExecuteGqlInput): Promise<ExecuteGqlResponse> {
+  return invoke<ExecuteGqlResponse>("admin_console_execute_gql", { input });
+}
+
+export async function executeGraphQuery(input: ExecuteGraphQueryInput): Promise<ExecuteGraphQueryResponse> {
+  return invoke<ExecuteGraphQueryResponse>("admin_console_execute_graph_query", { input });
 }
 
 export async function whoAmI(): Promise<OperatorSession | null> {

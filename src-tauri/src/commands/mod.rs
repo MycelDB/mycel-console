@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod backups;
+pub mod client_query;
 pub mod cluster;
 pub mod domains;
 pub mod inference;

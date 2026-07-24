@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, listTemplates as defaultListTemplates, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, executeGql, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, listTemplates as defaultListTemplates, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import type { ClientQuerySessionInfo } from "../../../types/clientQuery";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse, SemanticIndexInfo } from "../../../types/semantic";
@@ -48,7 +49,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   const [confirmMaintenanceAction, setConfirmMaintenanceAction] = useState<{ kind: "retry" | "cancel"; item: SemanticMaintenanceWorkItemInfo } | null>(null);
   const [maintenanceActionLoading, setMaintenanceActionLoading] = useState(false);
   const [maintenanceResult, setMaintenanceResult] = useState("");
-  const [activeTab, setActiveTab] = useState<"general" | "domains" | "semantic" | "templates">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "domains" | "semantic" | "query" | "templates">("general");
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState("");
@@ -275,6 +276,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
             ["general", "General"],
             ["domains", "Domains"],
             ["semantic", "Semantic"],
+            ["query", "Graph query"],
             ["templates", "Templates"],
           ].map(([tab, label]) => (
             <button
@@ -368,6 +370,8 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         actionLoading={maintenanceActionLoading}
         />
       </div>}
+
+      {activeTab === "query" && <div role="tabpanel" aria-label="Graph query"><GraphQueryConsolePreview spaceId={spaceId} domains={domains} /></div>}
 
       {activeTab === "domains" && <div role="tabpanel" aria-label="Domains"><DomainSection
         domains={domains}
@@ -472,6 +476,137 @@ function SemanticIndexesSection({ indexes, loading, error, includeDisabled, onIn
       )}
     </div>
   );
+}
+
+function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domains: DomainInfo[] }) {
+  const [domainId, setDomainId] = useState("");
+  const exampleQuery = "MATCH (n) RETURN n";
+  const [queryText, setQueryText] = useState(exampleQuery);
+  const [clientSession, setClientSession] = useState<ClientQuerySessionInfo | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [addr, setAddr] = useState("127.0.0.1:19091");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<unknown>(null);
+  const [resultView, setResultView] = useState<"rows" | "graph" | "raw">("rows");
+  const [readWrite, setReadWrite] = useState(false);
+  const [confirmWrite, setConfirmWrite] = useState(false);
+  const [alwaysConfirmWrite, setAlwaysConfirmWrite] = useState(() => localStorage.getItem("mycelAdmin.gql.alwaysConfirmWrite") !== "false");
+
+  async function connect() {
+    setLoading(true);
+    setError("");
+    try {
+      const session = await clientQueryLogin({ addr, username, password });
+      setClientSession(session);
+      setPassword("");
+      setLoginOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Client query login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function disconnect() {
+    setLoading(true);
+    try {
+      await clientQueryLogout();
+      setClientSession(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (domainId || domains.length === 0) return;
+    const sorted = [...domains].sort((left, right) => (left.name || left.key || left.domainId).localeCompare(right.name || right.key || right.domainId));
+    const defaultDomain = sorted.find((domain) => domain.key === "default" || domain.name?.toLowerCase() === "default");
+    setDomainId((defaultDomain ?? sorted[0]).domainId);
+  }, [domainId, domains]);
+
+  useEffect(() => {
+    localStorage.setItem("mycelAdmin.gql.alwaysConfirmWrite", alwaysConfirmWrite ? "true" : "false");
+  }, [alwaysConfirmWrite]);
+
+  function requestRunQuery() {
+    if (readWrite && alwaysConfirmWrite) {
+      setConfirmWrite(true);
+      return;
+    }
+    void runQuery();
+  }
+
+  async function runQuery() {
+    setLoading(true);
+    setError("");
+    setResult(null);
+    try {
+      const response = await executeGql({ spaceId, domainId, query: queryText, pageSize: 100, readWrite });
+      setResult(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Query failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const canRun = Boolean(clientSession && domainId && queryText.trim() && !loading);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Graph query console</Text>
+          <Text intent="muted" size="sm" className="mt-1 max-w-3xl text-slate-600 dark:text-slate-400">Execute read-only structured GraphQuery JSON against this space using a separate client/user query identity.</Text>
+        </div>
+        {clientSession ? <Button variant="secondary" onClick={() => void disconnect()} disabled={loading}>Disconnect client</Button> : <Button variant="secondary" onClick={() => setLoginOpen(true)}>Connect client session</Button>}
+      </div>
+      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
+          <div><span className="font-medium">Client identity:</span> {clientSession ? `${clientSession.username} @ ${clientSession.addr}` : "Not connected"}</div>
+          <div><span className="font-medium">Space:</span> <span className="font-mono text-xs">{spaceId}</span></div>
+          <label className="block font-medium">Domain<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={domainId} onChange={(event) => setDomainId(event.target.value)}><option value="">Select domain…</option>{domains.map((domain) => <option key={domain.domainId} value={domain.domainId}>{domain.name || domain.key || domain.domainId}</option>)}</select></label>
+          <label className="block font-medium">Mode<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={readWrite ? "read-write" : "read-only"} onChange={(event) => setReadWrite(event.target.value === "read-write")}><option value="read-only">Read-only</option><option value="read-write">Read-write</option></select></label>
+          <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={alwaysConfirmWrite} onChange={(event) => setAlwaysConfirmWrite(event.target.checked)} />Confirm write queries before running</label>
+        </div>
+        <div>
+          <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">GQL query</Text>
+          <textarea className="mt-2 h-52 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={queryText} onChange={(event) => setQueryText(event.target.value)} onKeyDown={(event) => event.stopPropagation()} spellCheck={false} />
+          <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canRun} onClick={requestRunQuery}>{loading ? "Running…" : readWrite ? "Run write query" : "Run query"}</Button><Button variant="secondary" disabled={!result} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(result ?? null, null, 2))}>Copy result</Button></div>
+          {Boolean(result) && <div className="mt-4 flex gap-2" role="tablist" aria-label="Query result views">{(["rows", "graph", "raw"] as const).map((view) => <button key={view} type="button" className={`rounded-md px-3 py-1 text-sm ${resultView === view ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" : "text-slate-600 dark:text-slate-400"}`} onClick={() => setResultView(view)}>{view === "rows" ? "Rows" : view === "graph" ? "Graph" : "Raw JSON"}</button>)}</div>}
+          <QueryResultView result={result} view={resultView} />
+        </div>
+      </div>
+      {confirmWrite && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Run read-write GQL?</Text><Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">This will execute in a read-write transaction and commit if the query succeeds. Target: {spaceId} / {domainId}.</Text><pre className="mt-4 max-h-40 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{queryText}</pre><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setConfirmWrite(false)} disabled={loading}>Cancel</Button><Button onClick={() => { setConfirmWrite(false); void runQuery(); }} disabled={loading}>Run and commit</Button></div></div></div>}
+      {loginOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Connect client query identity</Text><div className="mt-4 space-y-3"><label className="block text-sm font-medium">Address<input className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={addr} onChange={(e) => setAddr(e.target.value)} /></label><label className="block text-sm font-medium">Username<input className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={username} onChange={(e) => setUsername(e.target.value)} /></label><label className="block text-sm font-medium">Password<input type="password" className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={password} onChange={(e) => setPassword(e.target.value)} /></label></div><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setLoginOpen(false)} disabled={loading}>Cancel</Button><Button onClick={() => void connect()} disabled={loading}>{loading ? "Connecting…" : "Connect"}</Button></div></div></div>}
+    </div>
+  );
+}
+
+function QueryResultView({ result, view }: { result: any; view: "rows" | "graph" | "raw" }) {
+  if (!result) return <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">No query run yet.</div>;
+  const payload = result.result ?? result;
+  if (view === "graph") {
+    const nodes = payload?.graph?.nodes ?? [];
+    const edges = payload?.graph?.edges ?? [];
+    return (
+      <div className="mt-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+        <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">Graph preview</Text>
+        {nodes.length === 0 && edges.length === 0 ? <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">No graph elements returned.</Text> : null}
+        {nodes.length > 0 ? <div className="mt-3"><Text as="p" size="sm" className="font-medium">Nodes</Text><div className="mt-2 grid gap-2 sm:grid-cols-2">{nodes.map((node: any) => <div key={node.nodeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{node.nodeId}</div><div className="mt-1 font-medium">{(node.labels ?? []).join(", ") || "Unlabeled node"}</div><div className="mt-1 text-xs text-slate-500">{Object.keys(node.properties ?? {}).length} properties</div></div>)}</div></div> : null}
+        {edges.length > 0 ? <div className="mt-4"><Text as="p" size="sm" className="font-medium">Edges</Text><div className="mt-2 grid gap-2">{edges.map((edge: any) => <div key={edge.edgeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{edge.edgeId}</div><div className="mt-1 font-medium">{(edge.labels ?? []).join(", ") || "Unlabeled edge"}</div><div className="mt-1 font-mono text-xs text-slate-500">{edge.fromNodeId} → {edge.toNodeId}</div><div className="mt-1 text-xs text-slate-500">{Object.keys(edge.properties ?? {}).length} properties</div></div>)}</div></div> : null}
+      </div>
+    );
+  }
+  if (view === "rows") {
+    const rows = payload?.rows ?? [];
+    return <pre className="mt-3 max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{rows.length ? JSON.stringify(rows, null, 2) : "No rows returned."}</pre>;
+  }
+  return <pre className="mt-3 max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{JSON.stringify(result, null, 2)}</pre>;
 }
 
 function DomainSection({

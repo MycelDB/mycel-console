@@ -1,7 +1,8 @@
 use mycel_sdk::proto::client::v1::{
-    BeginTransactionRequest, CloseSessionRequest, CloseTransactionRequest, ExecuteGqlRequest,
-    ExecuteQueryRequest, GraphPattern, GraphQuery, Node, NodePattern, OpenSessionRequest,
-    QueryResult, QueryRow, ReturnProjection, ReturnProjectionKind, TransactionMode,
+    BeginTransactionRequest, CloseSessionRequest, CloseTransactionRequest,
+    CommitTransactionRequest, ExecuteGqlRequest, ExecuteQueryRequest, GraphPattern, GraphQuery,
+    Node, NodePattern, OpenSessionRequest, QueryResult, QueryRow, ReturnProjection,
+    ReturnProjectionKind, TransactionMode,
 };
 use mycel_sdk::Config;
 use serde_json::{json, Value};
@@ -34,6 +35,8 @@ pub struct ExecuteGqlInput {
     pub page_size: Option<i32>,
     #[serde(default)]
     pub page_token: Option<String>,
+    #[serde(default)]
+    pub read_write: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -128,7 +131,11 @@ pub async fn admin_console_execute_gql(
         .transaction
         .begin_transaction(tonic::Request::new(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
-            mode: TransactionMode::ReadOnly as i32,
+            mode: if input.read_write {
+                TransactionMode::ReadWrite as i32
+            } else {
+                TransactionMode::ReadOnly as i32
+            },
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -149,13 +156,24 @@ pub async fn admin_console_execute_gql(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    let _ = session
-        ._client
-        .transaction
-        .close_transaction(tonic::Request::new(CloseTransactionRequest {
-            transaction_id: tx.transaction_id,
-        }))
-        .await;
+    if input.read_write {
+        session
+            ._client
+            .transaction
+            .commit_transaction(tonic::Request::new(CommitTransactionRequest {
+                transaction_id: tx.transaction_id,
+            }))
+            .await
+            .map_err(|err| err.to_string())?;
+    } else {
+        let _ = session
+            ._client
+            .transaction
+            .close_transaction(tonic::Request::new(CloseTransactionRequest {
+                transaction_id: tx.transaction_id,
+            }))
+            .await;
+    }
     let _ = session
         ._client
         .session
@@ -268,10 +286,19 @@ fn query_result_json(result: &QueryResult) -> Value {
 fn query_row_json(row: &QueryRow) -> Value {
     let mut fields = serde_json::Map::new();
     for (name, value) in &row.fields {
-        if let Some(mycel_sdk::proto::client::v1::query_value::Value::Node(node)) = &value.value {
-            fields.insert(name.clone(), json!({ "node": node_json(node) }));
-        } else {
-            fields.insert(name.clone(), Value::String(format!("{value:?}")));
+        match &value.value {
+            Some(mycel_sdk::proto::client::v1::query_value::Value::Node(node)) => {
+                fields.insert(name.clone(), json!({ "node": node_json(node) }));
+            }
+            Some(mycel_sdk::proto::client::v1::query_value::Value::Scalar(value)) => {
+                fields.insert(name.clone(), json!({ "scalar": prost_value_json(value) }));
+            }
+            Some(mycel_sdk::proto::client::v1::query_value::Value::Tree(tree)) => {
+                fields.insert(name.clone(), json!({ "tree": format!("{tree:?}") }));
+            }
+            None => {
+                fields.insert(name.clone(), Value::Null);
+            }
         }
     }
     Value::Object(fields)

@@ -491,6 +491,8 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
   const [error, setError] = useState("");
   const [result, setResult] = useState<unknown>(null);
   const [resultView, setResultView] = useState<"rows" | "graph" | "raw">("rows");
+  const [readWrite, setReadWrite] = useState(false);
+  const [confirmWrite, setConfirmWrite] = useState(false);
 
   async function connect() {
     setLoading(true);
@@ -517,12 +519,20 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
     }
   }
 
+  function requestRunQuery() {
+    if (readWrite) {
+      setConfirmWrite(true);
+      return;
+    }
+    void runQuery();
+  }
+
   async function runQuery() {
     setLoading(true);
     setError("");
     setResult(null);
     try {
-      const response = await executeGql({ spaceId, domainId, query: queryText, pageSize: 100 });
+      const response = await executeGql({ spaceId, domainId, query: queryText, pageSize: 100, readWrite });
       setResult(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Query failed");
@@ -548,16 +558,17 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
           <div><span className="font-medium">Client identity:</span> {clientSession ? `${clientSession.username} @ ${clientSession.addr}` : "Not connected"}</div>
           <div><span className="font-medium">Space:</span> <span className="font-mono text-xs">{spaceId}</span></div>
           <label className="block font-medium">Domain<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={domainId} onChange={(event) => setDomainId(event.target.value)}><option value="">Select domain…</option>{domains.map((domain) => <option key={domain.domainId} value={domain.domainId}>{domain.name || domain.key || domain.domainId}</option>)}</select></label>
-          <div><span className="font-medium">Mode:</span> Read-only</div>
+          <label className="block font-medium">Mode<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={readWrite ? "read-write" : "read-only"} onChange={(event) => setReadWrite(event.target.value === "read-write")}><option value="read-only">Read-only</option><option value="read-write">Read-write</option></select></label>
         </div>
         <div>
           <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">GQL query</Text>
           <textarea className="mt-2 h-52 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={queryText} onChange={(event) => setQueryText(event.target.value)} onKeyDown={(event) => event.stopPropagation()} spellCheck={false} />
-          <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canRun} onClick={() => void runQuery()}>{loading ? "Running…" : "Run query"}</Button><Button variant="secondary" disabled={!result} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(result ?? null, null, 2))}>Copy result</Button></div>
+          <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canRun} onClick={requestRunQuery}>{loading ? "Running…" : readWrite ? "Run write query" : "Run query"}</Button><Button variant="secondary" disabled={!result} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(result ?? null, null, 2))}>Copy result</Button></div>
           {Boolean(result) && <div className="mt-4 flex gap-2" role="tablist" aria-label="Query result views">{(["rows", "graph", "raw"] as const).map((view) => <button key={view} type="button" className={`rounded-md px-3 py-1 text-sm ${resultView === view ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" : "text-slate-600 dark:text-slate-400"}`} onClick={() => setResultView(view)}>{view === "rows" ? "Rows" : view === "graph" ? "Graph" : "Raw JSON"}</button>)}</div>}
           <QueryResultView result={result} view={resultView} />
         </div>
       </div>
+      {confirmWrite && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Run read-write GQL?</Text><Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">This will execute in a read-write transaction and commit if the query succeeds. Target: {spaceId} / {domainId}.</Text><pre className="mt-4 max-h-40 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{queryText}</pre><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setConfirmWrite(false)} disabled={loading}>Cancel</Button><Button onClick={() => { setConfirmWrite(false); void runQuery(); }} disabled={loading}>Run and commit</Button></div></div></div>}
       {loginOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Connect client query identity</Text><div className="mt-4 space-y-3"><label className="block text-sm font-medium">Address<input className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={addr} onChange={(e) => setAddr(e.target.value)} /></label><label className="block text-sm font-medium">Username<input className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={username} onChange={(e) => setUsername(e.target.value)} /></label><label className="block text-sm font-medium">Password<input type="password" className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={password} onChange={(e) => setPassword(e.target.value)} /></label></div><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setLoginOpen(false)} disabled={loading}>Cancel</Button><Button onClick={() => void connect()} disabled={loading}>{loading ? "Connecting…" : "Connect"}</Button></div></div></div>}
     </div>
   );

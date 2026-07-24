@@ -493,6 +493,7 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
   const [resultView, setResultView] = useState<"rows" | "graph" | "raw">("rows");
   const [readWrite, setReadWrite] = useState(false);
   const [confirmWrite, setConfirmWrite] = useState(false);
+  const [alwaysConfirmWrite, setAlwaysConfirmWrite] = useState(() => localStorage.getItem("mycelAdmin.gql.alwaysConfirmWrite") !== "false");
 
   async function connect() {
     setLoading(true);
@@ -519,8 +520,19 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
     }
   }
 
+  useEffect(() => {
+    if (domainId || domains.length === 0) return;
+    const sorted = [...domains].sort((left, right) => (left.name || left.key || left.domainId).localeCompare(right.name || right.key || right.domainId));
+    const defaultDomain = sorted.find((domain) => domain.key === "default" || domain.name?.toLowerCase() === "default");
+    setDomainId((defaultDomain ?? sorted[0]).domainId);
+  }, [domainId, domains]);
+
+  useEffect(() => {
+    localStorage.setItem("mycelAdmin.gql.alwaysConfirmWrite", alwaysConfirmWrite ? "true" : "false");
+  }, [alwaysConfirmWrite]);
+
   function requestRunQuery() {
-    if (readWrite) {
+    if (readWrite && alwaysConfirmWrite) {
       setConfirmWrite(true);
       return;
     }
@@ -559,6 +571,7 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
           <div><span className="font-medium">Space:</span> <span className="font-mono text-xs">{spaceId}</span></div>
           <label className="block font-medium">Domain<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={domainId} onChange={(event) => setDomainId(event.target.value)}><option value="">Select domain…</option>{domains.map((domain) => <option key={domain.domainId} value={domain.domainId}>{domain.name || domain.key || domain.domainId}</option>)}</select></label>
           <label className="block font-medium">Mode<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={readWrite ? "read-write" : "read-only"} onChange={(event) => setReadWrite(event.target.value === "read-write")}><option value="read-only">Read-only</option><option value="read-write">Read-write</option></select></label>
+          <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={alwaysConfirmWrite} onChange={(event) => setAlwaysConfirmWrite(event.target.checked)} />Confirm write queries before running</label>
         </div>
         <div>
           <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">GQL query</Text>

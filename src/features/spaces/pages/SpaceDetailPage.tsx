@@ -592,7 +592,15 @@ function QueryResultView({ result, view }: { result: any; view: "rows" | "graph"
   const payload = result.result ?? result;
   if (view === "graph") {
     const nodes = payload?.graph?.nodes ?? [];
-    return <div className="mt-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">Graph preview</Text>{nodes.length === 0 ? <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">No graph nodes returned.</Text> : <div className="mt-3 grid gap-2 sm:grid-cols-2">{nodes.map((node: any) => <div key={node.nodeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{node.nodeId}</div><div className="mt-1 font-medium">{(node.labels ?? []).join(", ") || "Unlabeled node"}</div><div className="mt-1 text-xs text-slate-500">{(node.propertyKeys ?? []).length} properties</div></div>)}</div>}</div>;
+    const edges = payload?.graph?.edges ?? [];
+    return (
+      <div className="mt-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+        <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">Graph preview</Text>
+        {nodes.length === 0 && edges.length === 0 ? <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">No graph elements returned.</Text> : null}
+        {nodes.length > 0 ? <div className="mt-3"><Text as="p" size="sm" className="font-medium">Nodes</Text><div className="mt-2 grid gap-2 sm:grid-cols-2">{nodes.map((node: any) => <div key={node.nodeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{node.nodeId}</div><div className="mt-1 font-medium">{(node.labels ?? []).join(", ") || "Unlabeled node"}</div><div className="mt-1 text-xs text-slate-500">{Object.keys(node.properties ?? {}).length} properties</div></div>)}</div></div> : null}
+        {edges.length > 0 ? <div className="mt-4"><Text as="p" size="sm" className="font-medium">Edges</Text><div className="mt-2 grid gap-2">{edges.map((edge: any) => <div key={edge.edgeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{edge.edgeId}</div><div className="mt-1 font-medium">{(edge.labels ?? []).join(", ") || "Unlabeled edge"}</div><div className="mt-1 font-mono text-xs text-slate-500">{edge.fromNodeId} → {edge.toNodeId}</div><div className="mt-1 text-xs text-slate-500">{Object.keys(edge.properties ?? {}).length} properties</div></div>)}</div></div> : null}
+      </div>
+    );
   }
   if (view === "rows") {
     const rows = payload?.rows ?? [];

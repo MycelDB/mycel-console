@@ -1,6 +1,6 @@
 use mycel_sdk::proto::client::v1::{
     BeginTransactionRequest, CloseSessionRequest, CloseTransactionRequest,
-    CommitTransactionRequest, ExecuteGqlRequest, ExecuteQueryRequest, GraphPattern, GraphQuery,
+    CommitTransactionRequest, Edge, ExecuteGqlRequest, ExecuteQueryRequest, GraphPattern, GraphQuery,
     Node, NodePattern, OpenSessionRequest, QueryResult, QueryRow, ReturnProjection,
     ReturnProjectionKind, TransactionMode,
 };
@@ -269,7 +269,7 @@ fn query_result_json(result: &QueryResult) -> Value {
         "rows": result.rows.iter().map(query_row_json).collect::<Vec<_>>(),
         "graph": {
             "nodes": result.graph.as_ref().map(|graph| graph.nodes.iter().map(node_json).collect::<Vec<_>>()).unwrap_or_default(),
-            "edges": [],
+            "edges": result.graph.as_ref().map(|graph| graph.edges.iter().map(edge_json).collect::<Vec<_>>()).unwrap_or_default(),
         },
         "counters": result.counters.as_ref().map(|counters| json!({
             "rowsReturned": counters.rows_returned,
@@ -293,6 +293,9 @@ fn query_row_json(row: &QueryRow) -> Value {
             Some(mycel_sdk::proto::client::v1::query_value::Value::Scalar(value)) => {
                 fields.insert(name.clone(), json!({ "scalar": prost_value_json(value) }));
             }
+            Some(mycel_sdk::proto::client::v1::query_value::Value::Edge(edge)) => {
+                fields.insert(name.clone(), json!({ "edge": edge_json(edge) }));
+            }
             Some(mycel_sdk::proto::client::v1::query_value::Value::Tree(tree)) => {
                 fields.insert(name.clone(), json!({ "tree": format!("{tree:?}") }));
             }
@@ -312,6 +315,19 @@ fn node_json(node: &Node) -> Value {
         "properties": node.properties.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
         "payload": node.payload.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
         "meta": node.meta.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
+    })
+}
+
+fn edge_json(edge: &Edge) -> Value {
+    json!({
+        "edgeId": edge.edge_id,
+        "domainId": edge.domain_id,
+        "fromNodeId": edge.from_node_id,
+        "toNodeId": edge.to_node_id,
+        "labels": edge.labels,
+        "properties": edge.properties.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
+        "payload": edge.payload.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
+        "meta": edge.meta.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
     })
 }
 

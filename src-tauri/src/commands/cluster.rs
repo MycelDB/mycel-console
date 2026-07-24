@@ -3,11 +3,10 @@ use tonic::Request;
 
 use crate::state::AppState;
 use mycel_sdk::proto::admin::v1::{
-    ClusterEngine, ClusterMember, ClusterMemberState, ClusterMode, ClusterNodeState,
-    ClusterPeer, ClusterPeerSource, ClusterPeerState,
-    GetClusterHealthRequest, GetClusterRuntimeStatusRequest, GetClusterStatusRequest,
-    ListClusterMembersRequest, ListRaftGroupsRequest, LookupSpaceRouteRequest, RaftGroupHealth,
-    RaftGroupKind, RaftGroupStatus,
+    ClusterEngine, ClusterMember, ClusterMemberState, ClusterMode, ClusterNodeState, ClusterPeer,
+    ClusterPeerSource, ClusterPeerState, GetClusterHealthRequest, GetClusterRuntimeStatusRequest,
+    GetClusterStatusRequest, ListClusterMembersRequest, ListRaftGroupsRequest,
+    LookupSpaceRouteRequest, RaftGroupHealth, RaftGroupKind, RaftGroupStatus,
 };
 
 #[derive(Debug, Clone, serde::Serialize)]

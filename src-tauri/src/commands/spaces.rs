@@ -44,7 +44,6 @@ pub struct SpaceInfo {
     pub create_time: String,
     pub update_time: String,
     pub caller_access: Option<EffectiveAccessInfo>,
-    pub template_usage: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -115,7 +114,6 @@ pub async fn admin_list_spaces(
 
 fn space_info(space: Space) -> SpaceInfo {
     let state = space.state().as_str_name().to_string();
-    let template_usage = space.template_usage().as_str_name().to_string();
     SpaceInfo {
         space_id: space.space_id,
         name: space.name,
@@ -124,7 +122,6 @@ fn space_info(space: Space) -> SpaceInfo {
         create_time: timestamp_string(space.create_time),
         update_time: timestamp_string(space.update_time),
         caller_access: space.caller_access.map(effective_access_info),
-        template_usage,
     }
 }
 

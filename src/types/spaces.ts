@@ -22,7 +22,6 @@ export type SpaceInfo = {
   createTime?: string;
   updateTime?: string;
   callerAccess?: EffectiveAccessInfo | null;
-  templateUsage?: string;
 };
 
 export type ListSpacesInput = {

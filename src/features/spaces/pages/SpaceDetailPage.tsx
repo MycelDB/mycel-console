@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, executeGql, executeGqlScript, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, listTemplates as defaultListTemplates, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, executeGql, executeGqlScript, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
 import type { ClientQuerySessionInfo } from "../../../types/clientQuery";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
+import type { DomainSchemaInfo, GetDomainSchemaInput } from "../../../types/schemas";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse, SemanticIndexInfo } from "../../../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, BackfillSemanticIndexInput, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../../../types/semanticMaintenance";
 import type { SpaceInfo } from "../../../types/spaces";
-import type { ListTemplatesInput, ListTemplatesResponse, TemplateInfo } from "../../../types/templates";
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
 
 export type SpaceDetailPageProps = {
   getSpaceService?: (spaceId: string) => Promise<SpaceInfo>;
   listDomainsService?: (input: ListDomainsInput) => Promise<ListDomainsResponse>;
   listSemanticIndexesService?: (input: ListSemanticIndexesInput) => Promise<ListSemanticIndexesResponse>;
-  listTemplatesService?: (input: ListTemplatesInput) => Promise<ListTemplatesResponse>;
+  getDomainSchemaService?: (input: GetDomainSchemaInput) => Promise<DomainSchemaInfo>;
   getSemanticMaintenanceStatusService?: (input: GetSemanticMaintenanceStatusInput) => Promise<SemanticMaintenanceStatusInfo>;
   listSemanticMaintenanceWorkService?: (input: ListSemanticMaintenanceWorkInput) => Promise<ListSemanticMaintenanceWorkResponse>;
   retrySemanticMaintenanceWorkService?: (input: SemanticMaintenanceWorkActionInput) => Promise<SemanticMaintenanceWorkItemInfo>;
@@ -26,7 +26,7 @@ export type SpaceDetailPageProps = {
   lookupSpaceRouteService?: (input: LookupSpaceRouteInput) => Promise<LookupSpaceRouteResult>;
 };
 
-export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, listTemplatesService = defaultListTemplates, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute }: SpaceDetailPageProps) {
+export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
   const [space, setSpace] = useState<SpaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,15 +49,12 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   const [confirmMaintenanceAction, setConfirmMaintenanceAction] = useState<{ kind: "retry" | "cancel"; item: SemanticMaintenanceWorkItemInfo } | null>(null);
   const [maintenanceActionLoading, setMaintenanceActionLoading] = useState(false);
   const [maintenanceResult, setMaintenanceResult] = useState("");
-  const [activeTab, setActiveTab] = useState<"general" | "domains" | "semantic" | "query" | "templates">("general");
-  const [templates, setTemplates] = useState<TemplateInfo[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [templatesError, setTemplatesError] = useState("");
-  const [templatesNextPageToken, setTemplatesNextPageToken] = useState("");
-  const [includeArchivedTemplates, setIncludeArchivedTemplates] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<"general" | "domains" | "schemas" | "semantic" | "query">("general");
   const [spaceRoute, setSpaceRoute] = useState<LookupSpaceRouteResult | null>(null);
   const [spaceRouteError, setSpaceRouteError] = useState("");
+  const [domainSchemas, setDomainSchemas] = useState<Record<string, DomainSchemaInfo | null>>({});
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [schemaError, setSchemaError] = useState("");
 
   const loadDomains = useCallback(
     async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
@@ -137,24 +134,29 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
     return () => { cancelled = true; };
   }, [lookupSpaceRouteService, spaceId]);
 
-  const loadTemplates = useCallback(async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
-    if (!spaceId) return;
-    setTemplatesLoading(true);
-    setTemplatesError("");
+  const loadSchemas = useCallback(async () => {
+    setSchemaLoading(true);
+    setSchemaError("");
     try {
-      const response = await listTemplatesService({ spaceId, pageSize: 100, pageToken, includeArchived: includeArchivedTemplates });
-      setTemplates((current) => (append ? [...current, ...response.templates] : response.templates));
-      setTemplatesNextPageToken(response.nextPageToken || "");
+      const pairs = await Promise.all(domains.map(async (domain) => {
+        try {
+          const schema = await getDomainSchemaService({ domainId: domain.domainId });
+          return [domain.domainId, schema] as const;
+        } catch {
+          return [domain.domainId, null] as const;
+        }
+      }));
+      setDomainSchemas(Object.fromEntries(pairs));
     } catch (err) {
-      setTemplatesError(err instanceof Error ? err.message : "Failed to load templates");
+      setSchemaError(err instanceof Error ? err.message : "Failed to load schemas");
     } finally {
-      setTemplatesLoading(false);
+      setSchemaLoading(false);
     }
-  }, [includeArchivedTemplates, listTemplatesService, spaceId]);
+  }, [domains, getDomainSchemaService]);
 
   useEffect(() => {
-    if (activeTab === "templates") void loadTemplates();
-  }, [activeTab, loadTemplates]);
+    if (activeTab === "schemas") void loadSchemas();
+  }, [activeTab, loadSchemas]);
 
   useEffect(() => {
     if (!spaceId) return;
@@ -266,7 +268,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
           {space?.state && <SpaceStateBadge state={space.state} />}
         </div>
         <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-          Inspect this space's general properties, domains, semantic maintenance, and templates.
+          Inspect this space's general properties, domains, semantic maintenance, schemas, and query tools.
         </Text>
       </div>
 
@@ -275,9 +277,9 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
           {[
             ["general", "General"],
             ["domains", "Domains"],
+            ["schemas", "Schemas"],
             ["semantic", "Semantic"],
             ["query", "Graph query"],
-            ["templates", "Templates"],
           ].map(([tab, label]) => (
             <button
               key={tab}
@@ -311,7 +313,6 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
           <DetailCard title="Identity">
             <DetailRow label="Space ID" value={space.spaceId} />
             <DetailRow label="Name" value={space.name} />
-            <DetailRow label="Template usage" value={space.templateUsage || "Not reported"} />
           </DetailCard>
 
           <DetailCard title="Ownership">
@@ -383,9 +384,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         onIncludeSystemChange={setIncludeSystemDomains}
         onLoadMore={() => void loadDomains({ append: true, pageToken: domainsNextPageToken })}
       /></div>}
-      {activeTab === "templates" && <div role="tabpanel" aria-label="Templates"><TemplateSection templates={templates} loading={templatesLoading} error={templatesError} includeArchived={includeArchivedTemplates} onIncludeArchivedChange={setIncludeArchivedTemplates} nextPageToken={templatesNextPageToken} onLoadMore={() => void loadTemplates({ append: true, pageToken: templatesNextPageToken })} onSelectTemplate={setSelectedTemplate} /></div>}
-
-      {selectedTemplate && <TemplateDetailDialog template={selectedTemplate} onClose={() => setSelectedTemplate(null)} />}
+      {activeTab === "schemas" && <div role="tabpanel" aria-label="Schemas"><SchemaSection domains={domains} schemas={domainSchemas} loading={schemaLoading || domainsLoading} error={schemaError || domainsError} onRefresh={() => void loadSchemas()} /></div>}
 
       {confirmMaintenanceAction && (
         <ConfirmMaintenanceActionDialog
@@ -707,28 +706,6 @@ function domainFlags(domain: DomainInfo) {
   return flags.length ? flags.join(", ") : "—";
 }
 
-function TemplateSection({ templates, loading, error, includeArchived, onIncludeArchivedChange, nextPageToken, onLoadMore, onSelectTemplate }: { templates: TemplateInfo[]; loading: boolean; error: string; includeArchived: boolean; onIncludeArchivedChange: (value: boolean) => void; nextPageToken: string; onLoadMore: () => void; onSelectTemplate: (template: TemplateInfo) => void }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Templates</Text><Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Operator-visible templates for this space.</Text></div>
-        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600" checked={includeArchived} onChange={(event) => onIncludeArchivedChange(event.target.checked)} />Include archived templates</label>
-      </div>
-      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
-      {loading && templates.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading templates…</Text> : templates.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No templates found for this space.</Text> : (
-        <>
-          <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"><table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800"><thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">State</th><th className="px-4 py-3">Name</th><th className="px-4 py-3">Key</th><th className="px-4 py-3">Version</th><th className="px-4 py-3">Fields</th><th className="px-4 py-3">Template ID</th><th className="px-4 py-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800">{templates.map((template) => <tr key={template.templateId}><td className="px-4 py-3">{template.state}</td><td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{template.displayName || template.key}</td><td className="px-4 py-3">{template.key}</td><td className="px-4 py-3">{template.version || "—"}</td><td className="px-4 py-3">{template.properties.length}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{template.templateId}</td><td className="px-4 py-3"><Button variant="secondary" onClick={() => onSelectTemplate(template)}>View details</Button></td></tr>)}</tbody></table></div>
-          {nextPageToken && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={onLoadMore} disabled={loading}>{loading ? "Loading more…" : "Load more templates"}</Button></div>}
-        </>
-      )}
-    </div>
-  );
-}
-
-function TemplateDetailDialog({ template, onClose }: { template: TemplateInfo; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between gap-4"><div><Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">{template.displayName || template.key}</Text><Text size="sm" intent="muted" className="mt-1 font-mono">{template.templateId}</Text></div><Button variant="secondary" onClick={onClose}>Close</Button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><DetailRow label="Key" value={template.key} /><DetailRow label="Version" value={template.version || "—"} /><DetailRow label="State" value={template.state} /><DetailRow label="System" value={template.system ? "Yes" : "No"} /><DetailRow label="Description" value={template.description || "—"} /><DetailRow label="Allow extra properties" value={template.propertiesAllowExtra ? "Yes" : "No"} /></div><div className="mt-6"><Text className="font-medium">Properties</Text>{template.properties.length === 0 ? <Text size="sm" intent="muted" className="mt-2">No declared properties.</Text> : <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"><table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800"><thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Required</th><th className="px-4 py-3">Description</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800">{template.properties.map((prop) => <tr key={prop.name}><td className="px-4 py-3 font-medium">{prop.name}</td><td className="px-4 py-3">{prop.valueType}</td><td className="px-4 py-3">{prop.required ? "Yes" : "No"}</td><td className="px-4 py-3">{prop.description || "—"}</td></tr>)}</tbody></table></div>}</div></div></div>;
-}
-
 function DetailCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
@@ -760,3 +737,50 @@ function formatTimestamp(value?: string) {
   if (!Number.isFinite(seconds)) return value;
   return new Date(seconds * 1000).toLocaleString();
 }
+
+function SchemaSection({ domains, schemas, loading, error, onRefresh }: { domains: DomainInfo[]; schemas: Record<string, DomainSchemaInfo | null>; loading: boolean; error: string; onRefresh: () => void }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Domain schemas</Text>
+          <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Read-only active schema JSON for each domain in this space.</Text>
+        </div>
+        <Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh schemas"}</Button>
+      </div>
+      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      {loading && domains.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading schemas…</Text> : domains.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No domains found for this space.</Text> : (
+        <div className="mt-4 space-y-4">
+          {domains.map((domain) => {
+            const schema = schemas[domain.domainId];
+            return (
+              <div key={domain.domainId} className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">{domain.name || domain.key || domain.domainId}</Text>
+                    <Text intent="muted" size="xs" className="mt-1 font-mono text-slate-600 dark:text-slate-400">{domain.domainId}</Text>
+                  </div>
+                  <Text size="xs" className="rounded-full bg-slate-100 px-2 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{domain.isDefault ? "Default" : domain.key || "Domain"}</Text>
+                </div>
+                {schema?.schemaJson ? (
+                  <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100"><code>{formatSchemaJson(schema.schemaJson)}</code></pre>
+                ) : (
+                  <Text intent="muted" size="sm" className="mt-3 text-slate-600 dark:text-slate-400">No active schema returned for this domain.</Text>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatSchemaJson(value: string): string {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+}
+

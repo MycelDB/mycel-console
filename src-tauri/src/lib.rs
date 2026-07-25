@@ -21,6 +21,7 @@ use commands::inference::{
     admin_list_vector_stores,
 };
 use commands::semantic::admin_list_semantic_indexes;
+use commands::schemas::admin_get_domain_schema;
 use commands::semantic_maintenance::{
     admin_analyze_semantic_dirty_work, admin_backfill_semantic_index,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,
@@ -28,7 +29,6 @@ use commands::semantic_maintenance::{
     admin_retry_semantic_maintenance_work,
 };
 use commands::spaces::{admin_get_space, admin_list_spaces};
-use commands::templates::{admin_get_template, admin_list_templates};
 use commands::users::{
     admin_create_user, admin_delete_user, admin_disable_user, admin_enable_user, admin_get_user,
     admin_list_user_sessions, admin_list_users, admin_revoke_user_session,
@@ -56,8 +56,7 @@ pub fn run() {
             admin_revoke_user_sessions,
             admin_list_spaces,
             admin_get_space,
-            admin_list_templates,
-            admin_get_template,
+            admin_get_domain_schema,
             admin_list_domains,
             admin_list_semantic_indexes,
             admin_get_semantic_maintenance_status,

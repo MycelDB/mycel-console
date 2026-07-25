@@ -6,6 +6,6 @@ pub mod domains;
 pub mod inference;
 pub mod semantic;
 pub mod semantic_maintenance;
+pub mod schemas;
 pub mod spaces;
-pub mod templates;
 pub mod users;

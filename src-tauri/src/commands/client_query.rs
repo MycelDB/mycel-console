@@ -506,7 +506,6 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
         r#match: Some(GraphPattern {
             start: Some(NodePattern {
                 alias: start_alias,
-                template_key: None,
                 labels: vec![],
             }),
             steps: vec![],

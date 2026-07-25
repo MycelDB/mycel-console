@@ -26,10 +26,10 @@ import type {
   ListVectorStoresInput,
   ListVectorStoresResponse,
 } from "../types/inference";
+import type { GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
 import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
-import type { GetTemplateInput, ListTemplatesInput, ListTemplatesResponse, TemplateInfo } from "../types/templates";
 import type {
   CreateUserInput,
   DeleteUserInput,
@@ -124,16 +124,12 @@ export async function getSpace(spaceId: string): Promise<SpaceInfo> {
   return invoke<SpaceInfo>("admin_get_space", { spaceId });
 }
 
-export async function listTemplates(input: ListTemplatesInput): Promise<ListTemplatesResponse> {
-  return invoke<ListTemplatesResponse>("admin_list_templates", { input });
-}
-
-export async function getTemplate(input: GetTemplateInput): Promise<TemplateInfo> {
-  return invoke<TemplateInfo>("admin_get_template", { input });
-}
-
 export async function listDomains(input: ListDomainsInput): Promise<ListDomainsResponse> {
   return invoke<ListDomainsResponse>("admin_list_domains", { input });
+}
+
+export async function getDomainSchema(input: GetDomainSchemaInput): Promise<DomainSchemaInfo> {
+  return invoke<DomainSchemaInfo>("admin_get_domain_schema", { input });
 }
 
 export async function listSemanticIndexes(input: ListSemanticIndexesInput): Promise<ListSemanticIndexesResponse> {

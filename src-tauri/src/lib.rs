@@ -1,6 +1,7 @@
 mod commands;
 mod state;
 
+use commands::automations::{admin_disable_automation, admin_enable_automation, admin_get_automation, admin_get_automation_run, admin_list_automation_invocations, admin_list_automations};
 use commands::auth::{admin_connection_diagnostics, admin_login, admin_logout, admin_whoami};
 use commands::backups::{
     admin_delete_backup, admin_get_backup_policy, admin_get_backup_status, admin_list_backups,
@@ -57,6 +58,12 @@ pub fn run() {
             admin_list_spaces,
             admin_get_space,
             admin_get_domain_schema,
+            admin_list_automations,
+            admin_get_automation,
+            admin_enable_automation,
+            admin_disable_automation,
+            admin_list_automation_invocations,
+            admin_get_automation_run,
             admin_list_domains,
             admin_list_semantic_indexes,
             admin_get_semantic_maintenance_status,

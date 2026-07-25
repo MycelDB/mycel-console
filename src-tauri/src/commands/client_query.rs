@@ -1,8 +1,8 @@
 use mycel_sdk::proto::client::v1::{
     BeginTransactionRequest, CloseSessionRequest, CloseTransactionRequest,
-    CommitTransactionRequest, Edge, ExecuteGqlRequest, ExecuteQueryRequest, GraphPattern, GraphQuery,
-    Node, NodePattern, OpenSessionRequest, QueryResult, QueryRow, ReturnProjection,
-    ReturnProjectionKind, TransactionMode,
+    CommitTransactionRequest, Edge, ExecuteGqlRequest, ExecuteGqlScriptRequest,
+    ExecuteQueryRequest, GraphPattern, GraphQuery, Node, NodePattern, OpenSessionRequest,
+    QueryResult, QueryRow, ReturnProjection, ReturnProjectionKind, TransactionMode,
 };
 use mycel_sdk::Config;
 use serde_json::{json, Value};
@@ -42,6 +42,27 @@ pub struct ExecuteGqlInput {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecuteGqlResponseInfo {
+    pub result: Value,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecuteGqlScriptInput {
+    pub space_id: String,
+    pub domain_id: String,
+    pub script: String,
+    #[serde(default)]
+    pub page_size: Option<i32>,
+    #[serde(default)]
+    pub stop_on_error: bool,
+    #[serde(default)]
+    pub read_write: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecuteGqlScriptResponseInfo {
+    pub statements: Value,
     pub result: Value,
 }
 
@@ -189,6 +210,113 @@ pub async fn admin_console_execute_gql(
             .map(query_result_json)
             .unwrap_or(Value::Null),
     })
+}
+
+#[tauri::command]
+pub async fn admin_console_execute_gql_script(
+    input: ExecuteGqlScriptInput,
+    state: State<'_, AppState>,
+) -> Result<ExecuteGqlScriptResponseInfo, String> {
+    if input.space_id.trim().is_empty() || input.domain_id.trim().is_empty() {
+        return Err("Space and domain are required".to_string());
+    }
+    if input.script.trim().is_empty() {
+        return Err("Script is required".to_string());
+    }
+    let mut guard = state.client_query.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Client query identity is not connected".to_string())?;
+    let graph_session = session
+        ._client
+        .session
+        .open_session(tonic::Request::new(OpenSessionRequest {
+            space_id: input.space_id,
+            domain_id: input.domain_id,
+            requested_idle_timeout: None,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .session
+        .ok_or_else(|| "OpenSession returned no session".to_string())?;
+    let tx = session
+        ._client
+        .transaction
+        .begin_transaction(tonic::Request::new(BeginTransactionRequest {
+            session_id: graph_session.session_id.clone(),
+            mode: if input.read_write {
+                TransactionMode::ReadWrite as i32
+            } else {
+                TransactionMode::ReadOnly as i32
+            },
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .transaction
+        .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
+    let response = session
+        ._client
+        .query
+        .execute_gql_script(tonic::Request::new(ExecuteGqlScriptRequest {
+            transaction_id: tx.transaction_id.clone(),
+            script: input.script,
+            params: Default::default(),
+            stop_on_error: input.stop_on_error,
+            page_size: input.page_size.unwrap_or(100),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    if input.read_write
+        && response
+            .statements
+            .iter()
+            .all(|statement| statement.success)
+    {
+        session
+            ._client
+            .transaction
+            .commit_transaction(tonic::Request::new(CommitTransactionRequest {
+                transaction_id: tx.transaction_id,
+            }))
+            .await
+            .map_err(|err| err.to_string())?;
+    } else {
+        let _ = session
+            ._client
+            .transaction
+            .close_transaction(tonic::Request::new(CloseTransactionRequest {
+                transaction_id: tx.transaction_id,
+            }))
+            .await;
+    }
+    let _ = session
+        ._client
+        .session
+        .close_session(tonic::Request::new(CloseSessionRequest {
+            session_id: graph_session.session_id,
+        }))
+        .await;
+    Ok(ExecuteGqlScriptResponseInfo {
+        statements: Value::Array(
+            response
+                .statements
+                .iter()
+                .map(statement_result_json)
+                .collect(),
+        ),
+        result: response
+            .result
+            .as_ref()
+            .map(query_result_json)
+            .unwrap_or(Value::Null),
+    })
+}
+
+fn statement_result_json(statement: &mycel_sdk::proto::client::v1::GqlStatementResult) -> Value {
+    json!({ "index": statement.index, "statement": statement.statement, "success": statement.success, "result": statement.result.as_ref().map(query_result_json).unwrap_or(Value::Null), "error": statement.error })
 }
 
 #[tauri::command]

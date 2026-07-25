@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, executeGql, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, listTemplates as defaultListTemplates, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, executeGql, executeGqlScript, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, listTemplates as defaultListTemplates, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
 import type { ClientQuerySessionInfo } from "../../../types/clientQuery";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
@@ -494,6 +494,7 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
   const [readWrite, setReadWrite] = useState(false);
   const [confirmWrite, setConfirmWrite] = useState(false);
   const [alwaysConfirmWrite, setAlwaysConfirmWrite] = useState(() => localStorage.getItem("mycelAdmin.gql.alwaysConfirmWrite") !== "false");
+  const [stopOnError, setStopOnError] = useState(true);
 
   async function connect() {
     setLoading(true);
@@ -544,7 +545,10 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
     setError("");
     setResult(null);
     try {
-      const response = await executeGql({ spaceId, domainId, query: queryText, pageSize: 100, readWrite });
+      const isScript = queryText.includes(";");
+      const response = isScript
+        ? await executeGqlScript({ spaceId, domainId, script: queryText, pageSize: 100, readWrite, stopOnError })
+        : await executeGql({ spaceId, domainId, query: queryText, pageSize: 100, readWrite });
       setResult(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Query failed");
@@ -571,6 +575,7 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
           <div><span className="font-medium">Space:</span> <span className="font-mono text-xs">{spaceId}</span></div>
           <label className="block font-medium">Domain<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={domainId} onChange={(event) => setDomainId(event.target.value)}><option value="">Select domain…</option>{domains.map((domain) => <option key={domain.domainId} value={domain.domainId}>{domain.name || domain.key || domain.domainId}</option>)}</select></label>
           <label className="block font-medium">Mode<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={readWrite ? "read-write" : "read-only"} onChange={(event) => setReadWrite(event.target.value === "read-write")}><option value="read-only">Read-only</option><option value="read-write">Read-write</option></select></label>
+          <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={stopOnError} onChange={(event) => setStopOnError(event.target.checked)} />Stop script on first error</label>
           <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={alwaysConfirmWrite} onChange={(event) => setAlwaysConfirmWrite(event.target.checked)} />Confirm write queries before running</label>
         </div>
         <div>
@@ -590,6 +595,10 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
 function QueryResultView({ result, view }: { result: any; view: "rows" | "graph" | "raw" }) {
   if (!result) return <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">No query run yet.</div>;
   const payload = result.result ?? result;
+  const statements = payload?.statements ?? result?.statements;
+  if (Array.isArray(statements)) {
+    return <div className="mt-3 space-y-3"><div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"><table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800"><thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">#</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Statement</th><th className="px-4 py-3">Error</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800">{statements.map((statement: any) => <tr key={statement.index}><td className="px-4 py-3">{statement.index}</td><td className="px-4 py-3">{statement.success ? "✓" : "✗"}</td><td className="px-4 py-3 font-mono text-xs">{statement.statement}</td><td className="px-4 py-3 text-red-600 dark:text-red-300">{statement.error || "—"}</td></tr>)}</tbody></table></div>{view === "raw" ? <pre className="max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{JSON.stringify(result, null, 2)}</pre> : null}</div>;
+  }
   if (view === "graph") {
     const nodes = payload?.graph?.nodes ?? [];
     const edges = payload?.graph?.edges ?? [];

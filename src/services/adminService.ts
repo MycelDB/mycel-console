@@ -9,7 +9,7 @@ import type {
   TriggerBackupResponse,
 } from "../types/backups";
 import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../types/auth";
-import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
+import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGqlScriptInput, ExecuteGqlScriptResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
 import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, ListClusterMembersResponse, ListRaftGroupsResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
 import type {
@@ -66,6 +66,10 @@ export async function clientQueryLogout(): Promise<void> {
 
 export async function executeGql(input: ExecuteGqlInput): Promise<ExecuteGqlResponse> {
   return invoke<ExecuteGqlResponse>("admin_console_execute_gql", { input });
+}
+
+export async function executeGqlScript(input: ExecuteGqlScriptInput): Promise<ExecuteGqlScriptResponse> {
+  return invoke<ExecuteGqlScriptResponse>("admin_console_execute_gql_script", { input });
 }
 
 export async function executeGraphQuery(input: ExecuteGraphQueryInput): Promise<ExecuteGraphQueryResponse> {

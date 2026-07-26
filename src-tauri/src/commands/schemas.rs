@@ -14,7 +14,7 @@ pub struct GetDomainSchemaInput {
 #[serde(rename_all = "camelCase")]
 pub struct DomainSchemaInfo {
     pub domain_id: String,
-    pub schema_json: String,
+    pub gwl: String,
 }
 
 #[tauri::command]
@@ -44,6 +44,6 @@ pub async fn admin_get_domain_schema(
 
     Ok(DomainSchemaInfo {
         domain_id,
-        schema_json: response.schema_json,
+        gwl: response.gwl,
     })
 }

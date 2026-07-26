@@ -7,7 +7,7 @@ function renderDetail(
   getSpaceService = jest.fn().mockResolvedValue({ spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" }),
   listDomainsService = jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
   listSemanticIndexesService = jest.fn().mockResolvedValue({ indexes: [], nextPageToken: "" }),
-  getDomainSchemaService = jest.fn().mockResolvedValue({ domainId: "dom_default", schemaJson: "{}" }),
+  getDomainSchemaService = jest.fn().mockResolvedValue({ domainId: "dom_default", gwl: "schema \"PKM\" version \"v1\" mode warn" }),
   getSemanticMaintenanceStatusService = jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 0, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
   listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [] }),
   lookupSpaceRouteService = jest.fn().mockResolvedValue({ spaceId: "sp_main", partitionId: 3, leaderNodeId: 2, replicaNodeIds: [1, 2, 3] }),
@@ -57,7 +57,7 @@ test("loads and renders selected space properties", async () => {
   const getSemanticMaintenanceStatusService = jest.fn().mockResolvedValue({ enabled: true, degraded: true, degradedReason: "worker paused", queueDepthPending: 2, queueDepthRunning: 1, queueDepthFailedRetryable: 1, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 30, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "normal", analyzerRuns: 3, workerRuns: 4 });
   const listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [{ workItemId: "work_1", spaceId: "sp_main", domainId: "dom_default", semanticIndexId: "idx_notes", targetNodeId: "node_1", action: "embed", status: "failed_retryable", attemptCount: 2, notBefore: "", claimedUntil: "", lastErrorCategory: "provider", lastErrorMessageSanitized: "rate limited", createdAt: "", updatedAt: "" }] });
 
-  const getDomainSchemaService = jest.fn().mockResolvedValue({ domainId: "dom_default", schemaJson: JSON.stringify({ name: "PKM", version: "v1" }) });
+  const getDomainSchemaService = jest.fn().mockResolvedValue({ domainId: "dom_default", gwl: "schema \"PKM\" version \"v1\" mode warn" });
 
   renderDetail(getSpaceService, listDomainsService, listSemanticIndexesService, getDomainSchemaService, getSemanticMaintenanceStatusService, listSemanticMaintenanceWorkService);
 

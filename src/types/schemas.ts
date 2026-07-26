@@ -4,5 +4,5 @@ export type GetDomainSchemaInput = {
 
 export type DomainSchemaInfo = {
   domainId: string;
-  schemaJson: string;
+  gwl: string;
 };

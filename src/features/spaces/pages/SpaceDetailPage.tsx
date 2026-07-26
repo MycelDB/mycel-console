@@ -624,7 +624,7 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
         : await executeGql({ spaceId, domainId, query: queryText, pageSize: 100, readWrite });
       setResult(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Query failed");
+      setError(err instanceof Error ? err.message : typeof err === "string" ? err : "Query failed");
     } finally {
       setLoading(false);
     }

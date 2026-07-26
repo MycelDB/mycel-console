@@ -22,7 +22,7 @@ use commands::inference::{
     admin_list_vector_stores,
 };
 use commands::semantic::admin_list_semantic_indexes;
-use commands::schemas::admin_get_domain_schema;
+use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
 use commands::semantic_maintenance::{
     admin_analyze_semantic_dirty_work, admin_backfill_semantic_index,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,
@@ -59,6 +59,7 @@ pub fn run() {
             admin_get_space,
             admin_create_space,
             admin_get_domain_schema,
+            admin_delete_domain_schema,
             admin_list_automations,
             admin_get_automation,
             admin_enable_automation,

@@ -27,7 +27,7 @@ import type {
   ListVectorStoresInput,
   ListVectorStoresResponse,
 } from "../types/inference";
-import type { GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
+import type { DeleteDomainSchemaInput, GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
 import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
@@ -135,6 +135,10 @@ export async function listDomains(input: ListDomainsInput): Promise<ListDomainsR
 
 export async function getDomainSchema(input: GetDomainSchemaInput): Promise<DomainSchemaInfo> {
   return invoke<DomainSchemaInfo>("admin_get_domain_schema", { input });
+}
+
+export async function deleteDomainSchema(input: DeleteDomainSchemaInput): Promise<void> {
+  return invoke<void>("admin_delete_domain_schema", { input });
 }
 
 export async function listAutomations(input: DomainAutomationInput): Promise<ListAutomationsResponseInfo> {

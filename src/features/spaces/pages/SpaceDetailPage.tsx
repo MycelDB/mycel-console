@@ -854,7 +854,7 @@ function SchemaSection({ domains, schemas, loading, error, onRefresh }: { domain
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Domain schemas</Text>
-          <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Read-only active schema JSON for each domain in this space.</Text>
+          <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Read-only active GWL schema for each domain in this space.</Text>
         </div>
         <Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh schemas"}</Button>
       </div>
@@ -872,8 +872,8 @@ function SchemaSection({ domains, schemas, loading, error, onRefresh }: { domain
                   </div>
                   <Text size="xs" className="rounded-full bg-slate-100 px-2 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{domain.isDefault ? "Default" : domain.key || "Domain"}</Text>
                 </div>
-                {schema?.schemaJson ? (
-                  <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100"><code>{formatSchemaJson(schema.schemaJson)}</code></pre>
+                {schema?.gwl ? (
+                  <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100"><code>{schema.gwl}</code></pre>
                 ) : (
                   <Text intent="muted" size="sm" className="mt-3 text-slate-600 dark:text-slate-400">No active schema returned for this domain.</Text>
                 )}
@@ -886,11 +886,4 @@ function SchemaSection({ domains, schemas, loading, error, onRefresh }: { domain
   );
 }
 
-function formatSchemaJson(value: string): string {
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2);
-  } catch {
-    return value;
-  }
-}
 

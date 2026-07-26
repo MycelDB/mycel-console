@@ -1,4 +1,4 @@
-use mycel_sdk::proto::admin::v1::GetDomainSchemaRequest;
+use mycel_sdk::proto::admin::v1::{DeleteDomainSchemaRequest, GetDomainSchemaRequest};
 use tauri::State;
 use tonic::Request;
 
@@ -14,7 +14,13 @@ pub struct GetDomainSchemaInput {
 #[serde(rename_all = "camelCase")]
 pub struct DomainSchemaInfo {
     pub domain_id: String,
-    pub schema_json: String,
+    pub gwl: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteDomainSchemaInput {
+    pub domain_id: String,
 }
 
 #[tauri::command]
@@ -44,6 +50,30 @@ pub async fn admin_get_domain_schema(
 
     Ok(DomainSchemaInfo {
         domain_id,
-        schema_json: response.schema_json,
+        gwl: response.gwl,
     })
+}
+
+#[tauri::command]
+pub async fn admin_delete_domain_schema(
+    input: DeleteDomainSchemaInput,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let domain_id = input.domain_id.trim().to_string();
+    if domain_id.is_empty() {
+        return Err("Domain ID is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    session
+        ._client
+        .schema
+        .delete_domain_schema(Request::new(DeleteDomainSchemaRequest { domain_id }))
+        .await
+        .map_err(|err| err.to_string())?;
+    Ok(())
 }

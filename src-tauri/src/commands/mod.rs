@@ -1,3 +1,4 @@
+pub mod automations;
 pub mod auth;
 pub mod backups;
 pub mod client_query;

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, executeGql, executeGqlScript, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo } from "../../../types/automations";
 import type { ClientQuerySessionInfo } from "../../../types/clientQuery";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
@@ -24,9 +25,15 @@ export type SpaceDetailPageProps = {
   processSemanticDirtyWorkService?: (input: ProcessSemanticDirtyWorkInput) => Promise<unknown>;
   backfillSemanticIndexService?: (input: BackfillSemanticIndexInput) => Promise<unknown>;
   lookupSpaceRouteService?: (input: LookupSpaceRouteInput) => Promise<LookupSpaceRouteResult>;
+  listAutomationsService?: (input: DomainAutomationInput) => Promise<ListAutomationsResponseInfo>;
+  getAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
+  enableAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
+  disableAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
+  listAutomationInvocationsService?: (input: ListAutomationInvocationsInput) => Promise<ListAutomationInvocationsResponseInfo>;
+  getAutomationRunService?: (input: GetAutomationRunInput) => Promise<AutomationRunInfo>;
 };
 
-export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute }: SpaceDetailPageProps) {
+export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
   const [space, setSpace] = useState<SpaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,12 +56,18 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   const [confirmMaintenanceAction, setConfirmMaintenanceAction] = useState<{ kind: "retry" | "cancel"; item: SemanticMaintenanceWorkItemInfo } | null>(null);
   const [maintenanceActionLoading, setMaintenanceActionLoading] = useState(false);
   const [maintenanceResult, setMaintenanceResult] = useState("");
-  const [activeTab, setActiveTab] = useState<"general" | "domains" | "schemas" | "semantic" | "query">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "domains" | "schemas" | "automations" | "semantic" | "query">("general");
   const [spaceRoute, setSpaceRoute] = useState<LookupSpaceRouteResult | null>(null);
   const [spaceRouteError, setSpaceRouteError] = useState("");
   const [domainSchemas, setDomainSchemas] = useState<Record<string, DomainSchemaInfo | null>>({});
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState("");
+  const [automationRows, setAutomationRows] = useState<Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }>>([]);
+  const [automationInvocations, setAutomationInvocations] = useState<Record<string, AutomationInvocationSummaryInfo[]>>({});
+  const [automationDetail, setAutomationDetail] = useState("");
+  const [automationRunDetail, setAutomationRunDetail] = useState("");
+  const [automationLoading, setAutomationLoading] = useState(false);
+  const [automationError, setAutomationError] = useState("");
 
   const loadDomains = useCallback(
     async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
@@ -157,6 +170,64 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   useEffect(() => {
     if (activeTab === "schemas") void loadSchemas();
   }, [activeTab, loadSchemas]);
+
+  const loadAutomations = useCallback(async () => {
+    setAutomationLoading(true);
+    setAutomationError("");
+    try {
+      const rows: Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }> = [];
+      const invocations: Record<string, AutomationInvocationSummaryInfo[]> = {};
+      await Promise.all(domains.map(async (domain) => {
+        const response = await listAutomationsService({ domainId: domain.domainId });
+        for (const automation of response.automations) {
+          rows.push({ domain, automation });
+          const history = await listAutomationInvocationsService({ domainId: domain.domainId, automationId: automation.id, limit: 5 });
+          invocations[`${domain.domainId}:${automation.id}`] = history.invocations;
+        }
+      }));
+      setAutomationRows(rows.sort((a, b) => `${a.domain.name}:${a.automation.id}`.localeCompare(`${b.domain.name}:${b.automation.id}`)));
+      setAutomationInvocations(invocations);
+    } catch (err) {
+      setAutomationError(err instanceof Error ? err.message : "Failed to load automations");
+    } finally {
+      setAutomationLoading(false);
+    }
+  }, [domains, listAutomationInvocationsService, listAutomationsService]);
+
+  useEffect(() => {
+    if (activeTab === "automations") void loadAutomations();
+  }, [activeTab, loadAutomations]);
+
+  async function toggleAutomation(domainId: string, automationId: string, enabled: boolean) {
+    setAutomationError("");
+    try {
+      if (enabled) await disableAutomationService({ domainId, automationId });
+      else await enableAutomationService({ domainId, automationId });
+      await loadAutomations();
+    } catch (err) {
+      setAutomationError(err instanceof Error ? err.message : "Failed to update automation");
+    }
+  }
+
+  async function showAutomation(domainId: string, automationId: string) {
+    setAutomationError("");
+    try {
+      const detail = await getAutomationService({ domainId, automationId });
+      setAutomationDetail(detail.definitionJson);
+    } catch (err) {
+      setAutomationError(err instanceof Error ? err.message : "Failed to load automation");
+    }
+  }
+
+  async function showAutomationRun(domainId: string, runId: string) {
+    setAutomationError("");
+    try {
+      const detail = await getAutomationRunService({ domainId, runId });
+      setAutomationRunDetail(detail.runJson);
+    } catch (err) {
+      setAutomationError(err instanceof Error ? err.message : "Failed to load run");
+    }
+  }
 
   useEffect(() => {
     if (!spaceId) return;
@@ -278,6 +349,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
             ["general", "General"],
             ["domains", "Domains"],
             ["schemas", "Schemas"],
+            ["automations", "Automations"],
             ["semantic", "Semantic"],
             ["query", "Graph query"],
           ].map(([tab, label]) => (
@@ -385,6 +457,8 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         onLoadMore={() => void loadDomains({ append: true, pageToken: domainsNextPageToken })}
       /></div>}
       {activeTab === "schemas" && <div role="tabpanel" aria-label="Schemas"><SchemaSection domains={domains} schemas={domainSchemas} loading={schemaLoading || domainsLoading} error={schemaError || domainsError} onRefresh={() => void loadSchemas()} /></div>}
+
+      {activeTab === "automations" && <div role="tabpanel" aria-label="Automations"><AutomationSection rows={automationRows} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} /></div>}
 
       {confirmMaintenanceAction && (
         <ConfirmMaintenanceActionDialog
@@ -736,6 +810,42 @@ function formatTimestamp(value?: string) {
   const seconds = Number(value);
   if (!Number.isFinite(seconds)) return value;
   return new Date(seconds * 1000).toLocaleString();
+}
+
+function AutomationSection({ rows, invocations, loading, error, detail, runDetail, onRefresh, onToggle, onShow, onShowRun }: { rows: Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }>; invocations: Record<string, AutomationInvocationSummaryInfo[]>; loading: boolean; error: string; detail: string; runDetail: string; onRefresh: () => void; onToggle: (domainId: string, automationId: string, enabled: boolean) => void; onShow: (domainId: string, automationId: string) => void; onShowRun: (domainId: string, runId: string) => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Graph automations</Text>
+          <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Inspect definitions, toggle status, and review recent invocation history.</Text>
+        </div>
+        <Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh automations"}</Button>
+      </div>
+      {error && <ErrorBox>{error}</ErrorBox>}
+      {rows.length === 0 ? <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">{loading ? "Loading automations…" : "No automations found for this space."}</Text> : (
+        <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Domain</th><th className="px-4 py-3">Automation</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Triggers</th><th className="px-4 py-3">Actions</th></tr></thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {rows.map(({ domain, automation }) => {
+                const enabled = automation.status === "enabled";
+                const key = `${domain.domainId}:${automation.id}`;
+                return <tr key={key} className="align-top"><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{domain.name || domain.key}</div><div className="font-mono text-xs text-slate-500">{domain.domainId}</div></td><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{automation.name || automation.id}</div><div className="font-mono text-xs text-slate-500">{automation.id} · v{automation.version}</div><RecentInvocations domainId={domain.domainId} items={invocations[key] || []} onShowRun={onShowRun} /></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs ${enabled ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>{automation.status}</span></td><td className="px-4 py-3"><div>{automation.events.join(", ") || "—"}</div><div className="text-xs text-slate-500">{automation.labels.join(", ") || "No label filter"}</div></td><td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onShow(domain.domainId, automation.id)}>View JSON</Button><Button variant="secondary" onClick={() => onToggle(domain.domainId, automation.id, enabled)}>{enabled ? "Disable" : "Enable"}</Button></div></td></tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {detail && <pre className="max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{detail}</pre>}
+      {runDetail && <pre className="max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{runDetail}</pre>}
+    </div>
+  );
+}
+
+function RecentInvocations({ domainId, items, onShowRun }: { domainId: string; items: AutomationInvocationSummaryInfo[]; onShowRun: (domainId: string, runId: string) => void }) {
+  if (items.length === 0) return <Text intent="muted" size="sm" className="mt-2 text-slate-500">No recent invocations.</Text>;
+  return <div className="mt-2 space-y-1">{items.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400"><span>{item.status}</span><span className="font-mono">{item.changedElementId}</span>{item.skipReason && <span>{item.skipReason}</span>}<button type="button" className="text-sky-700 hover:text-sky-900 dark:text-sky-300" onClick={() => onShowRun(domainId, item.id)}>Run detail</button></div>)}</div>;
 }
 
 function SchemaSection({ domains, schemas, loading, error, onRefresh }: { domains: DomainInfo[]; schemas: Record<string, DomainSchemaInfo | null>; loading: boolean; error: string; onRefresh: () => void }) {

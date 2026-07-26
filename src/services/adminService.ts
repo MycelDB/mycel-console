@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { AutomationActionInput, AutomationDefinitionInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo } from "../types/automations";
 import type {
   BackupPolicyInfo,
   BackupStatusResponse,
@@ -130,6 +131,30 @@ export async function listDomains(input: ListDomainsInput): Promise<ListDomainsR
 
 export async function getDomainSchema(input: GetDomainSchemaInput): Promise<DomainSchemaInfo> {
   return invoke<DomainSchemaInfo>("admin_get_domain_schema", { input });
+}
+
+export async function listAutomations(input: DomainAutomationInput): Promise<ListAutomationsResponseInfo> {
+  return invoke<ListAutomationsResponseInfo>("admin_list_automations", { input });
+}
+
+export async function getAutomation(input: AutomationActionInput): Promise<AutomationDefinitionInfo> {
+  return invoke<AutomationDefinitionInfo>("admin_get_automation", { input });
+}
+
+export async function enableAutomation(input: AutomationActionInput): Promise<AutomationDefinitionInfo> {
+  return invoke<AutomationDefinitionInfo>("admin_enable_automation", { input });
+}
+
+export async function disableAutomation(input: AutomationActionInput): Promise<AutomationDefinitionInfo> {
+  return invoke<AutomationDefinitionInfo>("admin_disable_automation", { input });
+}
+
+export async function listAutomationInvocations(input: ListAutomationInvocationsInput): Promise<ListAutomationInvocationsResponseInfo> {
+  return invoke<ListAutomationInvocationsResponseInfo>("admin_list_automation_invocations", { input });
+}
+
+export async function getAutomationRun(input: GetAutomationRunInput): Promise<AutomationRunInfo> {
+  return invoke<AutomationRunInfo>("admin_get_automation_run", { input });
 }
 
 export async function listSemanticIndexes(input: ListSemanticIndexesInput): Promise<ListSemanticIndexesResponse> {

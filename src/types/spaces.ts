@@ -34,3 +34,16 @@ export type ListSpacesResponse = {
   spaces: SpaceInfo[];
   nextPageToken: string;
 };
+
+export type CreateSpaceInput = {
+  name: string;
+  ownerUserId?: string;
+  ownerUsername?: string;
+  defaultDomainKey?: string;
+  defaultDomainName?: string;
+};
+
+export type CreateSpaceResponse = {
+  space: SpaceInfo;
+  defaultDomainId: string;
+};

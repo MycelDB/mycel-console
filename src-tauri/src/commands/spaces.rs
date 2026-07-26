@@ -1,5 +1,5 @@
 use mycel_sdk::proto::admin::v1::{
-    AdminSpaceServiceGetSpaceRequest, AdminSpaceServiceListSpacesRequest,
+    AdminSpaceServiceGetSpaceRequest, AdminSpaceServiceListSpacesRequest, CreateSpaceRequest,
 };
 use mycel_sdk::proto::client::v1::Space;
 use mycel_sdk::proto::common::v1::{EffectiveAccess, Principal};
@@ -53,6 +53,27 @@ pub struct ListSpacesResponse {
     pub next_page_token: String,
 }
 
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSpaceInput {
+    pub name: String,
+    #[serde(default)]
+    pub owner_user_id: Option<String>,
+    #[serde(default)]
+    pub owner_username: Option<String>,
+    #[serde(default)]
+    pub default_domain_key: Option<String>,
+    #[serde(default)]
+    pub default_domain_name: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSpaceInfo {
+    pub space: SpaceInfo,
+    pub default_domain_id: String,
+}
+
 #[tauri::command]
 pub async fn admin_get_space(
     space_id: String,
@@ -82,6 +103,49 @@ pub async fn admin_get_space(
         .space
         .map(space_info)
         .ok_or_else(|| "Get space response did not include a space".to_string())
+}
+
+#[tauri::command]
+pub async fn admin_create_space(
+    input: CreateSpaceInput,
+    state: State<'_, AppState>,
+) -> Result<CreateSpaceInfo, String> {
+    let name = input.name.trim().to_string();
+    if name.is_empty() {
+        return Err("Space name is required".to_string());
+    }
+    let owner_user_id = input.owner_user_id.unwrap_or_default().trim().to_string();
+    let owner_username = input.owner_username.unwrap_or_default().trim().to_string();
+    if owner_user_id.is_empty() && owner_username.is_empty() {
+        return Err("Owner user ID or username is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .spaces
+        .create_space(tonic::Request::new(CreateSpaceRequest {
+            name,
+            owner_user_id,
+            owner_username,
+            default_domain_key: input.default_domain_key.unwrap_or_default().trim().to_string(),
+            default_domain_name: input.default_domain_name.unwrap_or_default().trim().to_string(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+
+    Ok(CreateSpaceInfo {
+        space: response
+            .space
+            .map(space_info)
+            .ok_or_else(|| "Create space response did not include a space".to_string())?,
+        default_domain_id: response.default_domain_id,
+    })
 }
 
 #[tauri::command]

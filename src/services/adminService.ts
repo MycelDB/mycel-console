@@ -30,7 +30,7 @@ import type {
 import type { GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
-import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
+import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
 import type {
   CreateUserInput,
   DeleteUserInput,
@@ -123,6 +123,10 @@ export async function listSpaces(input: ListSpacesInput = {}): Promise<ListSpace
 
 export async function getSpace(spaceId: string): Promise<SpaceInfo> {
   return invoke<SpaceInfo>("admin_get_space", { spaceId });
+}
+
+export async function createSpace(input: CreateSpaceInput): Promise<CreateSpaceResponse> {
+  return invoke<CreateSpaceResponse>("admin_create_space", { input });
 }
 
 export async function listDomains(input: ListDomainsInput): Promise<ListDomainsResponse> {

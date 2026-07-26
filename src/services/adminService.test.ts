@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   applyInferencePackage,
   connectionDiagnostics,
+  createSpace,
   deleteBackup,
   getBackupPolicy,
   getBackupStatus,
@@ -182,6 +183,17 @@ test("getSpace sends space id", async () => {
   await expect(getSpace("sp_main")).resolves.toEqual(response);
 
   expect(invokeMock).toHaveBeenCalledWith("admin_get_space", { spaceId: "sp_main" });
+});
+
+test("createSpace sends create input", async () => {
+  const response = { space: { spaceId: "sp_main", name: "Main" }, defaultDomainId: "dom_default" };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(createSpace({ name: "Main", ownerUsername: "martin", defaultDomainKey: "default", defaultDomainName: "Default" })).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_create_space", {
+    input: { name: "Main", ownerUsername: "martin", defaultDomainKey: "default", defaultDomainName: "Default" },
+  });
 });
 
 test("listDomains sends space scoped input", async () => {

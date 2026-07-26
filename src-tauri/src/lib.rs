@@ -29,7 +29,7 @@ use commands::semantic_maintenance::{
     admin_list_semantic_maintenance_work, admin_process_semantic_dirty_work,
     admin_retry_semantic_maintenance_work,
 };
-use commands::spaces::{admin_get_space, admin_list_spaces};
+use commands::spaces::{admin_create_space, admin_get_space, admin_list_spaces};
 use commands::users::{
     admin_create_user, admin_delete_user, admin_disable_user, admin_enable_user, admin_get_user,
     admin_list_user_sessions, admin_list_users, admin_revoke_user_session,
@@ -57,6 +57,7 @@ pub fn run() {
             admin_revoke_user_sessions,
             admin_list_spaces,
             admin_get_space,
+            admin_create_space,
             admin_get_domain_schema,
             admin_list_automations,
             admin_get_automation,

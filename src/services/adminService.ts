@@ -11,7 +11,7 @@ import type {
 } from "../types/backups";
 import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../types/auth";
 import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGqlScriptInput, ExecuteGqlScriptResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
-import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, ListClusterMembersResponse, ListRaftGroupsResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
+import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyInput, GraphConsistencyReport, GraphForensicExportInput, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
 import type {
   ApplyInferencePackageResponse,
@@ -95,6 +95,18 @@ export async function listRaftGroups(): Promise<ListRaftGroupsResponse> {
 
 export async function lookupSpaceRoute(input: LookupSpaceRouteInput): Promise<LookupSpaceRouteResult> {
   return invoke<LookupSpaceRouteResult>("admin_lookup_space_route", { input });
+}
+
+export async function getLocalGraphConsistency(input: GraphConsistencyInput): Promise<LocalGraphConsistencyResponse> {
+  return invoke<LocalGraphConsistencyResponse>("admin_get_local_graph_consistency", { input });
+}
+
+export async function getGraphConsistencyReport(input: GraphConsistencyInput): Promise<GraphConsistencyReport> {
+  return invoke<GraphConsistencyReport>("admin_get_graph_consistency_report", { input });
+}
+
+export async function getLocalGraphForensicExport(input: GraphForensicExportInput): Promise<GraphForensicExportResponse> {
+  return invoke<GraphForensicExportResponse>("admin_get_local_graph_forensic_export", { input });
 }
 
 export async function listClusterMembers(): Promise<ListClusterMembersResponse> {

@@ -42,6 +42,17 @@ function matches(key: string, member?: ClusterMemberInfo, peer?: ClusterPeerInfo
     .some((value) => value === key);
 }
 
+function hasReadFailures(group: ListRaftGroupsResponse["groups"][number]) {
+  const read = group.readDiagnostics;
+  return Boolean(read && (
+    read.readIndexFailures > 0
+    || read.readIndexTimeouts > 0
+    || read.readIndexNoLeader > 0
+    || read.readIndexNotLeader > 0
+    || read.applyWaitFailures > 0
+  ));
+}
+
 export function NodeDetailPage() {
   const { nodeKey = "" } = useParams();
   const [status, setStatus] = useState<ClusterStatusInfo | null>(null);
@@ -90,6 +101,8 @@ export function NodeDetailPage() {
   const systemRole = raftNodeId && raftGroups.groups.find((group) => group.kind === "system")?.leaderNodeId === raftNodeId ? "leader" : raftNodeId ? "replica" : undefined;
   const partitionLeaderCount = ledGroups.filter((group) => group.kind === "partition").length;
   const partitionReplicaCount = replicatedGroups.filter((group) => group.kind === "partition").length;
+  const readFailureGroupCount = replicatedGroups.filter(hasReadFailures).length;
+  const snapshotGroupCount = replicatedGroups.filter((group) => group.snapshotIndex > 0).length;
 
   return (
     <section className="space-y-6">
@@ -111,12 +124,14 @@ export function NodeDetailPage() {
         {runtime?.engine === "raft" && (
           <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900 dark:bg-sky-950/30">
             <Text className="font-semibold">Raft responsibilities</Text>
-            <div className="mt-3 grid gap-3 text-sm md:grid-cols-5">
+            <div className="mt-3 grid gap-3 text-sm md:grid-cols-7">
               <div><span className="text-slate-500">Raft node ID</span><div className="font-semibold">{raftNodeId || "—"}</div></div>
               <div><span className="text-slate-500">System role</span><div className="font-semibold">{systemRole || "unknown"}</div></div>
               <div><span className="text-slate-500">Partition leaders</span><div className="font-semibold">{partitionLeaderCount}</div></div>
               <div><span className="text-slate-500">Partition replicas</span><div className="font-semibold">{partitionReplicaCount}</div></div>
               <div><span className="text-slate-500">Groups led</span><div className="font-semibold">{ledGroups.length}</div></div>
+              <div><span className="text-slate-500">Read failures</span><div className="font-semibold">{readFailureGroupCount}</div></div>
+              <div><span className="text-slate-500">Snapshots</span><div className="font-semibold">{snapshotGroupCount}</div></div>
             </div>
             {raftNodeId && ledGroups.length > 0 && <Text size="sm" intent="muted" className="mt-3">Leading: {ledGroups.slice(0, 8).map((group) => group.groupId).join(", ")}{ledGroups.length > 8 ? " …" : ""}</Text>}
           </div>

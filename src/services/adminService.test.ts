@@ -6,6 +6,12 @@ import {
   deleteBackup,
   getBackupPolicy,
   getBackupStatus,
+  getClusterHealth,
+  getClusterRuntimeStatus,
+  getClusterStatus,
+  getGraphConsistencyReport,
+  getLocalGraphConsistency,
+  getLocalGraphForensicExport,
   getSpace,
   getUser,
   listBackups,
@@ -18,6 +24,7 @@ import {
   listSemanticMaintenanceWork,
   retrySemanticMaintenanceWork,
   listModels,
+  listRaftGroups,
   listSemanticIndexes,
   listUserSessions,
   listVectorStores,
@@ -104,6 +111,154 @@ test("getBackupStatus invokes backup status command", async () => {
   await expect(getBackupStatus()).resolves.toEqual(status);
 
   expect(invokeMock).toHaveBeenCalledWith("admin_get_backup_status");
+});
+
+test("cluster status preserves readiness diagnostics", async () => {
+  const response = {
+    node: { nodeId: "node-a", state: "clustered" },
+    cluster: { clusterId: "cluster-a", mode: "clustered" },
+    peers: [],
+    readiness: {
+      clientReady: true,
+      metadataApplied: true,
+      metadataValidated: true,
+      partitionGroupsStarted: true,
+      authoritativeClusterId: "cluster-a",
+      localClusterId: "cluster-a",
+      expectedMemberCount: 3,
+      readinessBlockers: [],
+    },
+  };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getClusterStatus()).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_cluster_status");
+});
+
+test("cluster health preserves readiness blockers", async () => {
+  const response = {
+    status: "degraded",
+    warnings: ["metadata not applied"],
+    activeMembers: 2,
+    pendingMembers: 1,
+    unreachablePeers: 0,
+    readiness: {
+      clientReady: false,
+      metadataApplied: false,
+      metadataValidated: false,
+      partitionGroupsStarted: false,
+      expectedMemberCount: 3,
+      readinessBlockers: ["system raft metadata has not been applied"],
+    },
+  };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getClusterHealth()).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_cluster_health");
+});
+
+test("cluster runtime preserves raft transport diagnostics", async () => {
+  const response = {
+    engine: "raft",
+    clusterName: "dev",
+    raftNodeCount: 3,
+    raftPartitionCount: 16,
+    raftReplicaFactor: 3,
+    localRaftNodeId: 1,
+    raftNodeAddrs: ["a:9091", "b:9091"],
+    raftGroupCount: 17,
+    raftGroupsWithLeader: 16,
+    raftTransport: {
+      sendAttempts: 20,
+      sendFailures: 1,
+      authFailures: 0,
+      missingSenderFailures: 1,
+      lastErrorAt: "2026-07-20T10:00:00Z",
+      lastFailureReason: "missing_sender",
+      lastGroupId: "partition-3",
+      lastSourceNodeId: 1,
+      lastTargetNodeId: 2,
+      lastMessageType: "MsgApp",
+      targets: [{ groupId: "partition-3", targetNodeId: 2, sendAttempts: 10, sendFailures: 1, authFailures: 0, missingSenderFailures: 1 }],
+    },
+  };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getClusterRuntimeStatus()).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_cluster_runtime_status");
+});
+
+test("raft groups preserve read diagnostics", async () => {
+  const response = {
+    groups: [{
+      groupId: "partition-3",
+      kind: "partition",
+      partitionId: 3,
+      localNodeId: 1,
+      leaderNodeId: 1,
+      replicaNodeIds: [1, 2, 3],
+      health: "healthy",
+      term: 4,
+      commitIndex: 100,
+      appliedIndex: 99,
+      applyLag: 1,
+      lastIndex: 101,
+      snapshotIndex: 50,
+      healthReason: "ok",
+      readDiagnostics: {
+        readIndexAttempts: 8,
+        readIndexSuccesses: 7,
+        readIndexFailures: 1,
+        readIndexTimeouts: 1,
+        readIndexNoLeader: 0,
+        readIndexNotLeader: 0,
+        applyWaitFailures: 0,
+        lastFailureReason: "timeout",
+        lastReadIndex: 100,
+        lastAppliedWaitIndex: 99,
+        lastAppliedWaitSuccess: 99,
+        lastAppliedWaitMillis: 12,
+      },
+    }],
+  };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(listRaftGroups()).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_raft_groups");
+});
+
+test("local graph consistency sends space and domain input", async () => {
+  const input = { spaceId: "sp_main", domainId: "dom_default" };
+  const response = { stats: { spaceId: "sp_main", domainId: "dom_default", partitionId: 1 }, warnings: [] };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getLocalGraphConsistency(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_local_graph_consistency", { input });
+});
+
+test("graph consistency report sends space and domain input", async () => {
+  const input = { spaceId: "sp_main", domainId: "dom_default" };
+  const response = { status: "consistent", spaceId: "sp_main", domainId: "dom_default", replicas: [], warnings: [] };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getGraphConsistencyReport(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_graph_consistency_report", { input });
+});
+
+test("local graph forensic export sends pagination input", async () => {
+  const input = { spaceId: "sp_main", domainId: "dom_default", pageSize: 50, pageToken: "next", sourceLabel: "admin-ui" };
+  const response = { nodes: [], edges: [], truncated: false, warnings: [] };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getLocalGraphForensicExport(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_local_graph_forensic_export", { input });
 });
 
 test("listBackups sends pagination input", async () => {

@@ -173,6 +173,7 @@ pub async fn admin_console_execute_gql(
             params: Default::default(),
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
+            read_options: None,
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -265,6 +266,7 @@ pub async fn admin_console_execute_gql_script(
             params: Default::default(),
             stop_on_error: input.stop_on_error,
             page_size: input.page_size.unwrap_or(100),
+            read_options: None,
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -367,6 +369,7 @@ pub async fn admin_console_execute_graph_query(
             query: Some(query),
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
+            read_options: None,
         }))
         .await
         .map_err(|err| err.to_string())?

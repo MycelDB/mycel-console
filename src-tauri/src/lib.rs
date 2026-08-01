@@ -13,7 +13,9 @@ use commands::client_query::{
 };
 use commands::cluster::{
     admin_get_cluster_health, admin_get_cluster_runtime_status, admin_get_cluster_status,
-    admin_list_cluster_members, admin_list_raft_groups, admin_lookup_space_route,
+    admin_get_graph_consistency_report, admin_get_local_graph_consistency,
+    admin_get_local_graph_forensic_export, admin_list_cluster_members, admin_list_raft_groups,
+    admin_lookup_space_route,
 };
 use commands::domains::admin_list_domains;
 use commands::inference::{
@@ -91,6 +93,9 @@ pub fn run() {
             admin_get_cluster_runtime_status,
             admin_list_raft_groups,
             admin_lookup_space_route,
+            admin_get_local_graph_consistency,
+            admin_get_graph_consistency_report,
+            admin_get_local_graph_forensic_export,
             admin_list_cluster_members,
             admin_list_inference_packages,
             admin_list_model_endpoints,

@@ -34,8 +34,8 @@ describe("NodeDetailPage", () => {
   it("renders raft responsibilities", async () => {
     mockedGetClusterRuntimeStatus.mockResolvedValue({ engine: "raft", clusterName: "dev", raftNodeCount: 3, raftPartitionCount: 16, raftReplicaFactor: 3, localRaftNodeId: 1, raftNodeAddrs: ["node-a:9091", "node-b:9091", "node-c:9091"], raftGroupCount: 17, raftGroupsWithLeader: 17 });
     mockedListRaftGroups.mockResolvedValue({ groups: [
-      { groupId: "system", kind: "system", localNodeId: 1, leaderNodeId: 2, preferredLeaderNodeId: 1, replicaNodeIds: [1,2,3], health: "healthy", term: 1, commitIndex: 2, appliedIndex: 2, applyLag: 0 },
-      { groupId: "space-partition-7", kind: "partition", partitionId: 7, localNodeId: 1, leaderNodeId: 2, preferredLeaderNodeId: 2, replicaNodeIds: [1,2,3], health: "healthy", term: 1, commitIndex: 2, appliedIndex: 2, applyLag: 0 },
+      { groupId: "system", kind: "system", localNodeId: 1, leaderNodeId: 2, preferredLeaderNodeId: 1, replicaNodeIds: [1,2,3], health: "healthy", term: 1, commitIndex: 2, appliedIndex: 2, applyLag: 0, lastIndex: 2, snapshotIndex: 0 },
+      { groupId: "space-partition-7", kind: "partition", partitionId: 7, localNodeId: 1, leaderNodeId: 2, preferredLeaderNodeId: 2, replicaNodeIds: [1,2,3], health: "healthy", term: 1, commitIndex: 2, appliedIndex: 2, applyLag: 0, lastIndex: 2, snapshotIndex: 0 },
     ] });
     render(
       <MemoryRouter initialEntries={["/cluster/nodes/node-b"]}>

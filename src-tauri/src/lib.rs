@@ -1,8 +1,11 @@
 mod commands;
 mod state;
 
-use commands::automations::{admin_disable_automation, admin_enable_automation, admin_get_automation, admin_get_automation_run, admin_list_automation_invocations, admin_list_automations};
 use commands::auth::{admin_connection_diagnostics, admin_login, admin_logout, admin_whoami};
+use commands::automations::{
+    admin_disable_automation, admin_enable_automation, admin_get_automation,
+    admin_get_automation_run, admin_list_automation_invocations, admin_list_automations,
+};
 use commands::backups::{
     admin_delete_backup, admin_get_backup_policy, admin_get_backup_status, admin_list_backups,
     admin_trigger_backup, admin_update_backup_policy,
@@ -23,8 +26,8 @@ use commands::inference::{
     admin_list_model_endpoint_capabilities, admin_list_model_endpoints, admin_list_models,
     admin_list_vector_stores,
 };
-use commands::semantic::admin_list_semantic_indexes;
 use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
+use commands::semantic::admin_list_semantic_indexes;
 use commands::semantic_maintenance::{
     admin_analyze_semantic_dirty_work, admin_backfill_semantic_index,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,

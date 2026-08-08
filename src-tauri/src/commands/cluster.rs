@@ -6,10 +6,9 @@ use mycel_sdk::proto::admin::v1::{
     ClusterEngine, ClusterMember, ClusterMemberState, ClusterMode, ClusterNodeState, ClusterPeer,
     ClusterPeerSource, ClusterPeerState, ClusterReadiness, GetClusterHealthRequest,
     GetClusterRuntimeStatusRequest, GetClusterStatusRequest, GetGraphConsistencyReportRequest,
-    GetLocalGraphConsistencyRequest, GetLocalGraphForensicExportRequest,
-    GraphConsistencyReplica, GraphConsistencyStatus, GraphConsistencyWarning,
-    GraphConsistencyWarningSeverity, GraphForensicEntity, GraphForensicExportManifest,
-    ListClusterMembersRequest,
+    GetLocalGraphConsistencyRequest, GetLocalGraphForensicExportRequest, GraphConsistencyReplica,
+    GraphConsistencyStatus, GraphConsistencyWarning, GraphConsistencyWarningSeverity,
+    GraphForensicEntity, GraphForensicExportManifest, ListClusterMembersRequest,
     ListRaftGroupsRequest, LocalGraphConsistencyStats, LookupSpaceRouteRequest, RaftGroupHealth,
     RaftGroupKind, RaftGroupStatus, RaftReadDiagnostics, RaftTransportDiagnostics,
     RaftTransportTargetDiagnostics,
@@ -726,9 +725,7 @@ fn local_graph_consistency_stats_info(
     }
 }
 
-fn graph_consistency_replica_info(
-    replica: GraphConsistencyReplica,
-) -> GraphConsistencyReplicaInfo {
+fn graph_consistency_replica_info(replica: GraphConsistencyReplica) -> GraphConsistencyReplicaInfo {
     GraphConsistencyReplicaInfo {
         raft_node_id: nonzero_u64(replica.raft_node_id),
         node_id: optional(replica.node_id),
@@ -741,9 +738,7 @@ fn graph_consistency_replica_info(
     }
 }
 
-fn graph_consistency_warning_info(
-    warning: GraphConsistencyWarning,
-) -> GraphConsistencyWarningInfo {
+fn graph_consistency_warning_info(warning: GraphConsistencyWarning) -> GraphConsistencyWarningInfo {
     GraphConsistencyWarningInfo {
         code: optional(warning.code),
         severity: graph_consistency_warning_severity(warning.severity),

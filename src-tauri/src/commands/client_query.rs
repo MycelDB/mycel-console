@@ -157,6 +157,7 @@ pub async fn admin_console_execute_gql(
             } else {
                 TransactionMode::ReadOnly as i32
             },
+            operation_id: String::new(),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -251,6 +252,7 @@ pub async fn admin_console_execute_gql_script(
             } else {
                 TransactionMode::ReadOnly as i32
             },
+            operation_id: String::new(),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -354,6 +356,7 @@ pub async fn admin_console_execute_graph_query(
         .begin_transaction(tonic::Request::new(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
             mode: TransactionMode::ReadOnly as i32,
+            operation_id: String::new(),
         }))
         .await
         .map_err(|err| err.to_string())?

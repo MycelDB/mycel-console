@@ -132,8 +132,16 @@ pub async fn admin_create_space(
             name,
             owner_user_id,
             owner_username,
-            default_domain_key: input.default_domain_key.unwrap_or_default().trim().to_string(),
-            default_domain_name: input.default_domain_name.unwrap_or_default().trim().to_string(),
+            default_domain_key: input
+                .default_domain_key
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+            default_domain_name: input
+                .default_domain_name
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
         }))
         .await
         .map_err(|err| err.to_string())?

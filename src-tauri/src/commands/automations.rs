@@ -1,6 +1,6 @@
 use mycel_sdk::proto::admin::v1::{
-    DisableAutomationRequest, EnableAutomationRequest, GetAutomationRequest, GetAutomationRunRequest,
-    ListAutomationInvocationsRequest, ListAutomationsRequest,
+    DisableAutomationRequest, EnableAutomationRequest, GetAutomationRequest,
+    GetAutomationRunRequest, ListAutomationInvocationsRequest, ListAutomationsRequest,
 };
 use tauri::State;
 use tonic::Request;
@@ -93,7 +93,9 @@ pub async fn admin_list_automations(
     state: State<'_, AppState>,
 ) -> Result<ListAutomationsResponseInfo, String> {
     let mut guard = state.admin.write().await;
-    let session = guard.as_mut().ok_or_else(|| "Not authenticated".to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
     let response = session
         ._client
         .automation
@@ -127,7 +129,9 @@ pub async fn admin_get_automation(
     state: State<'_, AppState>,
 ) -> Result<AutomationDefinitionInfo, String> {
     let mut guard = state.admin.write().await;
-    let session = guard.as_mut().ok_or_else(|| "Not authenticated".to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
     let response = session
         ._client
         .automation
@@ -138,7 +142,9 @@ pub async fn admin_get_automation(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(AutomationDefinitionInfo { definition_json: response.definition_json })
+    Ok(AutomationDefinitionInfo {
+        definition_json: response.definition_json,
+    })
 }
 
 #[tauri::command]
@@ -147,7 +153,9 @@ pub async fn admin_enable_automation(
     state: State<'_, AppState>,
 ) -> Result<AutomationDefinitionInfo, String> {
     let mut guard = state.admin.write().await;
-    let session = guard.as_mut().ok_or_else(|| "Not authenticated".to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
     let response = session
         ._client
         .automation
@@ -158,7 +166,9 @@ pub async fn admin_enable_automation(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(AutomationDefinitionInfo { definition_json: response.definition_json })
+    Ok(AutomationDefinitionInfo {
+        definition_json: response.definition_json,
+    })
 }
 
 #[tauri::command]
@@ -167,7 +177,9 @@ pub async fn admin_disable_automation(
     state: State<'_, AppState>,
 ) -> Result<AutomationDefinitionInfo, String> {
     let mut guard = state.admin.write().await;
-    let session = guard.as_mut().ok_or_else(|| "Not authenticated".to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
     let response = session
         ._client
         .automation
@@ -178,7 +190,9 @@ pub async fn admin_disable_automation(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(AutomationDefinitionInfo { definition_json: response.definition_json })
+    Ok(AutomationDefinitionInfo {
+        definition_json: response.definition_json,
+    })
 }
 
 #[tauri::command]
@@ -187,7 +201,9 @@ pub async fn admin_list_automation_invocations(
     state: State<'_, AppState>,
 ) -> Result<ListAutomationInvocationsResponseInfo, String> {
     let mut guard = state.admin.write().await;
-    let session = guard.as_mut().ok_or_else(|| "Not authenticated".to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
     let response = session
         ._client
         .automation
@@ -226,7 +242,9 @@ pub async fn admin_get_automation_run(
     state: State<'_, AppState>,
 ) -> Result<AutomationRunInfo, String> {
     let mut guard = state.admin.write().await;
-    let session = guard.as_mut().ok_or_else(|| "Not authenticated".to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
     let response = session
         ._client
         .automation
@@ -237,5 +255,7 @@ pub async fn admin_get_automation_run(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(AutomationRunInfo { run_json: response.run_json })
+    Ok(AutomationRunInfo {
+        run_json: response.run_json,
+    })
 }

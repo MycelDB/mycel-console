@@ -1,12 +1,12 @@
-pub mod automations;
 pub mod auth;
+pub mod automations;
 pub mod backups;
 pub mod client_query;
 pub mod cluster;
 pub mod domains;
 pub mod inference;
+pub mod schemas;
 pub mod semantic;
 pub mod semantic_maintenance;
-pub mod schemas;
 pub mod spaces;
 pub mod users;

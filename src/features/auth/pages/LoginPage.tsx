@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Main } from "../../../components/typography";
-import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../../../types/auth";
+import type { ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../../../types/auth";
 import { connectionDiagnostics as defaultConnectionDiagnostics, login as defaultLogin } from "../../../services/adminService";
 import { LoginForm } from "../components/LoginForm";
 
 export type LoginPageProps = {
-  onLoginSuccess: (session: OperatorSession) => void;
-  loginService?: (input: LoginInput) => Promise<OperatorSession>;
+  onLoginSuccess: (session: PrincipalSession) => void;
+  loginService?: (input: LoginInput) => Promise<PrincipalSession>;
   diagnosticsService?: (input: LoginInput) => Promise<ConnectionDiagnosticsResponse>;
 };
 
@@ -27,7 +27,7 @@ export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnos
     setLoading(true);
     try {
       if (!input.addr.trim()) throw new Error("Cluster gRPC address is required");
-      if (!input.username.trim()) throw new Error("Operator username is required");
+      if (!input.username.trim()) throw new Error("Principal username is required");
       if (!input.password) throw new Error("Password is required");
       const session = await loginService(input);
       onLoginSuccess(session);

@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
-import type { DisableUserInput, UserInfo } from "../../../types/users";
+import type { DisablePrincipalInput, PrincipalInfo } from "../../../types/users";
+import { principalIdOf } from "../../../types/users";
 
 export type DisableUserDialogProps = {
-  user: UserInfo | null;
+  user: PrincipalInfo | null;
   onClose: () => void;
-  onDisable: (input: DisableUserInput) => Promise<UserInfo>;
-  onDisabled: (user: UserInfo) => void;
+  onDisable: (input: DisablePrincipalInput) => Promise<PrincipalInfo>;
+  onDisabled: (user: PrincipalInfo) => void;
 };
 
 export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: DisableUserDialogProps) {
@@ -37,7 +38,7 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
       const currentUser = user;
       if (!currentUser) return;
       const updated = await onDisable({
-        userId: currentUser.userId,
+        principalId: principalIdOf(currentUser),
         reason: reason.trim() || undefined,
         revokeSessions,
       });
@@ -45,7 +46,7 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Disable user failed");
+      setError(err instanceof Error ? err.message : "Disable principal failed");
     } finally {
       setLoading(false);
     }
@@ -54,9 +55,9 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
-        <H2>Disable user</H2>
+        <H2>Disable principal</H2>
         <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
-          Disable <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span> and optionally revoke active sessions.
+          Disable principal <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span> and optionally revoke active sessions.
         </Text>
 
         {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
@@ -87,7 +88,7 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
           <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button disabled={loading}>{loading ? "Disabling…" : "Disable user"}</Button>
+          <Button disabled={loading}>{loading ? "Disabling…" : "Disable principal"}</Button>
         </div>
       </Form>
     </div>

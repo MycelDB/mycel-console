@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
-import type { SetUserPasswordInput, UserInfo } from "../../../types/users";
+import type { PrincipalInfo, SetPrincipalPasswordInput } from "../../../types/users";
+import { principalIdOf } from "../../../types/users";
 
 export type SetUserPasswordDialogProps = {
-  user: UserInfo | null;
+  user: PrincipalInfo | null;
   onClose: () => void;
-  onSetPassword: (input: SetUserPasswordInput) => Promise<UserInfo>;
-  onPasswordSet: (user: UserInfo) => void;
+  onSetPassword: (input: SetPrincipalPasswordInput) => Promise<PrincipalInfo>;
+  onPasswordSet: (user: PrincipalInfo) => void;
 };
 
 export function SetUserPasswordDialog({
@@ -53,7 +54,7 @@ export function SetUserPasswordDialog({
     setLoading(true);
     try {
       const updated = await onSetPassword({
-        userId: currentUser.userId,
+        principalId: principalIdOf(currentUser),
         password,
         revokeSessions,
       });

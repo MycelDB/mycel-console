@@ -37,7 +37,7 @@ jest.mock("../../../services/adminService", () => ({
 
 const session = {
   addr: "127.0.0.1:9091",
-  operatorId: "operator-1",
+  principalId: "prn_operator",
   username: "operator",
 };
 
@@ -54,5 +54,5 @@ test("renders dashboard cards and shortcuts", async () => {
   expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
   expect(await screen.findByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /manage backups/i })).toHaveAttribute("href", "/backups");
-  expect(screen.getByRole("link", { name: /manage users/i })).toHaveAttribute("href", "/users");
+  expect(screen.getByRole("link", { name: /manage principals/i })).toHaveAttribute("href", "/principals");
 });

@@ -3,9 +3,9 @@ import { Text } from "../../../components/typography";
 
 const shortcuts = [
   {
-    label: "Manage users",
-    description: "List, filter, create, disable, and delete users.",
-    to: "/users",
+    label: "Manage principals",
+    description: "List, filter, create, disable, and delete human principals.",
+    to: "/principals",
   },
   {
     label: "View spaces",
@@ -13,9 +13,9 @@ const shortcuts = [
     to: "/spaces",
   },
   {
-    label: "Operators",
-    description: "Review operator access, roles, and capabilities.",
-    to: "/operators",
+    label: "Admin access",
+    description: "Review principal roles, capabilities, and scoped access.",
+    to: "/access",
   },
   {
     label: "Maintenance",

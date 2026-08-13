@@ -5,14 +5,14 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { UserDetailPage } from "./UserDetailPage";
 
 function renderDetail(overrides: Partial<ComponentProps<typeof UserDetailPage>> = {}) {
-  const getUserService = jest.fn().mockResolvedValue({
-    userId: "usr_alice",
+  const getPrincipalService = jest.fn().mockResolvedValue({
+    principalId: "prn_alice",
     username: "alice",
-    state: "USER_STATE_ACTIVE",
+    state: "PRINCIPAL_STATE_ACTIVE",
     createTime: "1710000000",
     updateTime: "1710003600",
   });
-  const listUserSessionsService = jest.fn().mockResolvedValue({
+  const listPrincipalSessionsService = jest.fn().mockResolvedValue({
     sessions: [{
       authSessionId: "sess_1",
       state: "ADMIN_AUTH_SESSION_STATE_ACTIVE",
@@ -24,39 +24,40 @@ function renderDetail(overrides: Partial<ComponentProps<typeof UserDetailPage>> 
     nextPageToken: "",
   });
   const services = {
-    getUserService,
-    listUserSessionsService,
+    getPrincipalService,
+    listPrincipalSessionsService,
     listSpacesService: jest.fn().mockResolvedValue({
       spaces: [
-        { spaceId: "sp_owned", name: "Owned Space", state: "SPACE_STATE_ACTIVE", owner: { principalType: "PRINCIPAL_TYPE_USER", id: "usr_alice", displayName: "alice" } },
-        { spaceId: "sp_other", name: "Other Space", state: "SPACE_STATE_ACTIVE", owner: { principalType: "PRINCIPAL_TYPE_USER", id: "usr_other", displayName: "other" } },
+        { spaceId: "sp_owned", name: "Owned Space", state: "SPACE_STATE_ACTIVE", owner: { principalType: "PRINCIPAL_TYPE_HUMAN", id: "prn_alice", displayName: "alice" } },
+        { spaceId: "sp_other", name: "Other Space", state: "SPACE_STATE_ACTIVE", owner: { principalType: "PRINCIPAL_TYPE_HUMAN", id: "prn_other", displayName: "other" } },
       ],
       nextPageToken: "",
     }),
-    revokeUserSessionService: jest.fn().mockResolvedValue(undefined),
-    revokeUserSessionsService: jest.fn().mockResolvedValue({ revokedCount: 1 }),
+    revokePrincipalSessionService: jest.fn().mockResolvedValue(undefined),
+    revokePrincipalSessionsService: jest.fn().mockResolvedValue({ revokedCount: 1 }),
     ...overrides,
   };
   render(
-    <MemoryRouter initialEntries={["/users/usr_alice"]}>
+    <MemoryRouter initialEntries={["/principals/prn_alice"]}>
       <Routes>
-        <Route path="/users/:userId" element={<UserDetailPage {...services} />} />
+        <Route path="/principals/:principalId" element={<UserDetailPage {...services} />} />
       </Routes>
     </MemoryRouter>,
   );
   return services;
 }
 
-test("renders user identity and sessions", async () => {
-  const { getUserService, listUserSessionsService, listSpacesService } = renderDetail();
+test("renders principal identity and sessions", async () => {
+  const { getPrincipalService, listPrincipalSessionsService, listSpacesService } = renderDetail();
 
-  expect(screen.getByText(/loading user/i)).toBeInTheDocument();
+  expect(screen.getByText(/loading principal/i)).toBeInTheDocument();
   expect(await screen.findByRole("heading", { name: "alice" })).toBeInTheDocument();
-  expect(screen.getByText("usr_alice")).toBeInTheDocument();
+  expect(screen.getByText("prn_alice")).toBeInTheDocument();
   expect(screen.getByText("sess_1")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /view roles & capabilities/i })).toHaveAttribute("href", "/principals/prn_alice/access");
   expect(screen.getByText(/knot · 1.0 · web · laptop/)).toBeInTheDocument();
-  expect(getUserService).toHaveBeenCalledWith("usr_alice");
-  expect(listUserSessionsService).toHaveBeenCalledWith({ userId: "usr_alice", pageSize: 100, includeInactive: false });
+  expect(getPrincipalService).toHaveBeenCalledWith("prn_alice");
+  expect(listPrincipalSessionsService).toHaveBeenCalledWith({ principalId: "prn_alice", pageSize: 100, includeInactive: false });
   expect(listSpacesService).toHaveBeenCalledWith({ pageSize: 100, includeArchived: true });
   expect(screen.getByRole("heading", { name: /owned spaces/i })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Owned Space" })).toHaveAttribute("href", "/spaces/sp_owned");
@@ -71,11 +72,11 @@ test("revokes one session after confirmation", async () => {
 
   await screen.findByText("sess_1");
   await userEvent.click(screen.getByRole("button", { name: /^revoke$/i }));
-  expect(screen.getByRole("heading", { name: /revoke this user session/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /revoke this principal session/i })).toBeInTheDocument();
   const revokeButtons = screen.getAllByRole("button", { name: /^revoke$/i });
   await userEvent.click(revokeButtons[revokeButtons.length - 1]);
 
-  await waitFor(() => expect(services.revokeUserSessionService).toHaveBeenCalledWith({ userId: "usr_alice", authSessionId: "sess_1" }));
+  await waitFor(() => expect(services.revokePrincipalSessionService).toHaveBeenCalledWith({ principalId: "prn_alice", authSessionId: "sess_1" }));
 });
 
 test("revokes all sessions after confirmation", async () => {
@@ -83,9 +84,9 @@ test("revokes all sessions after confirmation", async () => {
 
   await screen.findByText("sess_1");
   await userEvent.click(screen.getByRole("button", { name: /revoke all sessions/i }));
-  expect(screen.getByRole("heading", { name: /revoke all user sessions/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /revoke all principal sessions/i })).toBeInTheDocument();
   const revokeButtons = screen.getAllByRole("button", { name: /^revoke$/i });
   await userEvent.click(revokeButtons[revokeButtons.length - 1]);
 
-  await waitFor(() => expect(services.revokeUserSessionsService).toHaveBeenCalledWith("usr_alice"));
+  await waitFor(() => expect(services.revokePrincipalSessionsService).toHaveBeenCalledWith("prn_alice"));
 });

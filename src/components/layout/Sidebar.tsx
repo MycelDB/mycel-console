@@ -5,11 +5,11 @@ import type { Theme } from "../../types/theme";
 
 const navItems = [
   { label: "Dashboard", to: "/dashboard" },
-  { label: "Users", to: "/users" },
+  { label: "Principals", to: "/principals" },
   { label: "Spaces", to: "/spaces" },
   { label: "Backups", to: "/backups" },
   { label: "Cluster", to: "/cluster" },
-  { label: "Operators", to: "/operators" },
+  { label: "Admin access", to: "/access" },
   { label: "Semantic", to: "/semantic" },
   { label: "Maintenance", to: "/maintenance" },
   { label: "Inference", to: "/inference" },

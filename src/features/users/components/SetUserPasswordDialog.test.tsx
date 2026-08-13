@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SetUserPasswordDialog } from "./SetUserPasswordDialog";
 
-const user = { userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" };
+const user = { principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE" };
 
 function renderDialog(overrides = {}) {
   const props = {
@@ -43,5 +43,5 @@ test("sets password", async () => {
   await userEvent.click(screen.getByRole("button", { name: /^set password$/i }));
 
   await waitFor(() => expect(props.onPasswordSet).toHaveBeenCalledWith(user));
-  expect(props.onSetPassword).toHaveBeenCalledWith({ userId: "usr_alice", password: "secret", revokeSessions: true });
+  expect(props.onSetPassword).toHaveBeenCalledWith({ principalId: "prn_alice", password: "secret", revokeSessions: true });
 });

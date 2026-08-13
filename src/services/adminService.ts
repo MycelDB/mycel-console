@@ -9,7 +9,8 @@ import type {
   TriggerBackupInput,
   TriggerBackupResponse,
 } from "../types/backups";
-import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../types/auth";
+import type { ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse } from "../types/access";
+import type { ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../types/auth";
 import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGqlScriptInput, ExecuteGqlScriptResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
 import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyInput, GraphConsistencyReport, GraphForensicExportInput, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
@@ -32,21 +33,21 @@ import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../t
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
 import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
 import type {
-  CreateUserInput,
-  DeleteUserInput,
-  DisableUserInput,
-  ListUserSessionsInput,
-  ListUserSessionsResponse,
-  ListUsersInput,
-  ListUsersResponse,
-  RevokeUserSessionInput,
-  RevokeUserSessionsResponse,
-  SetUserPasswordInput,
-  UserInfo,
+  CreatePrincipalInput,
+  DeletePrincipalInput,
+  DisablePrincipalInput,
+  ListPrincipalSessionsInput,
+  ListPrincipalSessionsResponse,
+  ListPrincipalsInput,
+  ListPrincipalsResponse,
+  PrincipalInfo,
+  RevokePrincipalSessionInput,
+  RevokePrincipalSessionsResponse,
+  SetPrincipalPasswordInput,
 } from "../types/users";
 
-export async function login(input: LoginInput): Promise<OperatorSession> {
-  return invoke<OperatorSession>("admin_login", { input });
+export async function login(input: LoginInput): Promise<PrincipalSession> {
+  return invoke<PrincipalSession>("admin_login", { input });
 }
 
 export async function connectionDiagnostics(input: LoginInput): Promise<ConnectionDiagnosticsResponse> {
@@ -77,8 +78,8 @@ export async function executeGraphQuery(input: ExecuteGraphQueryInput): Promise<
   return invoke<ExecuteGraphQueryResponse>("admin_console_execute_graph_query", { input });
 }
 
-export async function whoAmI(): Promise<OperatorSession | null> {
-  return invoke<OperatorSession | null>("admin_whoami");
+export async function whoAmI(): Promise<PrincipalSession | null> {
+  return invoke<PrincipalSession | null>("admin_whoami");
 }
 
 export async function getClusterStatus(): Promise<ClusterStatusInfo> {
@@ -117,17 +118,28 @@ export async function getClusterHealth(): Promise<ClusterHealthInfo> {
   return invoke<ClusterHealthInfo>("admin_get_cluster_health");
 }
 
-export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersResponse> {
-  return invoke<ListUsersResponse>("admin_list_users", { input });
+export async function listPrincipals(input: ListPrincipalsInput = {}): Promise<ListPrincipalsResponse> {
+  return invoke<ListPrincipalsResponse>("admin_list_principals", { input });
 }
 
-export async function getUser(userId: string): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_get_user", { userId });
+
+export async function getPrincipal(principalId: string): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_get_principal", { principalId });
 }
 
-export async function listUserSessions(input: ListUserSessionsInput): Promise<ListUserSessionsResponse> {
-  return invoke<ListUserSessionsResponse>("admin_list_user_sessions", { input });
+export async function listPrincipalRoles(principalId: string): Promise<ListPrincipalRolesResponse> {
+  return invoke<ListPrincipalRolesResponse>("admin_list_principal_roles", { principalId });
 }
+
+export async function listPrincipalCapabilities(principalId: string): Promise<ListPrincipalCapabilitiesResponse> {
+  return invoke<ListPrincipalCapabilitiesResponse>("admin_list_principal_capabilities", { principalId });
+}
+
+
+export async function listPrincipalSessions(input: ListPrincipalSessionsInput): Promise<ListPrincipalSessionsResponse> {
+  return invoke<ListPrincipalSessionsResponse>("admin_list_principal_sessions", { input });
+}
+
 
 export async function listSpaces(input: ListSpacesInput = {}): Promise<ListSpacesResponse> {
   return invoke<ListSpacesResponse>("admin_list_spaces", { input });
@@ -209,33 +221,40 @@ export async function cancelSemanticMaintenanceWork(input: SemanticMaintenanceWo
   return invoke<SemanticMaintenanceWorkItemInfo>("admin_cancel_semantic_maintenance_work", { input });
 }
 
-export async function createUser(input: CreateUserInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_create_user", { input });
+export async function createPrincipal(input: CreatePrincipalInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_create_principal", { input });
 }
 
-export async function disableUser(input: DisableUserInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_disable_user", { input });
+
+export async function disablePrincipal(input: DisablePrincipalInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_disable_principal", { input });
 }
 
-export async function enableUser(userId: string): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_enable_user", { userId });
+
+export async function enablePrincipal(principalId: string): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_enable_principal", { principalId });
 }
 
-export async function deleteUser(input: DeleteUserInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_delete_user", { input });
+
+export async function deletePrincipal(input: DeletePrincipalInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_delete_principal", { input });
 }
 
-export async function setUserPassword(input: SetUserPasswordInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_set_user_password", { input });
+
+export async function setPrincipalPassword(input: SetPrincipalPasswordInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_set_principal_password", { input });
 }
 
-export async function revokeUserSession(input: RevokeUserSessionInput): Promise<void> {
-  await invoke<void>("admin_revoke_user_session", { input });
+
+export async function revokePrincipalSession(input: RevokePrincipalSessionInput): Promise<void> {
+  await invoke<void>("admin_revoke_principal_session", { input });
 }
 
-export async function revokeUserSessions(userId: string): Promise<RevokeUserSessionsResponse> {
-  return invoke<RevokeUserSessionsResponse>("admin_revoke_user_sessions", { userId });
+
+export async function revokePrincipalSessions(principalId: string): Promise<RevokePrincipalSessionsResponse> {
+  return invoke<RevokePrincipalSessionsResponse>("admin_revoke_principal_sessions", { principalId });
 }
+
 
 export async function getBackupPolicy(): Promise<BackupPolicyInfo> {
   return invoke<BackupPolicyInfo>("admin_get_backup_policy");
@@ -294,3 +313,4 @@ export async function applyInferencePackage(
 ): Promise<ApplyInferencePackageResponse> {
   return invoke<ApplyInferencePackageResponse>("admin_apply_inference_package", { input });
 }
+

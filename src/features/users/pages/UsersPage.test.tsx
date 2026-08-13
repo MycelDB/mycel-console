@@ -2,38 +2,38 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { UsersPage } from "./UsersPage";
-import type { ListUsersInput, ListUsersResponse } from "../../../types/users";
+import type { ListPrincipalsInput, ListPrincipalsResponse } from "../../../types/users";
 
-const users = [
-  { userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" },
-  { userId: "usr_bob", username: "bob", state: "USER_STATE_ACTIVE" },
-  { userId: "usr_disabled", username: "disabled-user", state: "USER_STATE_DISABLED" },
-  { userId: "usr_deleted", username: "deleted-user", state: "USER_STATE_DELETED" },
+const principals = [
+  { principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE" },
+  { principalId: "prn_bob", username: "bob", state: "PRINCIPAL_STATE_ACTIVE" },
+  { principalId: "prn_disabled", username: "disabled-user", state: "PRINCIPAL_STATE_DISABLED" },
+  { principalId: "prn_deleted", username: "deleted-user", state: "PRINCIPAL_STATE_DELETED" },
 ];
 
-function listUsersResponse(overrides: Partial<ListUsersResponse> = {}): ListUsersResponse {
+function listPrincipalsResponse(overrides: Partial<ListPrincipalsResponse> = {}): ListPrincipalsResponse {
   return {
-    users,
+    principals,
     nextPageToken: "",
     ...overrides,
   };
 }
 
-function renderUsersPage(listUsersService = jest.fn<Promise<ListUsersResponse>, [ListUsersInput]>().mockResolvedValue(listUsersResponse())) {
+function renderUsersPage(listPrincipalsService = jest.fn<Promise<ListPrincipalsResponse>, [ListPrincipalsInput]>().mockResolvedValue(listPrincipalsResponse())) {
   render(
     <MemoryRouter>
-      <UsersPage listUsersService={listUsersService} />
+      <UsersPage listPrincipalsService={listPrincipalsService} />
     </MemoryRouter>,
   );
-  return { listUsersService };
+  return { listPrincipalsService };
 }
 
-test("renders loading state then user rows", async () => {
+test("renders loading state then principal rows", async () => {
   renderUsersPage();
 
-  expect(screen.getByText(/loading users/i)).toBeInTheDocument();
+  expect(screen.getByText(/loading principals/i)).toBeInTheDocument();
   expect(await screen.findByText("alice")).toBeInTheDocument();
-  expect(screen.getByText("usr_alice")).toBeInTheDocument();
+  expect(screen.getByText("prn_alice")).toBeInTheDocument();
 });
 
 test("renders backend errors", async () => {
@@ -43,9 +43,9 @@ test("renders backend errors", async () => {
 });
 
 test("renders empty state", async () => {
-  renderUsersPage(jest.fn().mockResolvedValue(listUsersResponse({ users: [] })));
+  renderUsersPage(jest.fn().mockResolvedValue(listPrincipalsResponse({ principals: [] })));
 
-  expect(await screen.findByText(/no users found/i)).toBeInTheDocument();
+  expect(await screen.findByText(/no principals found/i)).toBeInTheDocument();
 });
 
 test("filters by username", async () => {
@@ -62,15 +62,15 @@ test("filters by state", async () => {
   renderUsersPage();
 
   expect(await screen.findByText("alice")).toBeInTheDocument();
-  await userEvent.selectOptions(screen.getByLabelText(/state/i), "USER_STATE_DISABLED");
+  await userEvent.selectOptions(screen.getByLabelText(/state/i), "PRINCIPAL_STATE_DISABLED");
 
   expect(screen.getByText("disabled-user")).toBeInTheDocument();
   expect(screen.queryByText("alice")).not.toBeInTheDocument();
 });
 
 test("refresh invokes list service with current include flags", async () => {
-  const listUsersService = jest.fn<Promise<ListUsersResponse>, [ListUsersInput]>().mockResolvedValue(listUsersResponse());
-  renderUsersPage(listUsersService);
+  const listPrincipalsService = jest.fn<Promise<ListPrincipalsResponse>, [ListPrincipalsInput]>().mockResolvedValue(listPrincipalsResponse());
+  renderUsersPage(listPrincipalsService);
 
   await screen.findByText("alice");
   await userEvent.click(screen.getByLabelText(/include disabled/i));
@@ -78,7 +78,7 @@ test("refresh invokes list service with current include flags", async () => {
   await userEvent.click(screen.getByRole("button", { name: /refresh/i }));
 
   await waitFor(() =>
-    expect(listUsersService).toHaveBeenLastCalledWith({
+    expect(listPrincipalsService).toHaveBeenLastCalledWith({
       pageSize: 100,
       pageToken: "",
       includeDisabled: false,
@@ -88,17 +88,17 @@ test("refresh invokes list service with current include flags", async () => {
 });
 
 test("loads additional pages", async () => {
-  const listUsersService = jest
-    .fn<Promise<ListUsersResponse>, [ListUsersInput]>()
-    .mockResolvedValueOnce(listUsersResponse({ users: [users[0]], nextPageToken: "next" }))
-    .mockResolvedValueOnce(listUsersResponse({ users: [users[1]], nextPageToken: "" }));
-  renderUsersPage(listUsersService);
+  const listPrincipalsService = jest
+    .fn<Promise<ListPrincipalsResponse>, [ListPrincipalsInput]>()
+    .mockResolvedValueOnce(listPrincipalsResponse({ principals: [principals[0]], nextPageToken: "next" }))
+    .mockResolvedValueOnce(listPrincipalsResponse({ principals: [principals[1]], nextPageToken: "" }));
+  renderUsersPage(listPrincipalsService);
 
   expect(await screen.findByText("alice")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /load more/i }));
 
   expect(await screen.findByText("bob")).toBeInTheDocument();
-  expect(listUsersService).toHaveBeenLastCalledWith({
+  expect(listPrincipalsService).toHaveBeenLastCalledWith({
     pageSize: 100,
     pageToken: "next",
     includeDisabled: true,
@@ -106,36 +106,36 @@ test("loads additional pages", async () => {
   });
 });
 
-test("creates a user and refreshes the list", async () => {
-  const listUsersService = jest.fn<Promise<ListUsersResponse>, [ListUsersInput]>().mockResolvedValue(listUsersResponse());
-  const createUserService = jest.fn().mockResolvedValue({ userId: "usr_new", username: "new-user", state: "USER_STATE_ACTIVE" });
+test("creates a principal and refreshes the list", async () => {
+  const listPrincipalsService = jest.fn<Promise<ListPrincipalsResponse>, [ListPrincipalsInput]>().mockResolvedValue(listPrincipalsResponse());
+  const createPrincipalService = jest.fn().mockResolvedValue({ principalId: "prn_new", username: "new-user", state: "PRINCIPAL_STATE_ACTIVE" });
   render(
     <MemoryRouter>
-      <UsersPage listUsersService={listUsersService} createUserService={createUserService} />
+      <UsersPage listPrincipalsService={listPrincipalsService} createPrincipalService={createPrincipalService} />
     </MemoryRouter>,
   );
 
   await screen.findByText("alice");
-  await userEvent.click(screen.getByRole("button", { name: /^create user$/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
   const usernameFields = screen.getAllByLabelText(/^username$/i);
   await userEvent.type(usernameFields[usernameFields.length - 1], "new-user");
-  const createButtons = screen.getAllByRole("button", { name: /^create user$/i });
+  const createButtons = screen.getAllByRole("button", { name: /^create principal$/i });
   await userEvent.click(createButtons[createButtons.length - 1]);
 
-  await waitFor(() => expect(createUserService).toHaveBeenCalledWith({ username: "new-user", password: undefined, disabled: false }));
-  await waitFor(() => expect(listUsersService).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(createPrincipalService).toHaveBeenCalledWith({ username: "new-user", password: undefined, disabled: false }));
+  await waitFor(() => expect(listPrincipalsService).toHaveBeenCalledTimes(2));
 });
 
-test("enables a disabled user", async () => {
-  const enableUserService = jest.fn().mockResolvedValue({ userId: "usr_disabled", username: "disabled-user", state: "USER_STATE_ACTIVE" });
+test("enables a disabled principal", async () => {
+  const enablePrincipalService = jest.fn().mockResolvedValue({ principalId: "prn_disabled", username: "disabled-user", state: "PRINCIPAL_STATE_ACTIVE" });
   render(
     <MemoryRouter>
-      <UsersPage listUsersService={jest.fn().mockResolvedValue(listUsersResponse())} enableUserService={enableUserService} />
+      <UsersPage listPrincipalsService={jest.fn().mockResolvedValue(listPrincipalsResponse())} enablePrincipalService={enablePrincipalService} />
     </MemoryRouter>,
   );
 
   expect(await screen.findByText("disabled-user")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
 
-  await waitFor(() => expect(enableUserService).toHaveBeenCalledWith("usr_disabled"));
+  await waitFor(() => expect(enablePrincipalService).toHaveBeenCalledWith("prn_disabled"));
 });

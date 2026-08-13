@@ -26,7 +26,7 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
     >
       <H2 className="mb-1">Mycel Admin</H2>
       <Text intent="muted" size="sm" className="mb-6">
-        Log in with your operator credentials to manage a Mycel cluster.
+        Log in with admin-capable principal credentials to manage a mycel cluster.
       </Text>
 
       {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
@@ -41,7 +41,7 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
       />
 
       <Label className="mt-4" htmlFor="username">
-        Operator username
+        Principal username
       </Label>
       <Input
         id="username"

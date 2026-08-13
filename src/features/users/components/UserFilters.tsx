@@ -1,7 +1,7 @@
 import { Input, Label, Text } from "../../../components/typography";
-import type { UserState } from "../../../types/users";
+import type { PrincipalState } from "../../../types/users";
 
-export type UserStateFilter = "all" | UserState;
+export type UserStateFilter = "all" | PrincipalState;
 
 export type UserFiltersValue = {
   query: string;
@@ -40,9 +40,9 @@ export function UserFilters({ value, onChange }: UserFiltersProps) {
             onChange={(event) => onChange({ ...value, state: event.target.value as UserStateFilter })}
           >
             <option value="all">All states</option>
-            <option value="USER_STATE_ACTIVE">Active</option>
-            <option value="USER_STATE_DISABLED">Disabled</option>
-            <option value="USER_STATE_DELETED">Deleted</option>
+            <option value="PRINCIPAL_STATE_ACTIVE">Active</option>
+            <option value="PRINCIPAL_STATE_DISABLED">Disabled</option>
+            <option value="PRINCIPAL_STATE_DELETED">Deleted</option>
           </select>
         </div>
       </div>

@@ -12,9 +12,12 @@ import {
   getGraphConsistencyReport,
   getLocalGraphConsistency,
   getLocalGraphForensicExport,
+  getPrincipal,
   getSpace,
-  getUser,
   listBackups,
+  listPrincipalCapabilities,
+  listPrincipalRoles,
+  listPrincipalSessions,
   listDomains,
   listInferencePackages,
   listModelEndpointCapabilities,
@@ -26,10 +29,9 @@ import {
   listModels,
   listRaftGroups,
   listSemanticIndexes,
-  listUserSessions,
+  revokePrincipalSession,
+  revokePrincipalSessions,
   listVectorStores,
-  revokeUserSession,
-  revokeUserSessions,
   triggerBackup,
   updateBackupPolicy,
 } from "./adminService";
@@ -292,43 +294,61 @@ test("deleteBackup sends backup id", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_delete_backup", { backupId: "backup-1" });
 });
 
-test("getUser sends user id", async () => {
-  const response = { userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" };
+test("getPrincipal sends principal id", async () => {
+  const response = { principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE" };
   invokeMock.mockResolvedValue(response);
 
-  await expect(getUser("usr_alice")).resolves.toEqual(response);
+  await expect(getPrincipal("prn_alice")).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_get_user", { userId: "usr_alice" });
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_principal", { principalId: "prn_alice" });
 });
 
-test("listUserSessions sends user scoped input", async () => {
+test("listPrincipalRoles sends principal id", async () => {
+  const response = { grants: [], effectiveRoles: ["system_admin"] };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(listPrincipalRoles("prn_alice")).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_principal_roles", { principalId: "prn_alice" });
+});
+
+test("listPrincipalCapabilities sends principal id", async () => {
+  const response = { grants: [], effectiveCapabilities: ["CAPABILITY_IDENTITY_GRANT_MANAGE"] };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(listPrincipalCapabilities("prn_alice")).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_principal_capabilities", { principalId: "prn_alice" });
+});
+
+test("listPrincipalSessions sends principal scoped input", async () => {
   const response = { sessions: [], nextPageToken: "" };
   invokeMock.mockResolvedValue(response);
 
-  await expect(listUserSessions({ userId: "usr_alice", includeInactive: true })).resolves.toEqual(response);
+  await expect(listPrincipalSessions({ principalId: "prn_alice", includeInactive: true })).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_list_user_sessions", {
-    input: { userId: "usr_alice", includeInactive: true },
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_principal_sessions", {
+    input: { principalId: "prn_alice", includeInactive: true },
   });
 });
 
-test("revokeUserSession sends session input", async () => {
+test("revokePrincipalSession sends session input", async () => {
   invokeMock.mockResolvedValue(undefined);
 
-  await expect(revokeUserSession({ userId: "usr_alice", authSessionId: "sess_1" })).resolves.toBeUndefined();
+  await expect(revokePrincipalSession({ principalId: "prn_alice", authSessionId: "sess_1" })).resolves.toBeUndefined();
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_revoke_user_session", {
-    input: { userId: "usr_alice", authSessionId: "sess_1" },
+  expect(invokeMock).toHaveBeenCalledWith("admin_revoke_principal_session", {
+    input: { principalId: "prn_alice", authSessionId: "sess_1" },
   });
 });
 
-test("revokeUserSessions sends user id", async () => {
+test("revokePrincipalSessions sends principal id", async () => {
   const response = { revokedCount: 2 };
   invokeMock.mockResolvedValue(response);
 
-  await expect(revokeUserSessions("usr_alice")).resolves.toEqual(response);
+  await expect(revokePrincipalSessions("prn_alice")).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_revoke_user_sessions", { userId: "usr_alice" });
+  expect(invokeMock).toHaveBeenCalledWith("admin_revoke_principal_sessions", { principalId: "prn_alice" });
 });
 
 test("getSpace sends space id", async () => {

@@ -14,7 +14,7 @@ test("submits cluster address, username, and password", async () => {
 
   await userEvent.clear(screen.getByLabelText(/cluster grpc address/i));
   await userEvent.type(screen.getByLabelText(/cluster grpc address/i), "10.0.0.5:9091");
-  await userEvent.type(screen.getByLabelText(/operator username/i), "operator");
+  await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
   await userEvent.type(screen.getByLabelText(/password/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
@@ -35,7 +35,7 @@ test("disables fields and submit button while loading", () => {
   render(<LoginForm {...defaultProps} loading />);
 
   expect(screen.getByLabelText(/cluster grpc address/i)).toBeDisabled();
-  expect(screen.getByLabelText(/operator username/i)).toBeDisabled();
+  expect(screen.getByLabelText(/principal username/i)).toBeDisabled();
   expect(screen.getByLabelText(/password/i)).toBeDisabled();
   expect(screen.getByRole("button", { name: /logging in/i })).toBeDisabled();
 });

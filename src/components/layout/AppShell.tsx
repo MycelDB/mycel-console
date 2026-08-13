@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { AccessPage } from "../../features/access";
 import { BackupsPage } from "../../features/backups";
 import { ClusterPage, NodeDetailPage } from "../../features/cluster";
 import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
@@ -10,11 +11,11 @@ import { ComingSoonPage } from "../../features/placeholder/ComingSoonPage";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
 import { UserDetailPage, UsersPage } from "../../features/users";
 import { Text } from "../typography";
-import type { OperatorSession } from "../../types/auth";
+import type { PrincipalSession } from "../../types/auth";
 import type { Theme } from "../../types/theme";
 
 export type AppShellProps = {
-  session: OperatorSession;
+  session: PrincipalSession;
   loggingOut: boolean;
   logoutError: string;
   theme: Theme;
@@ -23,11 +24,6 @@ export type AppShellProps = {
 };
 
 const placeholderRoutes = [
-  {
-    path: "/operators",
-    title: "Operators",
-    description: "Manage admin operators, roles, capabilities, and access.",
-  },
   {
     path: "/semantic",
     title: "Semantic",
@@ -66,8 +62,11 @@ export function AppShell({
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage session={session} />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/users/:userId" element={<UserDetailPage />} />
+            <Route path="/principals" element={<UsersPage />} />
+            <Route path="/principals/:principalId" element={<UserDetailPage />} />
+            <Route path="/principals/:principalId/access" element={<AccessPage />} />
+            <Route path="/access" element={<AccessPage />} />
+            <Route path="/operators" element={<Navigate to="/access" replace />} />
             <Route path="/spaces" element={<SpacesPage />} />
             <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
             <Route path="/backups" element={<BackupsPage />} />

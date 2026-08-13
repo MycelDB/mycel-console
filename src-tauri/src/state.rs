@@ -26,11 +26,10 @@ pub struct AdminSession {
 }
 
 impl AdminSession {
-    pub fn summary(&self) -> OperatorSession {
-        OperatorSession {
+    pub fn summary(&self) -> PrincipalSession {
+        PrincipalSession {
             addr: self.addr.clone(),
             principal_id: self.principal_id.clone(),
-            operator_id: self.principal_id.clone(),
             username: self.username.clone(),
         }
     }
@@ -38,10 +37,8 @@ impl AdminSession {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OperatorSession {
+pub struct PrincipalSession {
     pub addr: String,
     pub principal_id: String,
-    // Deprecated compatibility alias for the frontend during principal migration.
-    pub operator_id: String,
     pub username: String,
 }

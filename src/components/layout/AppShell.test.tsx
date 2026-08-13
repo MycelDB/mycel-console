@@ -9,8 +9,8 @@ jest.mock("../../features/dashboard/components/BackupStatusCard", () => ({
 
 jest.mock("../../services/adminService", () => ({
   getBackupStatus: jest.fn().mockResolvedValue({ status: null, quiesce: null }),
+  getPrincipal: jest.fn().mockResolvedValue({ principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE", loginEnabled: true }),
   getSpace: jest.fn().mockResolvedValue({ spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" }),
-  getUser: jest.fn().mockResolvedValue({ userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" }),
   listDomains: jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
   listBackups: jest.fn().mockResolvedValue({ backups: [], nextPageToken: "" }),
   listInferencePackages: jest.fn().mockResolvedValue({
@@ -28,22 +28,24 @@ jest.mock("../../services/adminService", () => ({
     ],
     nextPageToken: "",
   }),
-  listUserSessions: jest.fn().mockResolvedValue({ sessions: [], nextPageToken: "" }),
+  listPrincipalCapabilities: jest.fn().mockResolvedValue({ grants: [], effectiveCapabilities: ["CAPABILITY_IDENTITY_GRANT_MANAGE"] }),
+  listPrincipalRoles: jest.fn().mockResolvedValue({ grants: [{ roleGrantId: "role_1", principalId: "usr_alice", role: "system_admin", scope: { type: "ACCESS_SCOPE_TYPE_SYSTEM" } }], effectiveRoles: ["system_admin"] }),
+  listPrincipalSessions: jest.fn().mockResolvedValue({ sessions: [], nextPageToken: "" }),
   cancelSemanticMaintenanceWork: jest.fn().mockResolvedValue({}),
   getSemanticMaintenanceStatus: jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 0, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
   listSemanticMaintenanceWork: jest.fn().mockResolvedValue({ items: [] }),
   listSemanticIndexes: jest.fn().mockResolvedValue({ indexes: [], nextPageToken: "" }),
   retrySemanticMaintenanceWork: jest.fn().mockResolvedValue({}),
   listSpaces: jest.fn().mockResolvedValue({ spaces: [], nextPageToken: "" }),
-  listUsers: jest.fn().mockResolvedValue({
-    users: [{ userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" }],
+  listPrincipals: jest.fn().mockResolvedValue({
+    principals: [{ principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE", loginEnabled: true }],
     nextPageToken: "",
   }),
 }));
 
 const session = {
   addr: "127.0.0.1:9091",
-  operatorId: "operator-1",
+  principalId: "prn_operator",
   username: "operator",
 };
 
@@ -78,10 +80,24 @@ test("renders principals section route", async () => {
 });
 
 test("renders principal detail route", async () => {
-  renderShell("/principals/usr_alice");
+  renderShell("/principals/prn_alice");
 
   expect(await screen.findByRole("heading", { name: "alice" })).toBeInTheDocument();
-  expect(screen.getByText("usr_alice")).toBeInTheDocument();
+  expect(screen.getByText("prn_alice")).toBeInTheDocument();
+});
+
+test("renders access route", async () => {
+  renderShell("/access");
+
+  expect(screen.getByRole("heading", { name: /roles & capabilities/i })).toBeInTheDocument();
+  expect(await screen.findAllByText("system_admin")).toHaveLength(2);
+});
+
+test("renders principal access route", async () => {
+  renderShell("/principals/prn_alice/access");
+
+  expect(screen.getByRole("heading", { name: /roles & capabilities/i })).toBeInTheDocument();
+  expect(await screen.findByText("CAPABILITY_IDENTITY_GRANT_MANAGE")).toBeInTheDocument();
 });
 
 test("renders space detail route", async () => {

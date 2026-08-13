@@ -1,15 +1,15 @@
 import { Link } from "react-router-dom";
 import { Text } from "../../../components/typography";
-import type { UserInfo } from "../../../types/users";
+import type { PrincipalInfo } from "../../../types/users";
 import { isPrincipalActive, isPrincipalDeleted, isPrincipalDisabled, principalIdOf } from "../../../types/users";
 import { UserStateBadge } from "./UserStateBadge";
 
 export type UserTableProps = {
-  users: UserInfo[];
-  onDisableUser?: (user: UserInfo) => void;
-  onEnableUser?: (user: UserInfo) => void;
-  onDeleteUser?: (user: UserInfo) => void;
-  onSetPassword?: (user: UserInfo) => void;
+  users: PrincipalInfo[];
+  onDisableUser?: (user: PrincipalInfo) => void;
+  onEnableUser?: (user: PrincipalInfo) => void;
+  onDeleteUser?: (user: PrincipalInfo) => void;
+  onSetPassword?: (user: PrincipalInfo) => void;
   actionLoadingUserId?: string;
 };
 

@@ -1,12 +1,12 @@
 import { Text } from "../../../components/typography";
-import type { OperatorSession } from "../../../types/auth";
+import type { PrincipalSession } from "../../../types/auth";
 import { AlarmList } from "../components/AlarmList";
 import { BackupStatusCard } from "../components/BackupStatusCard";
 import { ClusterSummaryCard } from "../components/ClusterSummaryCard";
 import { ShortcutGrid } from "../components/ShortcutGrid";
 
 export type DashboardPageProps = {
-  session: OperatorSession;
+  session: PrincipalSession;
 };
 
 export function DashboardPage({ session }: DashboardPageProps) {

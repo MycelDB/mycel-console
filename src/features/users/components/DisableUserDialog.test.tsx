@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DisableUserDialog } from "./DisableUserDialog";
 
-const user = { userId: "usr_alice", username: "alice", state: "USER_STATE_ACTIVE" };
-const disabledUser = { ...user, state: "USER_STATE_DISABLED" };
+const user = { principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE" };
+const disabledUser = { ...user, state: "PRINCIPAL_STATE_DISABLED" };
 
 function renderDialog(overrides = {}) {
   const props = {
@@ -17,7 +17,7 @@ function renderDialog(overrides = {}) {
   return props;
 }
 
-test("disables user with reason and revoke sessions", async () => {
+test("disables principal with reason and revoke sessions", async () => {
   const props = renderDialog();
 
   await userEvent.type(screen.getByLabelText(/reason/i), "policy violation");
@@ -25,7 +25,7 @@ test("disables user with reason and revoke sessions", async () => {
 
   await waitFor(() => expect(props.onDisabled).toHaveBeenCalledWith(disabledUser));
   expect(props.onDisable).toHaveBeenCalledWith({
-    userId: "usr_alice",
+    principalId: "prn_alice",
     reason: "policy violation",
     revokeSessions: true,
   });

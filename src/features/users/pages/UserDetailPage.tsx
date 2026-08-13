@@ -1,24 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
-import { getUser as defaultGetUser, listSpaces as defaultListSpaces, listUserSessions as defaultListUserSessions, revokeUserSession as defaultRevokeUserSession, revokeUserSessions as defaultRevokeUserSessions } from "../../../services/adminService";
+import { getPrincipal as defaultGetPrincipal, listPrincipalSessions as defaultListPrincipalSessions, listSpaces as defaultListSpaces, revokePrincipalSession as defaultRevokePrincipalSession, revokePrincipalSessions as defaultRevokePrincipalSessions } from "../../../services/adminService";
 import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
-import type { ListUserSessionsInput, ListUserSessionsResponse, RevokeUserSessionInput, RevokeUserSessionsResponse, UserInfo, UserSessionInfo } from "../../../types/users";
+import type { ListPrincipalSessionsInput, ListPrincipalSessionsResponse, PrincipalInfo, PrincipalSessionInfo, RevokePrincipalSessionInput, RevokePrincipalSessionsResponse } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 import { UserStateBadge } from "../components/UserStateBadge";
 
 export type UserDetailPageProps = {
-  getUserService?: (userId: string) => Promise<UserInfo>;
-  listUserSessionsService?: (input: ListUserSessionsInput) => Promise<ListUserSessionsResponse>;
+  getPrincipalService?: (principalId: string) => Promise<PrincipalInfo>;
+  listPrincipalSessionsService?: (input: ListPrincipalSessionsInput) => Promise<ListPrincipalSessionsResponse>;
   listSpacesService?: (input: ListSpacesInput) => Promise<ListSpacesResponse>;
-  revokeUserSessionService?: (input: RevokeUserSessionInput) => Promise<void>;
-  revokeUserSessionsService?: (userId: string) => Promise<RevokeUserSessionsResponse>;
+  revokePrincipalSessionService?: (input: RevokePrincipalSessionInput) => Promise<void>;
+  revokePrincipalSessionsService?: (principalId: string) => Promise<RevokePrincipalSessionsResponse>;
 };
 
-export function UserDetailPage({ getUserService = defaultGetUser, listUserSessionsService = defaultListUserSessions, listSpacesService = defaultListSpaces, revokeUserSessionService = defaultRevokeUserSession, revokeUserSessionsService = defaultRevokeUserSessions }: UserDetailPageProps) {
-  const { userId = "" } = useParams();
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [sessions, setSessions] = useState<UserSessionInfo[]>([]);
+export function UserDetailPage({ getPrincipalService = defaultGetPrincipal, listPrincipalSessionsService = defaultListPrincipalSessions, listSpacesService = defaultListSpaces, revokePrincipalSessionService = defaultRevokePrincipalSession, revokePrincipalSessionsService = defaultRevokePrincipalSessions }: UserDetailPageProps) {
+  const { principalId = "" } = useParams();
+  const routePrincipalId = principalId;
+  const [user, setUser] = useState<PrincipalInfo | null>(null);
+  const [sessions, setSessions] = useState<PrincipalSessionInfo[]>([]);
   const [ownedSpaces, setOwnedSpaces] = useState<SpaceInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,7 +27,7 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
   const [actionLoading, setActionLoading] = useState(false);
 
   async function load() {
-    if (!userId) {
+    if (!routePrincipalId) {
       setError("Principal ID is required");
       setLoading(false);
       return;
@@ -35,13 +36,13 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
     setError("");
     try {
       const [userResponse, sessionsResponse, spacesResponse] = await Promise.all([
-        getUserService(userId),
-        listUserSessionsService({ userId, pageSize: 100, includeInactive: false }),
+        getPrincipalService(routePrincipalId),
+        listPrincipalSessionsService({ principalId: routePrincipalId, pageSize: 100, includeInactive: false }),
         listSpacesService({ pageSize: 100, includeArchived: true }),
       ]);
       setUser(userResponse);
       setSessions(sessionsResponse.sessions);
-      setOwnedSpaces(spacesResponse.spaces.filter((space) => space.owner?.id === userId));
+      setOwnedSpaces(spacesResponse.spaces.filter((space) => space.owner?.id === routePrincipalId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load principal");
     } finally {
@@ -52,7 +53,7 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      if (!userId) return;
+      if (!routePrincipalId) return;
       try {
         await load();
       } finally {
@@ -60,15 +61,15 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
       }
     })();
     return () => { cancelled = true; };
-  }, [getUserService, listSpacesService, listUserSessionsService, userId]);
+  }, [getPrincipalService, listPrincipalSessionsService, listSpacesService, routePrincipalId]);
 
   async function confirmRevoke() {
-    if (!confirm || !userId) return;
+    if (!confirm || !routePrincipalId) return;
     setActionLoading(true);
     setError("");
     try {
-      if (confirm.kind === "one") await revokeUserSessionService({ userId, authSessionId: confirm.sessionId });
-      else await revokeUserSessionsService(userId);
+      if (confirm.kind === "one") await revokePrincipalSessionService({ principalId: routePrincipalId, authSessionId: confirm.sessionId });
+      else await revokePrincipalSessionsService(routePrincipalId);
       setConfirm(null);
       await load();
     } catch (err) {
@@ -84,10 +85,13 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
         <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/principals">← Back to principals</Link>
         <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-cyan-300">Principal detail</Text>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <H2 className="text-slate-900 dark:text-slate-100">{user?.username || userId || "Principal"}</H2>
+          <H2 className="text-slate-900 dark:text-slate-100">{user?.username || routePrincipalId || "Principal"}</H2>
           {user?.state && <UserStateBadge state={user.state} />}
         </div>
         <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">Inspect principal identity and active auth sessions.</Text>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800" to={`/principals/${encodeURIComponent(routePrincipalId)}/access`}>View roles & capabilities</Link>
+        </div>
       </div>
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -112,7 +116,7 @@ function Loading() {
   return <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900/70"><Text intent="muted" className="text-slate-600 dark:text-slate-400">Loading principal…</Text></div>;
 }
 
-function UserIdentity({ user }: { user: UserInfo }) {
+function UserIdentity({ user }: { user: PrincipalInfo }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
@@ -134,7 +138,7 @@ function UserIdentity({ user }: { user: UserInfo }) {
   );
 }
 
-function UserSessionsTable({ sessions, onRevokeSession, onRevokeAll }: { sessions: UserSessionInfo[]; onRevokeSession: (sessionId: string) => void; onRevokeAll: () => void }) {
+function UserSessionsTable({ sessions, onRevokeSession, onRevokeAll }: { sessions: PrincipalSessionInfo[]; onRevokeSession: (sessionId: string) => void; onRevokeAll: () => void }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -221,7 +225,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-1 break-words text-sm text-slate-900 dark:text-slate-100">{value}</dd></div>;
 }
 
-function clientLabel(session: UserSessionInfo) {
+function clientLabel(session: PrincipalSessionInfo) {
   const client = session.client;
   if (!client) return "Not reported";
   return [client.name, client.version, client.platform, client.deviceLabel].filter(Boolean).join(" · ") || "Not reported";

@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
-import type { CreateUserInput, UserInfo } from "../../../types/users";
+import type { CreatePrincipalInput, PrincipalInfo } from "../../../types/users";
 
 export type CreateUserModalProps = {
   open: boolean;
   onClose: () => void;
-  onCreate: (input: CreateUserInput) => Promise<UserInfo>;
-  onCreated: (principal: UserInfo) => void;
+  onCreate: (input: CreatePrincipalInput) => Promise<PrincipalInfo>;
+  onCreated: (principal: PrincipalInfo) => void;
 };
 
 export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUserModalProps) {

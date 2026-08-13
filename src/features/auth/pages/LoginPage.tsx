@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Main } from "../../../components/typography";
-import type { ConnectionDiagnosticsResponse, LoginInput, OperatorSession } from "../../../types/auth";
+import type { ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../../../types/auth";
 import { connectionDiagnostics as defaultConnectionDiagnostics, login as defaultLogin } from "../../../services/adminService";
 import { LoginForm } from "../components/LoginForm";
 
 export type LoginPageProps = {
-  onLoginSuccess: (session: OperatorSession) => void;
-  loginService?: (input: LoginInput) => Promise<OperatorSession>;
+  onLoginSuccess: (session: PrincipalSession) => void;
+  loginService?: (input: LoginInput) => Promise<PrincipalSession>;
   diagnosticsService?: (input: LoginInput) => Promise<ConnectionDiagnosticsResponse>;
 };
 

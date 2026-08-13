@@ -37,7 +37,7 @@ jest.mock("../../../services/adminService", () => ({
 
 const session = {
   addr: "127.0.0.1:9091",
-  operatorId: "operator-1",
+  principalId: "prn_operator",
   username: "operator",
 };
 

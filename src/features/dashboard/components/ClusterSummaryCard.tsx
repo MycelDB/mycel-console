@@ -1,8 +1,8 @@
 import { Text } from "../../../components/typography";
-import type { OperatorSession } from "../../../types/auth";
+import type { PrincipalSession } from "../../../types/auth";
 
 export type ClusterSummaryCardProps = {
-  session: OperatorSession;
+  session: PrincipalSession;
 };
 
 export function ClusterSummaryCard({ session }: ClusterSummaryCardProps) {

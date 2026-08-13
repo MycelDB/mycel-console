@@ -2,21 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
 import { isPrincipalDeleted, principalIdOf } from "../../../types/users";
 import {
-  createUser as defaultCreateUser,
-  deleteUser as defaultDeleteUser,
-  disableUser as defaultDisableUser,
-  enableUser as defaultEnableUser,
-  listUsers as defaultListUsers,
-  setUserPassword as defaultSetUserPassword,
+  createPrincipal as defaultCreatePrincipal,
+  deletePrincipal as defaultDeletePrincipal,
+  disablePrincipal as defaultDisablePrincipal,
+  enablePrincipal as defaultEnablePrincipal,
+  listPrincipals as defaultListPrincipals,
+  setPrincipalPassword as defaultSetPrincipalPassword,
 } from "../../../services/adminService";
 import type {
-  CreateUserInput,
-  DeleteUserInput,
-  DisableUserInput,
-  ListUsersInput,
-  ListUsersResponse,
-  SetUserPasswordInput,
-  UserInfo,
+  CreatePrincipalInput,
+  DeletePrincipalInput,
+  DisablePrincipalInput,
+  ListPrincipalsInput,
+  ListPrincipalsResponse,
+  PrincipalInfo,
+  SetPrincipalPasswordInput,
 } from "../../../types/users";
 import { CreateUserModal } from "../components/CreateUserModal";
 import { DeleteUserDialog } from "../components/DeleteUserDialog";
@@ -33,32 +33,32 @@ const defaultFilters: UserFiltersValue = {
 };
 
 export type UsersPageProps = {
-  listUsersService?: (input: ListUsersInput) => Promise<ListUsersResponse>;
-  createUserService?: (input: CreateUserInput) => Promise<UserInfo>;
-  disableUserService?: (input: DisableUserInput) => Promise<UserInfo>;
-  enableUserService?: (userId: string) => Promise<UserInfo>;
-  deleteUserService?: (input: DeleteUserInput) => Promise<UserInfo>;
-  setUserPasswordService?: (input: SetUserPasswordInput) => Promise<UserInfo>;
+  listPrincipalsService?: (input: ListPrincipalsInput) => Promise<ListPrincipalsResponse>;
+  createPrincipalService?: (input: CreatePrincipalInput) => Promise<PrincipalInfo>;
+  disablePrincipalService?: (input: DisablePrincipalInput) => Promise<PrincipalInfo>;
+  enablePrincipalService?: (principalId: string) => Promise<PrincipalInfo>;
+  deletePrincipalService?: (input: DeletePrincipalInput) => Promise<PrincipalInfo>;
+  setPrincipalPasswordService?: (input: SetPrincipalPasswordInput) => Promise<PrincipalInfo>;
 };
 
 export function UsersPage({
-  listUsersService = defaultListUsers,
-  createUserService = defaultCreateUser,
-  disableUserService = defaultDisableUser,
-  enableUserService = defaultEnableUser,
-  deleteUserService = defaultDeleteUser,
-  setUserPasswordService = defaultSetUserPassword,
+  listPrincipalsService = defaultListPrincipals,
+  createPrincipalService = defaultCreatePrincipal,
+  disablePrincipalService = defaultDisablePrincipal,
+  enablePrincipalService = defaultEnablePrincipal,
+  deletePrincipalService = defaultDeletePrincipal,
+  setPrincipalPasswordService = defaultSetPrincipalPassword,
 }: UsersPageProps) {
   const [filters, setFilters] = useState<UserFiltersValue>(defaultFilters);
-  const [users, setUsers] = useState<UserInfo[]>([]);
+  const [users, setUsers] = useState<PrincipalInfo[]>([]);
   const [nextPageToken, setNextPageToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [disableUser, setDisableUser] = useState<UserInfo | null>(null);
-  const [deleteUser, setDeleteUser] = useState<UserInfo | null>(null);
-  const [passwordUser, setPasswordUser] = useState<UserInfo | null>(null);
+  const [disableUser, setDisableUser] = useState<PrincipalInfo | null>(null);
+  const [deleteUser, setDeleteUser] = useState<PrincipalInfo | null>(null);
+  const [passwordUser, setPasswordUser] = useState<PrincipalInfo | null>(null);
   const [actionLoadingUserId, setActionLoadingUserId] = useState("");
 
   const loadUsers = useCallback(
@@ -68,34 +68,34 @@ export function UsersPage({
       else setLoading(true);
 
       try {
-        const response = await listUsersService({
+        const response = await listPrincipalsService({
           pageSize: 100,
           pageToken,
           includeDisabled: filters.includeDisabled,
           includeDeleted: filters.includeDeleted,
         });
-        setUsers((current) => (append ? [...current, ...response.users] : response.users));
+        setUsers((current) => (append ? [...current, ...response.principals] : response.principals));
         setNextPageToken(response.nextPageToken);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load users");
+        setError(err instanceof Error ? err.message : "Failed to load principals");
       } finally {
         if (append) setLoadingMore(false);
         else setLoading(false);
       }
     },
-    [filters.includeDeleted, filters.includeDisabled, listUsersService],
+    [filters.includeDeleted, filters.includeDisabled, listPrincipalsService],
   );
 
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
 
-  function replaceUser(updatedUser: UserInfo) {
+  function replaceUser(updatedUser: PrincipalInfo) {
     const updatedPrincipalId = principalIdOf(updatedUser);
     setUsers((current) => current.map((user) => (principalIdOf(user) === updatedPrincipalId ? updatedUser : user)));
   }
 
-  function removeOrReplaceDeletedUser(updatedUser: UserInfo) {
+  function removeOrReplaceDeletedUser(updatedUser: PrincipalInfo) {
     const updatedPrincipalId = principalIdOf(updatedUser);
     if (isPrincipalDeleted(updatedUser) && !filters.includeDeleted) {
       setUsers((current) => current.filter((user) => principalIdOf(user) !== updatedPrincipalId));
@@ -104,14 +104,14 @@ export function UsersPage({
     replaceUser(updatedUser);
   }
 
-  async function handleEnableUser(user: UserInfo) {
+  async function handleEnableUser(user: PrincipalInfo) {
     setError("");
     setActionLoadingUserId(principalIdOf(user));
     try {
-      const updated = await enableUserService(principalIdOf(user));
+      const updated = await enablePrincipalService(principalIdOf(user));
       replaceUser(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Enable user failed");
+      setError(err instanceof Error ? err.message : "Enable principal failed");
     } finally {
       setActionLoadingUserId("");
     }
@@ -120,11 +120,10 @@ export function UsersPage({
   const filteredUsers = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
     return users.filter((user) => {
-      if (!filters.includeDisabled && (user.state === "PRINCIPAL_STATE_DISABLED" || user.state === "USER_STATE_DISABLED")) return false;
+      if (!filters.includeDisabled && user.state === "PRINCIPAL_STATE_DISABLED") return false;
       if (!filters.includeDeleted && isPrincipalDeleted(user)) return false;
       if (filters.state !== "all") {
-        const legacyState = String(filters.state).replace("PRINCIPAL_STATE_", "USER_STATE_");
-        if (user.state !== filters.state && user.state !== legacyState) return false;
+        if (user.state !== filters.state) return false;
       }
       if (query && !user.username.toLowerCase().includes(query)) return false;
       return true;
@@ -199,25 +198,25 @@ export function UsersPage({
       <CreateUserModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={createUserService}
+        onCreate={createPrincipalService}
         onCreated={() => void loadUsers()}
       />
       <DisableUserDialog
         user={disableUser}
         onClose={() => setDisableUser(null)}
-        onDisable={disableUserService}
+        onDisable={disablePrincipalService}
         onDisabled={replaceUser}
       />
       <DeleteUserDialog
         user={deleteUser}
         onClose={() => setDeleteUser(null)}
-        onDelete={deleteUserService}
+        onDelete={deletePrincipalService}
         onDeleted={removeOrReplaceDeletedUser}
       />
       <SetUserPasswordDialog
         user={passwordUser}
         onClose={() => setPasswordUser(null)}
-        onSetPassword={setUserPasswordService}
+        onSetPassword={setPrincipalPasswordService}
         onPasswordSet={replaceUser}
       />
     </section>

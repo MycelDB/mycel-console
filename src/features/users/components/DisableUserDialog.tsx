@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
-import type { DisableUserInput, UserInfo } from "../../../types/users";
+import type { DisablePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
 export type DisableUserDialogProps = {
-  user: UserInfo | null;
+  user: PrincipalInfo | null;
   onClose: () => void;
-  onDisable: (input: DisableUserInput) => Promise<UserInfo>;
-  onDisabled: (user: UserInfo) => void;
+  onDisable: (input: DisablePrincipalInput) => Promise<PrincipalInfo>;
+  onDisabled: (user: PrincipalInfo) => void;
 };
 
 export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: DisableUserDialogProps) {
@@ -38,7 +38,7 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
       const currentUser = user;
       if (!currentUser) return;
       const updated = await onDisable({
-        userId: principalIdOf(currentUser),
+        principalId: principalIdOf(currentUser),
         reason: reason.trim() || undefined,
         revokeSessions,
       });

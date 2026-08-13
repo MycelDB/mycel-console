@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CreateUserModal } from "./CreateUserModal";
 
-const createdUser = { userId: "usr_new", username: "new-user", state: "USER_STATE_ACTIVE" };
+const createdUser = { principalId: "prn_new", username: "new-user", state: "PRINCIPAL_STATE_ACTIVE" };
 
 function renderModal(overrides = {}) {
   const props = {
@@ -25,7 +25,7 @@ test("validates username", async () => {
   expect(props.onCreate).not.toHaveBeenCalled();
 });
 
-test("creates a user and reports success", async () => {
+test("creates a principal and reports success", async () => {
   const props = renderModal();
 
   await userEvent.type(screen.getByLabelText(/^username$/i), "new-user");

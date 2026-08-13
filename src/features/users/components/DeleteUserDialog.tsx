@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
-import type { DeleteUserInput, UserInfo } from "../../../types/users";
+import type { DeletePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
 export type DeleteUserDialogProps = {
-  user: UserInfo | null;
+  user: PrincipalInfo | null;
   onClose: () => void;
-  onDelete: (input: DeleteUserInput) => Promise<UserInfo>;
-  onDeleted: (user: UserInfo) => void;
+  onDelete: (input: DeletePrincipalInput) => Promise<PrincipalInfo>;
+  onDeleted: (user: PrincipalInfo) => void;
 };
 
 export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteUserDialogProps) {
@@ -44,7 +44,7 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
 
     setLoading(true);
     try {
-      const deleted = await onDelete({ userId: principalIdOf(currentUser), revokeSessions });
+      const deleted = await onDelete({ principalId: principalIdOf(currentUser), revokeSessions });
       onDeleted(deleted);
       reset();
       onClose();

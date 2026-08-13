@@ -5,7 +5,7 @@ import { LoginPage } from "./LoginPage";
 test("invokes login service and reports successful principal session", async () => {
   const session = {
     addr: "127.0.0.1:19091",
-    operatorId: "operator-1",
+    principalId: "prn_operator",
     username: "operator",
   };
   const loginService = jest.fn().mockResolvedValue(session);

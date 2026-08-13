@@ -12,14 +12,6 @@ export type PrincipalSession = {
   username: string;
 };
 
-/** @deprecated Use PrincipalSession. Kept during the unified principal migration. */
-export type OperatorSession = {
-  addr: string;
-  principalId?: string;
-  operatorId?: string;
-  username: string;
-};
-
 export type ConnectionDiagnosticCheck = {
   id: string;
   label: string;

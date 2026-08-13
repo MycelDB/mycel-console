@@ -4,7 +4,7 @@ use tokio::{
     time::{timeout, Duration},
 };
 
-use crate::state::{AdminSession, AppState, OperatorSession};
+use crate::state::{AdminSession, AppState, PrincipalSession};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,7 +87,7 @@ fn check(id: &str, label: &str, status: &str, detail: String) -> ConnectionDiagn
 pub async fn admin_login(
     input: LoginInput,
     state: State<'_, AppState>,
-) -> Result<OperatorSession, String> {
+) -> Result<PrincipalSession, String> {
     let addr = input.addr.trim().to_string();
     let username = input.username.trim().to_string();
 
@@ -95,7 +95,7 @@ pub async fn admin_login(
         return Err("Cluster gRPC address is required".to_string());
     }
     if username.is_empty() {
-        return Err("Operator username is required".to_string());
+        return Err("Principal username is required".to_string());
     }
     if input.password.is_empty() {
         return Err("Password is required".to_string());
@@ -133,6 +133,6 @@ pub async fn admin_logout(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn admin_whoami(state: State<'_, AppState>) -> Result<Option<OperatorSession>, String> {
+pub async fn admin_whoami(state: State<'_, AppState>) -> Result<Option<PrincipalSession>, String> {
     Ok(state.admin.read().await.as_ref().map(AdminSession::summary))
 }

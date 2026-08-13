@@ -20,16 +20,16 @@ pub struct ClientQuerySession {
 
 pub struct AdminSession {
     pub addr: String,
-    pub operator_id: String,
+    pub principal_id: String,
     pub username: String,
     pub _client: mycel_sdk::AdminClient,
 }
 
 impl AdminSession {
-    pub fn summary(&self) -> OperatorSession {
-        OperatorSession {
+    pub fn summary(&self) -> PrincipalSession {
+        PrincipalSession {
             addr: self.addr.clone(),
-            operator_id: self.operator_id.clone(),
+            principal_id: self.principal_id.clone(),
             username: self.username.clone(),
         }
     }
@@ -37,8 +37,8 @@ impl AdminSession {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OperatorSession {
+pub struct PrincipalSession {
     pub addr: String,
-    pub operator_id: String,
+    pub principal_id: String,
     pub username: String,
 }

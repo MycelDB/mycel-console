@@ -4,11 +4,11 @@ import { AppShell } from "./components/layout/AppShell";
 import { Main, Text } from "./components/typography";
 import { LoginPage } from "./features/auth";
 import { logout as logoutService, whoAmI } from "./services/adminService";
-import type { OperatorSession } from "./types/auth";
+import type { PrincipalSession } from "./types/auth";
 import { storedTheme, THEME_STORAGE_KEY, type Theme } from "./types/theme";
 
 export default function App() {
-  const [session, setSession] = useState<OperatorSession | null>(null);
+  const [session, setSession] = useState<PrincipalSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);

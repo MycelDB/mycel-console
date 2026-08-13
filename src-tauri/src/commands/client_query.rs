@@ -157,6 +157,7 @@ pub async fn admin_console_execute_gql(
             } else {
                 TransactionMode::ReadOnly as i32
             },
+            operation_id: String::new(),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -251,6 +252,7 @@ pub async fn admin_console_execute_gql_script(
             } else {
                 TransactionMode::ReadOnly as i32
             },
+            operation_id: String::new(),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -354,6 +356,7 @@ pub async fn admin_console_execute_graph_query(
         .begin_transaction(tonic::Request::new(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
             mode: TransactionMode::ReadOnly as i32,
+            operation_id: String::new(),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -510,6 +513,7 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
             start: Some(NodePattern {
                 alias: start_alias,
                 labels: vec![],
+                node_ids: vec![],
             }),
             steps: vec![],
         }),
@@ -517,6 +521,8 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
         returns,
         order_by: vec![],
         limit,
+        max_nodes: 0,
+        max_edges: 0,
     })
 }
 

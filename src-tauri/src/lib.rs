@@ -1,8 +1,11 @@
 mod commands;
 mod state;
 
-use commands::automations::{admin_disable_automation, admin_enable_automation, admin_get_automation, admin_get_automation_run, admin_list_automation_invocations, admin_list_automations};
 use commands::auth::{admin_connection_diagnostics, admin_login, admin_logout, admin_whoami};
+use commands::automations::{
+    admin_disable_automation, admin_enable_automation, admin_get_automation,
+    admin_get_automation_run, admin_list_automation_invocations, admin_list_automations,
+};
 use commands::backups::{
     admin_delete_backup, admin_get_backup_policy, admin_get_backup_status, admin_list_backups,
     admin_trigger_backup, admin_update_backup_policy,
@@ -23,8 +26,8 @@ use commands::inference::{
     admin_list_model_endpoint_capabilities, admin_list_model_endpoints, admin_list_models,
     admin_list_vector_stores,
 };
-use commands::semantic::admin_list_semantic_indexes;
 use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
+use commands::semantic::admin_list_semantic_indexes;
 use commands::semantic_maintenance::{
     admin_analyze_semantic_dirty_work, admin_backfill_semantic_index,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,
@@ -33,9 +36,10 @@ use commands::semantic_maintenance::{
 };
 use commands::spaces::{admin_create_space, admin_get_space, admin_list_spaces};
 use commands::users::{
-    admin_create_user, admin_delete_user, admin_disable_user, admin_enable_user, admin_get_user,
-    admin_list_user_sessions, admin_list_users, admin_revoke_user_session,
-    admin_revoke_user_sessions, admin_set_user_password,
+    admin_create_principal, admin_delete_principal, admin_disable_principal,
+    admin_enable_principal, admin_get_principal, admin_list_principal_capabilities,
+    admin_list_principal_roles, admin_list_principal_sessions, admin_list_principals,
+    admin_revoke_principal_session, admin_revoke_principal_sessions, admin_set_principal_password,
 };
 use state::AppState;
 
@@ -52,11 +56,13 @@ pub fn run() {
             admin_console_execute_graph_query,
             admin_console_execute_gql,
             admin_console_execute_gql_script,
-            admin_list_users,
-            admin_get_user,
-            admin_list_user_sessions,
-            admin_revoke_user_session,
-            admin_revoke_user_sessions,
+            admin_list_principals,
+            admin_get_principal,
+            admin_list_principal_roles,
+            admin_list_principal_capabilities,
+            admin_list_principal_sessions,
+            admin_revoke_principal_session,
+            admin_revoke_principal_sessions,
             admin_list_spaces,
             admin_get_space,
             admin_create_space,
@@ -77,11 +83,11 @@ pub fn run() {
             admin_analyze_semantic_dirty_work,
             admin_process_semantic_dirty_work,
             admin_backfill_semantic_index,
-            admin_create_user,
-            admin_disable_user,
-            admin_enable_user,
-            admin_delete_user,
-            admin_set_user_password,
+            admin_create_principal,
+            admin_disable_principal,
+            admin_enable_principal,
+            admin_delete_principal,
+            admin_set_principal_password,
             admin_get_backup_policy,
             admin_update_backup_policy,
             admin_get_backup_status,

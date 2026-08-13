@@ -12,10 +12,10 @@ test("renders main navigation links", () => {
 
   for (const label of [
     "Dashboard",
-    "Users",
+    "Principals",
     "Spaces",
     "Backups",
-    "Operators",
+    "Admin access",
     "Semantic",
     "Maintenance",
     "Inference",
@@ -28,12 +28,12 @@ test("renders main navigation links", () => {
 
 test("marks the active route", () => {
   render(
-    <MemoryRouter initialEntries={["/users"]}>
+    <MemoryRouter initialEntries={["/principals"]}>
       <Sidebar theme="dark" onToggleTheme={jest.fn()} />
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("link", { name: "Users" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "Principals" })).toHaveAttribute("aria-current", "page");
 });
 
 test("invokes theme toggle", async () => {

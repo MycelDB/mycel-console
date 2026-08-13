@@ -1,8 +1,8 @@
 import { Button, Text } from "../typography";
-import type { OperatorSession } from "../../types/auth";
+import type { PrincipalSession } from "../../types/auth";
 
 export type HeaderProps = {
-  session: OperatorSession;
+  session: PrincipalSession;
   loggingOut: boolean;
   onLogout: () => void;
 };
@@ -21,7 +21,7 @@ export function Header({ session, loggingOut, onLogout }: HeaderProps) {
         </div>
         <div className="min-w-0">
           <Text as="p" size="xs" intent="muted">
-            Operator
+            Principal
           </Text>
           <Text as="p" size="sm" className="truncate font-medium text-slate-900 dark:text-slate-100">
             {session.username}

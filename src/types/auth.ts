@@ -6,9 +6,9 @@ export type LoginInput = {
   password: string;
 };
 
-export type OperatorSession = {
+export type PrincipalSession = {
   addr: string;
-  operatorId: string;
+  principalId: string;
   username: string;
 };
 

@@ -60,6 +60,8 @@ pub struct CreateSpaceInput {
     #[serde(default)]
     pub owner_user_id: Option<String>,
     #[serde(default)]
+    pub owner_principal_id: Option<String>,
+    #[serde(default)]
     pub owner_username: Option<String>,
     #[serde(default)]
     pub default_domain_key: Option<String>,
@@ -114,10 +116,15 @@ pub async fn admin_create_space(
     if name.is_empty() {
         return Err("Space name is required".to_string());
     }
-    let owner_user_id = input.owner_user_id.unwrap_or_default().trim().to_string();
+    let owner_principal_id = input
+        .owner_principal_id
+        .or(input.owner_user_id)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
     let owner_username = input.owner_username.unwrap_or_default().trim().to_string();
-    if owner_user_id.is_empty() && owner_username.is_empty() {
-        return Err("Owner user ID or username is required".to_string());
+    if owner_principal_id.is_empty() && owner_username.is_empty() {
+        return Err("Owner principal ID or username is required".to_string());
     }
 
     let mut guard = state.admin.write().await;
@@ -130,10 +137,18 @@ pub async fn admin_create_space(
         .spaces
         .create_space(tonic::Request::new(CreateSpaceRequest {
             name,
-            owner_user_id,
+            owner_principal_id,
             owner_username,
-            default_domain_key: input.default_domain_key.unwrap_or_default().trim().to_string(),
-            default_domain_name: input.default_domain_name.unwrap_or_default().trim().to_string(),
+            default_domain_key: input
+                .default_domain_key
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+            default_domain_name: input
+                .default_domain_name
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
         }))
         .await
         .map_err(|err| err.to_string())?

@@ -19,7 +19,7 @@ function renderDialog(overrides = {}) {
 
 test("prevents accidental delete until username is typed", async () => {
   const props = renderDialog();
-  const deleteButton = screen.getByRole("button", { name: /^delete user$/i });
+  const deleteButton = screen.getByRole("button", { name: /^delete principal$/i });
 
   expect(deleteButton).toBeDisabled();
   await userEvent.type(screen.getByLabelText(/confirmation/i), "wrong");
@@ -31,7 +31,7 @@ test("deletes user after confirmation", async () => {
   const props = renderDialog();
 
   await userEvent.type(screen.getByLabelText(/confirmation/i), "alice");
-  await userEvent.click(screen.getByRole("button", { name: /^delete user$/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^delete principal$/i }));
 
   await waitFor(() => expect(props.onDeleted).toHaveBeenCalledWith(deletedUser));
   expect(props.onDelete).toHaveBeenCalledWith({ userId: "usr_alice", revokeSessions: true });
@@ -41,7 +41,7 @@ test("shows backend errors", async () => {
   renderDialog({ onDelete: jest.fn().mockRejectedValue(new Error("Cannot delete")) });
 
   await userEvent.type(screen.getByLabelText(/confirmation/i), "alice");
-  await userEvent.click(screen.getByRole("button", { name: /^delete user$/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^delete principal$/i }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent("Cannot delete");
 });

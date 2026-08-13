@@ -9,8 +9,8 @@ test("renders operational shortcuts", () => {
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("link", { name: /manage users/i })).toHaveAttribute("href", "/users");
+  expect(screen.getByRole("link", { name: /manage principals/i })).toHaveAttribute("href", "/principals");
   expect(screen.getByRole("link", { name: /view spaces/i })).toHaveAttribute("href", "/spaces");
-  expect(screen.getByRole("link", { name: /operators/i })).toHaveAttribute("href", "/operators");
+  expect(screen.getByRole("link", { name: /admin access/i })).toHaveAttribute("href", "/access");
   expect(screen.getByRole("link", { name: /maintenance/i })).toHaveAttribute("href", "/maintenance");
 });

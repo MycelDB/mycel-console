@@ -36,9 +36,12 @@ use commands::semantic_maintenance::{
 };
 use commands::spaces::{admin_create_space, admin_get_space, admin_list_spaces};
 use commands::users::{
-    admin_create_user, admin_delete_user, admin_disable_user, admin_enable_user, admin_get_user,
-    admin_list_user_sessions, admin_list_users, admin_revoke_user_session,
-    admin_revoke_user_sessions, admin_set_user_password,
+    admin_create_principal, admin_create_user, admin_delete_principal, admin_delete_user,
+    admin_disable_principal, admin_disable_user, admin_enable_principal, admin_enable_user,
+    admin_get_principal, admin_get_user, admin_list_principal_sessions, admin_list_principals,
+    admin_list_user_sessions, admin_list_users, admin_revoke_principal_session,
+    admin_revoke_principal_sessions, admin_revoke_user_session, admin_revoke_user_sessions,
+    admin_set_principal_password, admin_set_user_password,
 };
 use state::AppState;
 
@@ -55,6 +58,11 @@ pub fn run() {
             admin_console_execute_graph_query,
             admin_console_execute_gql,
             admin_console_execute_gql_script,
+            admin_list_principals,
+            admin_get_principal,
+            admin_list_principal_sessions,
+            admin_revoke_principal_session,
+            admin_revoke_principal_sessions,
             admin_list_users,
             admin_get_user,
             admin_list_user_sessions,
@@ -80,6 +88,11 @@ pub fn run() {
             admin_analyze_semantic_dirty_work,
             admin_process_semantic_dirty_work,
             admin_backfill_semantic_index,
+            admin_create_principal,
+            admin_disable_principal,
+            admin_enable_principal,
+            admin_delete_principal,
+            admin_set_principal_password,
             admin_create_user,
             admin_disable_user,
             admin_enable_user,

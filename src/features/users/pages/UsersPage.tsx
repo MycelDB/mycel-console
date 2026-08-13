@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { isPrincipalDeleted, principalIdOf } from "../../../types/users";
 import {
   createUser as defaultCreateUser,
   deleteUser as defaultDeleteUser,
@@ -90,12 +91,14 @@ export function UsersPage({
   }, [loadUsers]);
 
   function replaceUser(updatedUser: UserInfo) {
-    setUsers((current) => current.map((user) => (user.userId === updatedUser.userId ? updatedUser : user)));
+    const updatedPrincipalId = principalIdOf(updatedUser);
+    setUsers((current) => current.map((user) => (principalIdOf(user) === updatedPrincipalId ? updatedUser : user)));
   }
 
   function removeOrReplaceDeletedUser(updatedUser: UserInfo) {
-    if (updatedUser.state === "USER_STATE_DELETED" && !filters.includeDeleted) {
-      setUsers((current) => current.filter((user) => user.userId !== updatedUser.userId));
+    const updatedPrincipalId = principalIdOf(updatedUser);
+    if (isPrincipalDeleted(updatedUser) && !filters.includeDeleted) {
+      setUsers((current) => current.filter((user) => principalIdOf(user) !== updatedPrincipalId));
       return;
     }
     replaceUser(updatedUser);
@@ -103,9 +106,9 @@ export function UsersPage({
 
   async function handleEnableUser(user: UserInfo) {
     setError("");
-    setActionLoadingUserId(user.userId);
+    setActionLoadingUserId(principalIdOf(user));
     try {
-      const updated = await enableUserService(user.userId);
+      const updated = await enableUserService(principalIdOf(user));
       replaceUser(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Enable user failed");
@@ -117,9 +120,12 @@ export function UsersPage({
   const filteredUsers = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
     return users.filter((user) => {
-      if (!filters.includeDisabled && user.state === "USER_STATE_DISABLED") return false;
-      if (!filters.includeDeleted && user.state === "USER_STATE_DELETED") return false;
-      if (filters.state !== "all" && user.state !== filters.state) return false;
+      if (!filters.includeDisabled && (user.state === "PRINCIPAL_STATE_DISABLED" || user.state === "USER_STATE_DISABLED")) return false;
+      if (!filters.includeDeleted && isPrincipalDeleted(user)) return false;
+      if (filters.state !== "all") {
+        const legacyState = String(filters.state).replace("PRINCIPAL_STATE_", "USER_STATE_");
+        if (user.state !== filters.state && user.state !== legacyState) return false;
+      }
       if (query && !user.username.toLowerCase().includes(query)) return false;
       return true;
     });
@@ -134,11 +140,11 @@ export function UsersPage({
             size="sm"
             className="font-medium uppercase tracking-[0.3em] text-cyan-300"
           >
-            Users
+            Principals
           </Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">User Management</H2>
+          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Principal Management</H2>
           <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-            Inspect users and prepare for user lifecycle operations.
+            Inspect human principals and prepare for principal lifecycle operations.
           </Text>
         </div>
         <div className="flex gap-2">
@@ -146,7 +152,7 @@ export function UsersPage({
             Refresh
           </Button>
           <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-            Create user
+            Create principal
           </Button>
         </div>
       </div>
@@ -157,14 +163,14 @@ export function UsersPage({
 
       {!loading && (
         <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">
-          Showing {filteredUsers.length} of {users.length} loaded user{users.length === 1 ? "" : "s"}.
+          Showing {filteredUsers.length} of {users.length} loaded principal{users.length === 1 ? "" : "s"}.
         </Text>
       )}
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-8 text-center">
           <Text intent="muted" className="text-slate-600 dark:text-slate-400">
-            Loading users…
+            Loading principals…
           </Text>
         </div>
       ) : (

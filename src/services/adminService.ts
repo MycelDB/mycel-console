@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { principalIdOf } from "../types/users";
 import type { AutomationActionInput, AutomationDefinitionInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo } from "../types/automations";
 import type {
   BackupPolicyInfo,
@@ -32,15 +33,26 @@ import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../t
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
 import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
 import type {
+  CreatePrincipalInput,
   CreateUserInput,
+  DeletePrincipalInput,
   DeleteUserInput,
+  DisablePrincipalInput,
   DisableUserInput,
+  ListPrincipalSessionsInput,
+  ListPrincipalSessionsResponse,
+  ListPrincipalsInput,
+  ListPrincipalsResponse,
   ListUserSessionsInput,
   ListUserSessionsResponse,
   ListUsersInput,
   ListUsersResponse,
+  PrincipalInfo,
+  RevokePrincipalSessionInput,
+  RevokePrincipalSessionsResponse,
   RevokeUserSessionInput,
   RevokeUserSessionsResponse,
+  SetPrincipalPasswordInput,
   SetUserPasswordInput,
   UserInfo,
 } from "../types/users";
@@ -117,16 +129,33 @@ export async function getClusterHealth(): Promise<ClusterHealthInfo> {
   return invoke<ClusterHealthInfo>("admin_get_cluster_health");
 }
 
+export async function listPrincipals(input: ListPrincipalsInput = {}): Promise<ListPrincipalsResponse> {
+  return invoke<ListPrincipalsResponse>("admin_list_principals", { input });
+}
+
+/** @deprecated Use listPrincipals. */
 export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersResponse> {
-  return invoke<ListUsersResponse>("admin_list_users", { input });
+  const response = await listPrincipals(input);
+  return { users: response.principals.map(principalAsUser), nextPageToken: response.nextPageToken };
 }
 
+export async function getPrincipal(principalId: string): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_get_principal", { principalId });
+}
+
+/** @deprecated Use getPrincipal. */
 export async function getUser(userId: string): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_get_user", { userId });
+  return principalAsUser(await getPrincipal(userId));
 }
 
+export async function listPrincipalSessions(input: ListPrincipalSessionsInput): Promise<ListPrincipalSessionsResponse> {
+  return invoke<ListPrincipalSessionsResponse>("admin_list_principal_sessions", { input });
+}
+
+/** @deprecated Use listPrincipalSessions. */
 export async function listUserSessions(input: ListUserSessionsInput): Promise<ListUserSessionsResponse> {
-  return invoke<ListUserSessionsResponse>("admin_list_user_sessions", { input });
+  const { userId, principalId = userId, ...rest } = input;
+  return listPrincipalSessions({ principalId, ...rest });
 }
 
 export async function listSpaces(input: ListSpacesInput = {}): Promise<ListSpacesResponse> {
@@ -209,32 +238,71 @@ export async function cancelSemanticMaintenanceWork(input: SemanticMaintenanceWo
   return invoke<SemanticMaintenanceWorkItemInfo>("admin_cancel_semantic_maintenance_work", { input });
 }
 
+export async function createPrincipal(input: CreatePrincipalInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_create_principal", { input });
+}
+
+/** @deprecated Use createPrincipal. */
 export async function createUser(input: CreateUserInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_create_user", { input });
+  return principalAsUser(await createPrincipal(input));
 }
 
+export async function disablePrincipal(input: DisablePrincipalInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_disable_principal", { input });
+}
+
+/** @deprecated Use disablePrincipal. */
 export async function disableUser(input: DisableUserInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_disable_user", { input });
+  const { userId, principalId = userId, ...rest } = input;
+  return principalAsUser(await disablePrincipal({ principalId, ...rest }));
 }
 
+export async function enablePrincipal(principalId: string): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_enable_principal", { principalId });
+}
+
+/** @deprecated Use enablePrincipal. */
 export async function enableUser(userId: string): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_enable_user", { userId });
+  return principalAsUser(await enablePrincipal(userId));
 }
 
+export async function deletePrincipal(input: DeletePrincipalInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_delete_principal", { input });
+}
+
+/** @deprecated Use deletePrincipal. */
 export async function deleteUser(input: DeleteUserInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_delete_user", { input });
+  const { userId, principalId = userId, ...rest } = input;
+  return principalAsUser(await deletePrincipal({ principalId, ...rest }));
 }
 
+export async function setPrincipalPassword(input: SetPrincipalPasswordInput): Promise<PrincipalInfo> {
+  return invoke<PrincipalInfo>("admin_set_principal_password", { input });
+}
+
+/** @deprecated Use setPrincipalPassword. */
 export async function setUserPassword(input: SetUserPasswordInput): Promise<UserInfo> {
-  return invoke<UserInfo>("admin_set_user_password", { input });
+  const { userId, principalId = userId, ...rest } = input;
+  return principalAsUser(await setPrincipalPassword({ principalId, ...rest }));
 }
 
+export async function revokePrincipalSession(input: RevokePrincipalSessionInput): Promise<void> {
+  await invoke<void>("admin_revoke_principal_session", { input });
+}
+
+/** @deprecated Use revokePrincipalSession. */
 export async function revokeUserSession(input: RevokeUserSessionInput): Promise<void> {
-  await invoke<void>("admin_revoke_user_session", { input });
+  const { userId, principalId = userId, ...rest } = input;
+  await revokePrincipalSession({ principalId, ...rest });
 }
 
+export async function revokePrincipalSessions(principalId: string): Promise<RevokePrincipalSessionsResponse> {
+  return invoke<RevokePrincipalSessionsResponse>("admin_revoke_principal_sessions", { principalId });
+}
+
+/** @deprecated Use revokePrincipalSessions. */
 export async function revokeUserSessions(userId: string): Promise<RevokeUserSessionsResponse> {
-  return invoke<RevokeUserSessionsResponse>("admin_revoke_user_sessions", { userId });
+  return revokePrincipalSessions(userId);
 }
 
 export async function getBackupPolicy(): Promise<BackupPolicyInfo> {
@@ -293,4 +361,9 @@ export async function applyInferencePackage(
   input: InferencePackageDocument,
 ): Promise<ApplyInferencePackageResponse> {
   return invoke<ApplyInferencePackageResponse>("admin_apply_inference_package", { input });
+}
+
+function principalAsUser(principal: PrincipalInfo): UserInfo {
+  const principalId = principalIdOf(principal);
+  return { ...principal, principalId, userId: principal.userId || principalId };
 }

@@ -22,9 +22,9 @@ test("updates state filter", async () => {
   const onChange = jest.fn();
   render(<UserFilters value={value} onChange={onChange} />);
 
-  await userEvent.selectOptions(screen.getByLabelText(/state/i), "USER_STATE_DISABLED");
+  await userEvent.selectOptions(screen.getByLabelText(/state/i), "PRINCIPAL_STATE_DISABLED");
 
-  expect(onChange).toHaveBeenCalledWith({ ...value, state: "USER_STATE_DISABLED" });
+  expect(onChange).toHaveBeenCalledWith({ ...value, state: "PRINCIPAL_STATE_DISABLED" });
 });
 
 test("updates include flags", async () => {

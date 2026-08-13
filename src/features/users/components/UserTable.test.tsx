@@ -5,10 +5,10 @@ import { UserTable } from "./UserTable";
 test("renders empty state", () => {
   render(<UserTable users={[]} />);
 
-  expect(screen.getByText(/no users found/i)).toBeInTheDocument();
+  expect(screen.getByText(/no principals found/i)).toBeInTheDocument();
 });
 
-test("renders user rows", () => {
+test("renders principal rows", () => {
   render(
     <MemoryRouter>
       <UserTable
@@ -20,7 +20,7 @@ test("renders user rows", () => {
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/users/usr_alice");
+  expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/principals/usr_alice");
   expect(screen.getByText("usr_alice")).toBeInTheDocument();
   expect(screen.getByText("Active")).toBeInTheDocument();
   expect(screen.getByText("disabled")).toBeInTheDocument();

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
 import type { DeleteUserInput, UserInfo } from "../../../types/users";
+import { principalIdOf } from "../../../types/users";
 
 export type DeleteUserDialogProps = {
   user: UserInfo | null;
@@ -43,12 +44,12 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
 
     setLoading(true);
     try {
-      const deleted = await onDelete({ userId: currentUser.userId, revokeSessions });
+      const deleted = await onDelete({ userId: principalIdOf(currentUser), revokeSessions });
       onDeleted(deleted);
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete user failed");
+      setError(err instanceof Error ? err.message : "Delete principal failed");
     } finally {
       setLoading(false);
     }
@@ -57,7 +58,7 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
-        <H2>Delete user</H2>
+        <H2>Delete principal</H2>
         <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
           This will delete <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span>. This action is destructive.
         </Text>
@@ -69,7 +70,7 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
             Type <span className="font-mono font-semibold">{user.username}</span> to confirm.
           </Text>
           <Text intent="muted" size="xs" className="mt-1 text-slate-600 dark:text-slate-400">
-            User ID: {user.userId}
+            Principal ID: {principalIdOf(user)}
           </Text>
         </div>
 
@@ -99,7 +100,7 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
           <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button disabled={loading || !confirmed}>{loading ? "Deleting…" : "Delete user"}</Button>
+          <Button disabled={loading || !confirmed}>{loading ? "Deleting…" : "Delete principal"}</Button>
         </div>
       </Form>
     </div>

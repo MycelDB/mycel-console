@@ -17,7 +17,7 @@ export function ClusterSummaryCard({ session }: ClusterSummaryCardProps) {
           <dd className="mt-1 font-medium text-slate-900 dark:text-slate-100">{session.addr}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-slate-500">Operator</dt>
+          <dt className="text-xs uppercase tracking-wide text-slate-500">Principal</dt>
           <dd className="mt-1 font-medium text-slate-900 dark:text-slate-100">{session.username}</dd>
         </div>
         <div>

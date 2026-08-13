@@ -4,6 +4,7 @@ import { Button, ErrorBox, H2, Text } from "../../../components/typography";
 import { getUser as defaultGetUser, listSpaces as defaultListSpaces, listUserSessions as defaultListUserSessions, revokeUserSession as defaultRevokeUserSession, revokeUserSessions as defaultRevokeUserSessions } from "../../../services/adminService";
 import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
 import type { ListUserSessionsInput, ListUserSessionsResponse, RevokeUserSessionInput, RevokeUserSessionsResponse, UserInfo, UserSessionInfo } from "../../../types/users";
+import { principalIdOf } from "../../../types/users";
 import { UserStateBadge } from "../components/UserStateBadge";
 
 export type UserDetailPageProps = {
@@ -26,7 +27,7 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
 
   async function load() {
     if (!userId) {
-      setError("User ID is required");
+      setError("Principal ID is required");
       setLoading(false);
       return;
     }
@@ -42,7 +43,7 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
       setSessions(sessionsResponse.sessions);
       setOwnedSpaces(spacesResponse.spaces.filter((space) => space.owner?.id === userId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load user");
+      setError(err instanceof Error ? err.message : "Failed to load principal");
     } finally {
       setLoading(false);
     }
@@ -80,13 +81,13 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
   return (
     <section className="space-y-6">
       <div>
-        <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/users">← Back to users</Link>
-        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-cyan-300">User detail</Text>
+        <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/principals">← Back to principals</Link>
+        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-cyan-300">Principal detail</Text>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <H2 className="text-slate-900 dark:text-slate-100">{user?.username || userId || "User"}</H2>
+          <H2 className="text-slate-900 dark:text-slate-100">{user?.username || userId || "Principal"}</H2>
           {user?.state && <UserStateBadge state={user.state} />}
         </div>
-        <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">Inspect account identity and active auth sessions.</Text>
+        <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">Inspect principal identity and active auth sessions.</Text>
       </div>
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -108,7 +109,7 @@ export function UserDetailPage({ getUserService = defaultGetUser, listUserSessio
 }
 
 function Loading() {
-  return <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900/70"><Text intent="muted" className="text-slate-600 dark:text-slate-400">Loading user…</Text></div>;
+  return <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900/70"><Text intent="muted" className="text-slate-600 dark:text-slate-400">Loading principal…</Text></div>;
 }
 
 function UserIdentity({ user }: { user: UserInfo }) {
@@ -117,7 +118,7 @@ function UserIdentity({ user }: { user: UserInfo }) {
       <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
         <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Identity</Text>
         <dl className="mt-4 space-y-3">
-          <DetailRow label="User ID" value={user.userId} />
+          <DetailRow label="Principal ID" value={principalIdOf(user)} />
           <DetailRow label="Username" value={user.username} />
           <DetailRow label="State" value={user.state} />
         </dl>
@@ -156,7 +157,7 @@ function OwnedSpaces({ spaces }: { spaces: SpaceInfo[] }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Owned spaces</Text>
-      <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Spaces where this user is the owner principal.</Text>
+      <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Spaces where this principal is the owner.</Text>
       {spaces.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No owned spaces found.</Text> : (
         <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
@@ -174,14 +175,14 @@ function SemanticDiagnosticsNote({ ownedSpaceCount }: { ownedSpaceCount: number 
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900/70 dark:bg-amber-950/30">
       <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Semantic diagnostics</Text>
       <Text intent="muted" size="sm" className="mt-2 max-w-3xl text-slate-700 dark:text-slate-300">
-        This panel captures what can be inferred for user-reported semantic search issues today. The current Admin API can show this user's account state, sessions, owned spaces, space domains, semantic indexes, inference resources, and maintenance state, but it cannot yet directly explain this user's effective access grants for a target space/domain.
+        This panel captures what can be inferred for principal-reported semantic search issues today. The current Admin API can show this principal's state, sessions, owned spaces, space domains, semantic indexes, inference resources, and maintenance state, but it cannot yet directly explain this principal's effective access grants for a target space/domain.
       </Text>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <DiagnosticItem status="pass" label="User account state" detail="Shown above from AdminUserService.GetUser." />
-        <DiagnosticItem status="pass" label="User auth sessions" detail="Shown above from AdminUserService.ListUserSessions." />
+        <DiagnosticItem status="pass" label="Principal state" detail="Shown above from AdminPrincipalService.GetPrincipal." />
+        <DiagnosticItem status="pass" label="Principal auth sessions" detail="Shown above from AdminPrincipalService.ListPrincipalSessions." />
         <DiagnosticItem status={ownedSpaceCount > 0 ? "pass" : "warn"} label="Owned spaces" detail={ownedSpaceCount > 0 ? `${ownedSpaceCount} owned space${ownedSpaceCount === 1 ? "" : "s"} found.` : "No owned spaces found for this user."} />
-        <DiagnosticItem status="warn" label="Effective access" detail="Needs a future Admin API such as ExplainEffectiveAccess(user_id, space_id, domain_id)." />
-        <DiagnosticItem status="warn" label="Semantic search explain" detail="Needs a future Admin API such as ExplainSemanticSearch(user_id, space_id, domain_id, semantic_index_id)." />
+        <DiagnosticItem status="warn" label="Effective access" detail="Needs a future Admin API such as ExplainEffectiveAccess(principal_id, space_id, domain_id)." />
+        <DiagnosticItem status="warn" label="Semantic search explain" detail="Needs a future Admin API such as ExplainSemanticSearch(principal_id, space_id, domain_id, semantic_index_id)." />
         <DiagnosticItem status="warn" label="Next manual checks" detail="Open the relevant space and inspect domains, semantic indexes, inference catalog, credential grants, policies, and maintenance work." />
       </div>
     </div>
@@ -203,9 +204,9 @@ function ConfirmRevokeDialog({ kind, sessionId, loading, onCancel, onConfirm }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
         <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-red-400">Revoke sessions</Text>
-        <H2 className="mt-2 text-xl text-slate-900 dark:text-slate-100">{kind === "all" ? "Revoke all user sessions?" : "Revoke this user session?"}</H2>
+        <H2 className="mt-2 text-xl text-slate-900 dark:text-slate-100">{kind === "all" ? "Revoke all principal sessions?" : "Revoke this principal session?"}</H2>
         <Text intent="muted" size="sm" className="mt-3 text-slate-600 dark:text-slate-400">
-          {kind === "all" ? "The user will be signed out from all active clients." : `Session ${sessionId} will be revoked and can no longer refresh access.`}
+          {kind === "all" ? "The principal will be signed out from all active clients." : `Session ${sessionId} will be revoked and can no longer refresh access.`}
         </Text>
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel} disabled={loading}>Cancel</Button>

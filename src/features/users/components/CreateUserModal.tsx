@@ -6,7 +6,7 @@ export type CreateUserModalProps = {
   open: boolean;
   onClose: () => void;
   onCreate: (input: CreateUserInput) => Promise<UserInfo>;
-  onCreated: (user: UserInfo) => void;
+  onCreated: (principal: UserInfo) => void;
 };
 
 export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUserModalProps) {
@@ -43,16 +43,16 @@ export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUs
 
     setLoading(true);
     try {
-      const user = await onCreate({
+      const principal = await onCreate({
         username: trimmedUsername,
         password: password || undefined,
         disabled,
       });
-      onCreated(user);
+      onCreated(principal);
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create user failed");
+      setError(err instanceof Error ? err.message : "Create principal failed");
     } finally {
       setLoading(false);
     }
@@ -63,9 +63,9 @@ export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUs
       <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <H2>Create user</H2>
+            <H2>Create principal</H2>
             <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
-              Create a standard Mycel user. Passwords are sent to the daemon and are never returned.
+              Create a human mycel principal. Passwords are sent to the daemon and are never returned.
             </Text>
           </div>
           <button
@@ -73,7 +73,7 @@ export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUs
             className="rounded px-2 py-1 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
             onClick={handleClose}
             disabled={loading}
-            aria-label="Close create user dialog"
+            aria-label="Close create principal dialog"
           >
             ✕
           </button>
@@ -118,7 +118,7 @@ export function CreateUserModal({ open, onClose, onCreate, onCreated }: CreateUs
           <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button disabled={loading}>{loading ? "Creating…" : "Create user"}</Button>
+          <Button disabled={loading}>{loading ? "Creating…" : "Create principal"}</Button>
         </div>
       </Form>
     </div>

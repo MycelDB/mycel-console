@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LoginPage } from "./LoginPage";
 
-test("invokes login service and reports successful operator session", async () => {
+test("invokes login service and reports successful principal session", async () => {
   const session = {
     addr: "127.0.0.1:19091",
     operatorId: "operator-1",
@@ -13,7 +13,7 @@ test("invokes login service and reports successful operator session", async () =
 
   render(<LoginPage loginService={loginService} onLoginSuccess={onLoginSuccess} />);
 
-  await userEvent.type(screen.getByLabelText(/operator username/i), "operator");
+  await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
   await userEvent.type(screen.getByLabelText(/password/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
@@ -46,7 +46,7 @@ test("shows validation errors before calling login service", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
-  expect(await screen.findByRole("alert")).toHaveTextContent("Operator username is required");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Principal username is required");
   expect(loginService).not.toHaveBeenCalled();
 });
 
@@ -54,7 +54,7 @@ test("shows login service errors", async () => {
   const loginService = jest.fn().mockRejectedValue(new Error("Invalid credentials"));
   render(<LoginPage loginService={loginService} onLoginSuccess={jest.fn()} />);
 
-  await userEvent.type(screen.getByLabelText(/operator username/i), "operator");
+  await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
   await userEvent.type(screen.getByLabelText(/password/i), "wrong");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
@@ -65,7 +65,7 @@ test("shows string errors from Tauri commands", async () => {
   const loginService = jest.fn().mockRejectedValue("transport error: connection refused");
   render(<LoginPage loginService={loginService} onLoginSuccess={jest.fn()} />);
 
-  await userEvent.type(screen.getByLabelText(/operator username/i), "operator");
+  await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
   await userEvent.type(screen.getByLabelText(/password/i), "wrong");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 

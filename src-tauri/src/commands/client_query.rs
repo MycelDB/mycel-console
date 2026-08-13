@@ -513,6 +513,7 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
             start: Some(NodePattern {
                 alias: start_alias,
                 labels: vec![],
+                node_ids: vec![],
             }),
             steps: vec![],
         }),
@@ -520,6 +521,8 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
         returns,
         order_by: vec![],
         limit,
+        max_nodes: 0,
+        max_edges: 0,
     })
 }
 

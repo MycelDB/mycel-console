@@ -70,15 +70,15 @@ test("renders dashboard route", () => {
   expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
 });
 
-test("renders users section route", async () => {
-  renderShell("/users");
+test("renders principals section route", async () => {
+  renderShell("/principals");
 
-  expect(screen.getByRole("heading", { name: "User Management" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Principal Management" })).toBeInTheDocument();
   expect(await screen.findByText("alice")).toBeInTheDocument();
 });
 
-test("renders user detail route", async () => {
-  renderShell("/users/usr_alice");
+test("renders principal detail route", async () => {
+  renderShell("/principals/usr_alice");
 
   expect(await screen.findByRole("heading", { name: "alice" })).toBeInTheDocument();
   expect(screen.getByText("usr_alice")).toBeInTheDocument();

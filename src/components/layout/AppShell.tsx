@@ -24,9 +24,9 @@ export type AppShellProps = {
 
 const placeholderRoutes = [
   {
-    path: "/operators",
-    title: "Operators",
-    description: "Manage admin operators, roles, capabilities, and access.",
+    path: "/access",
+    title: "Admin access",
+    description: "Manage admin-capable principals, roles, capabilities, and scoped access.",
   },
   {
     path: "/semantic",
@@ -66,8 +66,11 @@ export function AppShell({
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage session={session} />} />
-            <Route path="/users" element={<UsersPage />} />
+            <Route path="/principals" element={<UsersPage />} />
+            <Route path="/principals/:userId" element={<UserDetailPage />} />
+            <Route path="/users" element={<Navigate to="/principals" replace />} />
             <Route path="/users/:userId" element={<UserDetailPage />} />
+            <Route path="/operators" element={<Navigate to="/access" replace />} />
             <Route path="/spaces" element={<SpacesPage />} />
             <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
             <Route path="/backups" element={<BackupsPage />} />

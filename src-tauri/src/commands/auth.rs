@@ -113,7 +113,7 @@ pub async fn admin_login(
     let operator = client.who_am_i().await.map_err(|err| err.to_string())?;
     let session = AdminSession {
         addr,
-        operator_id: operator.operator_id,
+        principal_id: operator.principal_id,
         username: operator.username,
         _client: client,
     };
@@ -126,7 +126,9 @@ pub async fn admin_login(
 
 #[tauri::command]
 pub async fn admin_logout(state: State<'_, AppState>) -> Result<(), String> {
-    *state.admin.write().await = None;
+    if let Some(mut session) = state.admin.write().await.take() {
+        let _ = session._client.logout_principal(None).await;
+    }
     Ok(())
 }
 

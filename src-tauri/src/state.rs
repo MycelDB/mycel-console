@@ -20,7 +20,7 @@ pub struct ClientQuerySession {
 
 pub struct AdminSession {
     pub addr: String,
-    pub operator_id: String,
+    pub principal_id: String,
     pub username: String,
     pub _client: mycel_sdk::AdminClient,
 }
@@ -29,7 +29,8 @@ impl AdminSession {
     pub fn summary(&self) -> OperatorSession {
         OperatorSession {
             addr: self.addr.clone(),
-            operator_id: self.operator_id.clone(),
+            principal_id: self.principal_id.clone(),
+            operator_id: self.principal_id.clone(),
             username: self.username.clone(),
         }
     }
@@ -39,6 +40,8 @@ impl AdminSession {
 #[serde(rename_all = "camelCase")]
 pub struct OperatorSession {
     pub addr: String,
+    pub principal_id: String,
+    // Deprecated compatibility alias for the frontend during principal migration.
     pub operator_id: String,
     pub username: String,
 }

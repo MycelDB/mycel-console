@@ -38,19 +38,19 @@ function renderDetail(overrides: Partial<ComponentProps<typeof UserDetailPage>> 
     ...overrides,
   };
   render(
-    <MemoryRouter initialEntries={["/users/usr_alice"]}>
+    <MemoryRouter initialEntries={["/principals/usr_alice"]}>
       <Routes>
-        <Route path="/users/:userId" element={<UserDetailPage {...services} />} />
+        <Route path="/principals/:userId" element={<UserDetailPage {...services} />} />
       </Routes>
     </MemoryRouter>,
   );
   return services;
 }
 
-test("renders user identity and sessions", async () => {
+test("renders principal identity and sessions", async () => {
   const { getUserService, listUserSessionsService, listSpacesService } = renderDetail();
 
-  expect(screen.getByText(/loading user/i)).toBeInTheDocument();
+  expect(screen.getByText(/loading principal/i)).toBeInTheDocument();
   expect(await screen.findByRole("heading", { name: "alice" })).toBeInTheDocument();
   expect(screen.getByText("usr_alice")).toBeInTheDocument();
   expect(screen.getByText("sess_1")).toBeInTheDocument();
@@ -71,7 +71,7 @@ test("revokes one session after confirmation", async () => {
 
   await screen.findByText("sess_1");
   await userEvent.click(screen.getByRole("button", { name: /^revoke$/i }));
-  expect(screen.getByRole("heading", { name: /revoke this user session/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /revoke this principal session/i })).toBeInTheDocument();
   const revokeButtons = screen.getAllByRole("button", { name: /^revoke$/i });
   await userEvent.click(revokeButtons[revokeButtons.length - 1]);
 
@@ -83,7 +83,7 @@ test("revokes all sessions after confirmation", async () => {
 
   await screen.findByText("sess_1");
   await userEvent.click(screen.getByRole("button", { name: /revoke all sessions/i }));
-  expect(screen.getByRole("heading", { name: /revoke all user sessions/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /revoke all principal sessions/i })).toBeInTheDocument();
   const revokeButtons = screen.getAllByRole("button", { name: /^revoke$/i });
   await userEvent.click(revokeButtons[revokeButtons.length - 1]);
 

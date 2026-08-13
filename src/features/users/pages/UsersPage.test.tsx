@@ -28,10 +28,10 @@ function renderUsersPage(listUsersService = jest.fn<Promise<ListUsersResponse>, 
   return { listUsersService };
 }
 
-test("renders loading state then user rows", async () => {
+test("renders loading state then principal rows", async () => {
   renderUsersPage();
 
-  expect(screen.getByText(/loading users/i)).toBeInTheDocument();
+  expect(screen.getByText(/loading principals/i)).toBeInTheDocument();
   expect(await screen.findByText("alice")).toBeInTheDocument();
   expect(screen.getByText("usr_alice")).toBeInTheDocument();
 });
@@ -45,7 +45,7 @@ test("renders backend errors", async () => {
 test("renders empty state", async () => {
   renderUsersPage(jest.fn().mockResolvedValue(listUsersResponse({ users: [] })));
 
-  expect(await screen.findByText(/no users found/i)).toBeInTheDocument();
+  expect(await screen.findByText(/no principals found/i)).toBeInTheDocument();
 });
 
 test("filters by username", async () => {
@@ -62,7 +62,7 @@ test("filters by state", async () => {
   renderUsersPage();
 
   expect(await screen.findByText("alice")).toBeInTheDocument();
-  await userEvent.selectOptions(screen.getByLabelText(/state/i), "USER_STATE_DISABLED");
+  await userEvent.selectOptions(screen.getByLabelText(/state/i), "PRINCIPAL_STATE_DISABLED");
 
   expect(screen.getByText("disabled-user")).toBeInTheDocument();
   expect(screen.queryByText("alice")).not.toBeInTheDocument();
@@ -116,10 +116,10 @@ test("creates a user and refreshes the list", async () => {
   );
 
   await screen.findByText("alice");
-  await userEvent.click(screen.getByRole("button", { name: /^create user$/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
   const usernameFields = screen.getAllByLabelText(/^username$/i);
   await userEvent.type(usernameFields[usernameFields.length - 1], "new-user");
-  const createButtons = screen.getAllByRole("button", { name: /^create user$/i });
+  const createButtons = screen.getAllByRole("button", { name: /^create principal$/i });
   await userEvent.click(createButtons[createButtons.length - 1]);
 
   await waitFor(() => expect(createUserService).toHaveBeenCalledWith({ username: "new-user", password: undefined, disabled: false }));

@@ -27,7 +27,7 @@ export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnos
     setLoading(true);
     try {
       if (!input.addr.trim()) throw new Error("Cluster gRPC address is required");
-      if (!input.username.trim()) throw new Error("Operator username is required");
+      if (!input.username.trim()) throw new Error("Principal username is required");
       if (!input.password) throw new Error("Password is required");
       const session = await loginService(input);
       onLoginSuccess(session);

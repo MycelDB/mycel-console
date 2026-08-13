@@ -6,9 +6,17 @@ export type LoginInput = {
   password: string;
 };
 
+export type PrincipalSession = {
+  addr: string;
+  principalId: string;
+  username: string;
+};
+
+/** @deprecated Use PrincipalSession. Kept during the unified principal migration. */
 export type OperatorSession = {
   addr: string;
-  operatorId: string;
+  principalId?: string;
+  operatorId?: string;
   username: string;
 };
 

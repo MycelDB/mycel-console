@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use mycel_sdk::proto::admin::v1::{
-    AdminInferenceServiceApplyInferencePackageRequest,
-    AdminInferenceServiceListInferencePackagesRequest,
-    AdminInferenceServiceListModelEndpointCapabilitiesRequest,
-    AdminInferenceServiceListModelEndpointsRequest, AdminInferenceServiceListModelsRequest,
-    AdminInferenceServiceListVectorStoresRequest, InferenceModel, InferencePackage, ModelEndpoint,
-    ModelEndpointCapability, ModelEndpointCapabilityDefinition, VectorStore,
+    AdminInferenceCatalogServiceApplyInferencePackageRequest,
+    AdminInferenceCatalogServiceListInferencePackagesRequest,
+    AdminInferenceCatalogServiceListModelEndpointCapabilitiesRequest,
+    AdminInferenceCatalogServiceListModelEndpointsRequest,
+    AdminInferenceCatalogServiceListModelsRequest,
+    AdminInferenceCatalogServiceListVectorStoresRequest, InferenceModel, InferencePackage,
+    ModelEndpoint, ModelEndpointCapability, ModelEndpointCapabilityDefinition, VectorStore,
 };
 use prost_types::{value::Kind, ListValue, Struct, Timestamp, Value};
 use serde_json::Map;
@@ -296,9 +297,9 @@ pub async fn admin_list_inference_packages(
 
     let response = session
         ._client
-        .inference
+        .inference_catalog
         .list_inference_packages(tonic::Request::new(
-            AdminInferenceServiceListInferencePackagesRequest {
+            AdminInferenceCatalogServiceListInferencePackagesRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
             },
@@ -325,9 +326,9 @@ pub async fn admin_list_model_endpoints(
 
     let response = session
         ._client
-        .inference
+        .inference_catalog
         .list_model_endpoints(tonic::Request::new(
-            AdminInferenceServiceListModelEndpointsRequest {
+            AdminInferenceCatalogServiceListModelEndpointsRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
                 include_disabled: input.include_disabled,
@@ -359,9 +360,9 @@ pub async fn admin_list_models(
 
     let response = session
         ._client
-        .inference
+        .inference_catalog
         .list_models(tonic::Request::new(
-            AdminInferenceServiceListModelsRequest {
+            AdminInferenceCatalogServiceListModelsRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
                 operation: input.operation.unwrap_or_default(),
@@ -393,9 +394,9 @@ pub async fn admin_list_vector_stores(
 
     let response = session
         ._client
-        .inference
+        .inference_catalog
         .list_vector_stores(tonic::Request::new(
-            AdminInferenceServiceListVectorStoresRequest {
+            AdminInferenceCatalogServiceListVectorStoresRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
                 include_disabled: input.include_disabled,
@@ -427,9 +428,9 @@ pub async fn admin_list_model_endpoint_capabilities(
 
     let response = session
         ._client
-        .inference
+        .inference_catalog
         .list_model_endpoint_capabilities(tonic::Request::new(
-            AdminInferenceServiceListModelEndpointCapabilitiesRequest {
+            AdminInferenceCatalogServiceListModelEndpointCapabilitiesRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
                 model_endpoint_id: input.model_endpoint_id,
@@ -473,9 +474,9 @@ pub async fn admin_apply_inference_package(
 
     let response = session
         ._client
-        .inference
+        .inference_catalog
         .apply_inference_package(tonic::Request::new(
-            AdminInferenceServiceApplyInferencePackageRequest {
+            AdminInferenceCatalogServiceApplyInferencePackageRequest {
                 name,
                 version,
                 source: input.source.unwrap_or_default(),
@@ -589,6 +590,10 @@ fn model_endpoint(input: ModelEndpointInput) -> ModelEndpoint {
         operations: input.operations,
         enabled: input.enabled,
         metadata: input.metadata.map(struct_from_map),
+        network_class_value: 0,
+        privacy_class_value: 0,
+        auth_type_values: Vec::new(),
+        operation_values: Vec::new(),
     }
 }
 
@@ -603,6 +608,12 @@ fn inference_model(input: InferenceModelInput) -> InferenceModel {
         modality: input.modality,
         vector_space_key: input.vector_space_key,
         metadata: input.metadata.map(struct_from_map),
+        operation_value: 0,
+        input_modalities: Vec::new(),
+        output_modalities: Vec::new(),
+        context_tokens: 0,
+        max_output_tokens: 0,
+        enabled: true,
     }
 }
 
@@ -615,6 +626,7 @@ fn vector_store(input: VectorStoreInput) -> VectorStore {
         privacy_class: input.privacy_class,
         enabled: input.enabled,
         config: input.config.map(struct_from_map),
+        privacy_class_value: 0,
     }
 }
 

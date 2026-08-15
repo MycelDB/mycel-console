@@ -148,6 +148,29 @@ test("renders field hints for obscure backup settings", async () => {
   expect(screen.getByText(/backup archive\/container format/i)).toBeInTheDocument();
 });
 
+test("keeps backup data readable while hiding mutation actions without backup manage capability", async () => {
+  renderPage({
+    principalContext: {
+      session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+      roles: [],
+      capabilities: ["CAPABILITY_BACKUP_READ"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_BACKUP_READ" }] },
+      warnings: [],
+    },
+  });
+
+  expect(await screen.findByText("succeeded")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /trigger backup/i })).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
+  expect(screen.queryByRole("button", { name: /save policy/i })).not.toBeInTheDocument();
+  expect(screen.getByDisplayValue("/data/mycel/backups")).toBeDisabled();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Files" }));
+  expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+});
+
 test("triggers a manual backup and refreshes", async () => {
   const services = renderPage();
 

@@ -1,10 +1,11 @@
 use mycel_sdk::proto::admin::v1::{
     AdminSpaceServiceGetSpaceRequest, AdminSpaceServiceListSpacesRequest, CreateSpaceRequest,
 };
-use mycel_sdk::proto::client::v1::Space;
+use mycel_sdk::proto::client::v1::{GetSpaceRequest, ListSpacesRequest, Space};
 use mycel_sdk::proto::common::v1::{EffectiveAccess, Principal};
 use prost_types::Timestamp;
 use tauri::State;
+use tonic::Code;
 
 use crate::state::AppState;
 
@@ -91,19 +92,28 @@ pub async fn admin_get_space(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
+    let admin_result = session
         ._client
         .spaces
         .get_space(tonic::Request::new(AdminSpaceServiceGetSpaceRequest {
-            space_id,
+            space_id: space_id.clone(),
         }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        .await;
 
-    response
-        .space
-        .map(space_info)
+    let space = match admin_result {
+        Ok(response) => response.into_inner().space,
+        Err(err) if err.code() == Code::PermissionDenied => session
+            ._data_client
+            .space
+            .get_space(tonic::Request::new(GetSpaceRequest { space_id }))
+            .await
+            .map_err(|err| err.to_string())?
+            .into_inner()
+            .space,
+        Err(err) => return Err(err.to_string()),
+    };
+
+    space.map(space_info)
         .ok_or_else(|| "Get space response did not include a space".to_string())
 }
 
@@ -173,21 +183,44 @@ pub async fn admin_list_spaces(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
+    let page_size = input.page_size.unwrap_or(100);
+    let page_token = input.page_token.unwrap_or_default();
+    let include_archived = input.include_archived;
+    let admin_result = session
         ._client
         .spaces
         .list_spaces(tonic::Request::new(AdminSpaceServiceListSpacesRequest {
-            page_size: input.page_size.unwrap_or(100),
-            page_token: input.page_token.unwrap_or_default(),
-            include_archived: input.include_archived,
+            page_size,
+            page_token: page_token.clone(),
+            include_archived,
         }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        .await;
+
+    let (spaces, next_page_token) = match admin_result {
+        Ok(response) => {
+            let response = response.into_inner();
+            (response.spaces, response.next_page_token)
+        }
+        Err(err) if err.code() == Code::PermissionDenied => {
+            let response = session
+                ._data_client
+                .space
+                .list_spaces(tonic::Request::new(ListSpacesRequest {
+                    page_size,
+                    page_token,
+                    include_archived,
+                }))
+                .await
+                .map_err(|err| err.to_string())?
+                .into_inner();
+            (response.spaces, response.next_page_token)
+        }
+        Err(err) => return Err(err.to_string()),
+    };
 
     Ok(ListSpacesResponse {
-        spaces: response.spaces.into_iter().map(space_info).collect(),
-        next_page_token: response.next_page_token,
+        spaces: spaces.into_iter().map(space_info).collect(),
+        next_page_token,
     })
 }
 

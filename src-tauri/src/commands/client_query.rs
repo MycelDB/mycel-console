@@ -129,13 +129,25 @@ pub async fn admin_console_execute_gql(
     if input.query.trim().is_empty() {
         return Err("Query is required".to_string());
     }
-    let mut guard = state.client_query.write().await;
-    let session = guard
-        .as_mut()
-        .ok_or_else(|| "Client query identity is not connected".to_string())?;
 
-    let graph_session = session
-        ._client
+    let mut query_guard = state.client_query.write().await;
+    if let Some(session) = query_guard.as_mut() {
+        return execute_gql_with_client(&mut session._client, input).await;
+    }
+    drop(query_guard);
+
+    let mut admin_guard = state.admin.write().await;
+    let session = admin_guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    execute_gql_with_client(&mut session._data_client, input).await
+}
+
+async fn execute_gql_with_client(
+    client: &mut mycel_sdk::Client,
+    input: ExecuteGqlInput,
+) -> Result<ExecuteGqlResponseInfo, String> {
+    let graph_session = client
         .session
         .open_session(tonic::Request::new(OpenSessionRequest {
             space_id: input.space_id,
@@ -147,8 +159,7 @@ pub async fn admin_console_execute_gql(
         .into_inner()
         .session
         .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = session
-        ._client
+    let tx = client
         .transaction
         .begin_transaction(tonic::Request::new(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
@@ -165,8 +176,7 @@ pub async fn admin_console_execute_gql(
         .transaction
         .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
 
-    let response = session
-        ._client
+    let response = client
         .query
         .execute_gql(tonic::Request::new(ExecuteGqlRequest {
             transaction_id: tx.transaction_id.clone(),
@@ -180,8 +190,7 @@ pub async fn admin_console_execute_gql(
         .map_err(|err| err.to_string())?
         .into_inner();
     if input.read_write {
-        session
-            ._client
+        client
             .transaction
             .commit_transaction(tonic::Request::new(CommitTransactionRequest {
                 transaction_id: tx.transaction_id,
@@ -189,16 +198,14 @@ pub async fn admin_console_execute_gql(
             .await
             .map_err(|err| err.to_string())?;
     } else {
-        let _ = session
-            ._client
+        let _ = client
             .transaction
             .close_transaction(tonic::Request::new(CloseTransactionRequest {
                 transaction_id: tx.transaction_id,
             }))
             .await;
     }
-    let _ = session
-        ._client
+    let _ = client
         .session
         .close_session(tonic::Request::new(CloseSessionRequest {
             session_id: graph_session.session_id,
@@ -225,12 +232,25 @@ pub async fn admin_console_execute_gql_script(
     if input.script.trim().is_empty() {
         return Err("Script is required".to_string());
     }
-    let mut guard = state.client_query.write().await;
-    let session = guard
+
+    let mut query_guard = state.client_query.write().await;
+    if let Some(session) = query_guard.as_mut() {
+        return execute_gql_script_with_client(&mut session._client, input).await;
+    }
+    drop(query_guard);
+
+    let mut admin_guard = state.admin.write().await;
+    let session = admin_guard
         .as_mut()
-        .ok_or_else(|| "Client query identity is not connected".to_string())?;
-    let graph_session = session
-        ._client
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    execute_gql_script_with_client(&mut session._data_client, input).await
+}
+
+async fn execute_gql_script_with_client(
+    client: &mut mycel_sdk::Client,
+    input: ExecuteGqlScriptInput,
+) -> Result<ExecuteGqlScriptResponseInfo, String> {
+    let graph_session = client
         .session
         .open_session(tonic::Request::new(OpenSessionRequest {
             space_id: input.space_id,
@@ -242,8 +262,7 @@ pub async fn admin_console_execute_gql_script(
         .into_inner()
         .session
         .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = session
-        ._client
+    let tx = client
         .transaction
         .begin_transaction(tonic::Request::new(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
@@ -259,8 +278,7 @@ pub async fn admin_console_execute_gql_script(
         .into_inner()
         .transaction
         .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
-    let response = session
-        ._client
+    let response = client
         .query
         .execute_gql_script(tonic::Request::new(ExecuteGqlScriptRequest {
             transaction_id: tx.transaction_id.clone(),
@@ -279,8 +297,7 @@ pub async fn admin_console_execute_gql_script(
             .iter()
             .all(|statement| statement.success)
     {
-        session
-            ._client
+        client
             .transaction
             .commit_transaction(tonic::Request::new(CommitTransactionRequest {
                 transaction_id: tx.transaction_id,
@@ -288,16 +305,14 @@ pub async fn admin_console_execute_gql_script(
             .await
             .map_err(|err| err.to_string())?;
     } else {
-        let _ = session
-            ._client
+        let _ = client
             .transaction
             .close_transaction(tonic::Request::new(CloseTransactionRequest {
                 transaction_id: tx.transaction_id,
             }))
             .await;
     }
-    let _ = session
-        ._client
+    let _ = client
         .session
         .close_session(tonic::Request::new(CloseSessionRequest {
             session_id: graph_session.session_id,
@@ -332,13 +347,26 @@ pub async fn admin_console_execute_graph_query(
         return Err("Space and domain are required".to_string());
     }
     let query = parse_graph_query(&input.query_json)?;
-    let mut guard = state.client_query.write().await;
-    let session = guard
-        .as_mut()
-        .ok_or_else(|| "Client query identity is not connected".to_string())?;
 
-    let graph_session = session
-        ._client
+    let mut query_guard = state.client_query.write().await;
+    if let Some(session) = query_guard.as_mut() {
+        return execute_graph_query_with_client(&mut session._client, input, query).await;
+    }
+    drop(query_guard);
+
+    let mut admin_guard = state.admin.write().await;
+    let session = admin_guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    execute_graph_query_with_client(&mut session._data_client, input, query).await
+}
+
+async fn execute_graph_query_with_client(
+    client: &mut mycel_sdk::Client,
+    input: ExecuteGraphQueryInput,
+    query: GraphQuery,
+) -> Result<ExecuteGraphQueryResponseInfo, String> {
+    let graph_session = client
         .session
         .open_session(tonic::Request::new(OpenSessionRequest {
             space_id: input.space_id,
@@ -350,8 +378,7 @@ pub async fn admin_console_execute_graph_query(
         .into_inner()
         .session
         .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = session
-        ._client
+    let tx = client
         .transaction
         .begin_transaction(tonic::Request::new(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
@@ -364,8 +391,7 @@ pub async fn admin_console_execute_graph_query(
         .transaction
         .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
 
-    let result = session
-        ._client
+    let result = client
         .query
         .execute_query(tonic::Request::new(ExecuteQueryRequest {
             transaction_id: tx.transaction_id.clone(),
@@ -377,15 +403,13 @@ pub async fn admin_console_execute_graph_query(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    let _ = session
-        ._client
+    let _ = client
         .transaction
         .close_transaction(tonic::Request::new(CloseTransactionRequest {
             transaction_id: tx.transaction_id,
         }))
         .await;
-    let _ = session
-        ._client
+    let _ = client
         .session
         .close_session(tonic::Request::new(CloseSessionRequest {
             session_id: graph_session.session_id,

@@ -23,6 +23,7 @@ pub struct AdminSession {
     pub principal_id: String,
     pub username: String,
     pub _client: mycel_sdk::AdminClient,
+    pub _data_client: mycel_sdk::Client,
 }
 
 impl AdminSession {

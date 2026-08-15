@@ -1,7 +1,8 @@
 use mycel_sdk::proto::admin::v1::AdminDomainServiceListDomainsRequest;
-use mycel_sdk::proto::client::v1::Domain;
+use mycel_sdk::proto::client::v1::{Domain, ListDomainsRequest};
 use prost_types::Timestamp;
 use tauri::State;
+use tonic::Code;
 
 use crate::state::AppState;
 
@@ -54,22 +55,46 @@ pub async fn admin_list_domains(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
+    let page_size = input.page_size.unwrap_or(100);
+    let page_token = input.page_token.unwrap_or_default();
+    let include_system = input.include_system;
+    let admin_result = session
         ._client
         .domains
         .list_domains(tonic::Request::new(AdminDomainServiceListDomainsRequest {
-            space_id,
-            page_size: input.page_size.unwrap_or(100),
-            page_token: input.page_token.unwrap_or_default(),
-            include_system: input.include_system,
+            space_id: space_id.clone(),
+            page_size,
+            page_token: page_token.clone(),
+            include_system,
         }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        .await;
+
+    let (domains, next_page_token) = match admin_result {
+        Ok(response) => {
+            let response = response.into_inner();
+            (response.domains, response.next_page_token)
+        }
+        Err(err) if err.code() == Code::PermissionDenied => {
+            let response = session
+                ._data_client
+                .domain
+                .list_domains(tonic::Request::new(ListDomainsRequest {
+                    space_id,
+                    page_size,
+                    page_token,
+                    include_system,
+                }))
+                .await
+                .map_err(|err| err.to_string())?
+                .into_inner();
+            (response.domains, response.next_page_token)
+        }
+        Err(err) => return Err(err.to_string()),
+    };
 
     Ok(ListDomainsResponse {
-        domains: response.domains.into_iter().map(domain_info).collect(),
-        next_page_token: response.next_page_token,
+        domains: domains.into_iter().map(domain_info).collect(),
+        next_page_token,
     })
 }
 

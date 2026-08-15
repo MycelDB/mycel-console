@@ -23,6 +23,8 @@ export function SpaceFilters({ value, onChange }: SpaceFiltersProps) {
             id="space-query"
             placeholder="Filter by space name"
             value={value.query}
+            autoCapitalize="none"
+            spellCheck={false}
             onChange={(event) => onChange({ ...value, query: event.target.value })}
           />
         </div>

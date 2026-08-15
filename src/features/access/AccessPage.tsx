@@ -90,7 +90,7 @@ export function AccessPage({
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">Admin access</Text>
+          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">Access management</Text>
           <H2 className="mt-2 text-slate-900 dark:text-slate-100">Roles & capabilities</H2>
           <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
             Operators are represented as principals with system roles, explicit capabilities, and scoped authorization grants.
@@ -109,7 +109,7 @@ export function AccessPage({
       </div>
 
       {loading ? (
-        <Panel><Text intent="muted" className="text-slate-600 dark:text-slate-400">Loading admin access…</Text></Panel>
+        <Panel><Text intent="muted" className="text-slate-600 dark:text-slate-400">Loading access…</Text></Panel>
       ) : rows.length === 0 ? (
         <Panel>
           <Text as="p" className="font-medium text-slate-900 dark:text-slate-100">No principals found</Text>

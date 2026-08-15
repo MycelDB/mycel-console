@@ -1,27 +1,17 @@
 import { NavLink } from "react-router-dom";
 import { Text } from "../typography";
+import { buildNavigation, consoleBranding, currentConsoleFeatures, navigationCapabilityState, type ConsolePrincipalContext } from "../../features/console";
 
 import type { Theme } from "../../types/theme";
 
-const navItems = [
-  { label: "Dashboard", to: "/dashboard" },
-  { label: "Principals", to: "/principals" },
-  { label: "Spaces", to: "/spaces" },
-  { label: "Backups", to: "/backups" },
-  { label: "Cluster", to: "/cluster" },
-  { label: "Admin access", to: "/access" },
-  { label: "Semantic", to: "/semantic" },
-  { label: "Maintenance", to: "/maintenance" },
-  { label: "Inference", to: "/inference" },
-  { label: "Settings", to: "/settings" },
-];
-
 export type SidebarProps = {
   theme: Theme;
+  principalContext?: ConsolePrincipalContext | null;
   onToggleTheme: () => void;
 };
 
-export function Sidebar({ theme, onToggleTheme }: SidebarProps) {
+export function Sidebar({ theme, principalContext, onToggleTheme }: SidebarProps) {
+  const sections = buildNavigation(currentConsoleFeatures, navigationCapabilityState(principalContext));
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900/80">
       <Text
@@ -29,24 +19,44 @@ export function Sidebar({ theme, onToggleTheme }: SidebarProps) {
         size="sm"
         className="font-medium uppercase tracking-[0.3em] text-cyan-300"
       >
-        Mycel Admin
+        {consoleBranding.currentDisplayName}
       </Text>
-      <nav className="mt-8 space-y-2" aria-label="Main navigation">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            className={({ isActive }) =>
-              [
-                "block rounded-md px-3 py-2 text-sm font-medium transition",
-                isActive
-                  ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100"
-                  : "text-slate-700 hover:bg-slate-200 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100",
-              ].join(" ")
-            }
-            to={item.to}
-          >
-            {item.label}
-          </NavLink>
+      <nav className="mt-8 space-y-5" aria-label="Main navigation">
+        {sections.map((section) => (
+          <div key={section.group}>
+            <Text as="p" size="xs" intent="subtle" className="mb-2 px-3 uppercase tracking-wide">
+              {section.label}
+            </Text>
+            <div className="space-y-1">
+              {section.features.map((item) => (
+                item.availability === "disabled" ? (
+                  <span
+                    key={item.route}
+                    aria-disabled="true"
+                    className="block cursor-not-allowed rounded-md px-3 py-2 text-sm font-medium text-slate-400 dark:text-slate-600"
+                    title="The current principal is missing a required capability for this feature."
+                  >
+                    {item.label}
+                  </span>
+                ) : (
+                  <NavLink
+                    key={item.route}
+                    className={({ isActive }) =>
+                      [
+                        "block rounded-md px-3 py-2 text-sm font-medium transition",
+                        isActive
+                          ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100"
+                          : "text-slate-700 hover:bg-slate-200 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100",
+                      ].join(" ")
+                    }
+                    to={item.route}
+                  >
+                    {item.label}
+                  </NavLink>
+                )
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
       <div className="mt-auto space-y-2 pt-8">

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { isPrincipalDeleted, principalIdOf } from "../../../types/users";
 import {
   createPrincipal as defaultCreatePrincipal,
+  createSpace as defaultCreateSpace,
   deletePrincipal as defaultDeletePrincipal,
   disablePrincipal as defaultDisablePrincipal,
   enablePrincipal as defaultEnablePrincipal,
@@ -18,6 +20,7 @@ import type {
   PrincipalInfo,
   SetPrincipalPasswordInput,
 } from "../../../types/users";
+import type { CreateSpaceInput, CreateSpaceResponse } from "../../../types/spaces";
 import { CreateUserModal } from "../components/CreateUserModal";
 import { DeleteUserDialog } from "../components/DeleteUserDialog";
 import { DisableUserDialog } from "../components/DisableUserDialog";
@@ -35,19 +38,23 @@ const defaultFilters: UserFiltersValue = {
 export type UsersPageProps = {
   listPrincipalsService?: (input: ListPrincipalsInput) => Promise<ListPrincipalsResponse>;
   createPrincipalService?: (input: CreatePrincipalInput) => Promise<PrincipalInfo>;
+  createSpaceService?: (input: CreateSpaceInput) => Promise<CreateSpaceResponse>;
   disablePrincipalService?: (input: DisablePrincipalInput) => Promise<PrincipalInfo>;
   enablePrincipalService?: (principalId: string) => Promise<PrincipalInfo>;
   deletePrincipalService?: (input: DeletePrincipalInput) => Promise<PrincipalInfo>;
   setPrincipalPasswordService?: (input: SetPrincipalPasswordInput) => Promise<PrincipalInfo>;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
 export function UsersPage({
   listPrincipalsService = defaultListPrincipals,
   createPrincipalService = defaultCreatePrincipal,
+  createSpaceService = defaultCreateSpace,
   disablePrincipalService = defaultDisablePrincipal,
   enablePrincipalService = defaultEnablePrincipal,
   deletePrincipalService = defaultDeletePrincipal,
   setPrincipalPasswordService = defaultSetPrincipalPassword,
+  principalContext,
 }: UsersPageProps) {
   const [filters, setFilters] = useState<UserFiltersValue>(defaultFilters);
   const [users, setUsers] = useState<PrincipalInfo[]>([]);
@@ -117,6 +124,11 @@ export function UsersPage({
     }
   }
 
+  const canCreatePrincipal = canUseCapability(principalContext, "identity.principal.create");
+  const canCreatePersonalSpace = canUseCapability(principalContext, "space.create");
+  const canUpdatePrincipal = canUseCapability(principalContext, "identity.principal.update");
+  const canSetCredential = canUseCapability(principalContext, "identity.credential.set");
+
   const filteredUsers = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
     return users.filter((user) => {
@@ -150,9 +162,11 @@ export function UsersPage({
           <Button variant="secondary" onClick={() => void loadUsers()} disabled={loading || loadingMore}>
             Refresh
           </Button>
-          <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-            Create principal
-          </Button>
+          {canCreatePrincipal && (
+            <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+              Create principal
+            </Button>
+          )}
         </div>
       </div>
 
@@ -176,10 +190,10 @@ export function UsersPage({
         <>
           <UserTable
             users={filteredUsers}
-            onDisableUser={setDisableUser}
-            onEnableUser={(user) => void handleEnableUser(user)}
-            onDeleteUser={setDeleteUser}
-            onSetPassword={setPasswordUser}
+            onDisableUser={canUpdatePrincipal ? setDisableUser : undefined}
+            onEnableUser={canUpdatePrincipal ? (user) => void handleEnableUser(user) : undefined}
+            onDeleteUser={canUpdatePrincipal ? setDeleteUser : undefined}
+            onSetPassword={canSetCredential ? setPasswordUser : undefined}
             actionLoadingUserId={actionLoadingUserId}
           />
           {nextPageToken && (
@@ -196,10 +210,16 @@ export function UsersPage({
         </>
       )}
       <CreateUserModal
-        open={createOpen}
+        open={createOpen && canCreatePrincipal}
         onClose={() => setCreateOpen(false)}
         onCreate={createPrincipalService}
-        onCreated={() => void loadUsers()}
+        onCreatePersonalSpace={createSpaceService}
+        canCreatePersonalSpace={canCreatePersonalSpace}
+        onCreated={(_, warning) => {
+          void loadUsers().then(() => {
+            if (warning) setError(warning);
+          });
+        }}
       />
       <DisableUserDialog
         user={disableUser}

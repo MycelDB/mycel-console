@@ -116,6 +116,24 @@ test("refresh invokes package list service", async () => {
   await waitFor(() => expect(services.listInferencePackagesService).toHaveBeenCalledTimes(2));
 });
 
+test("keeps inference catalog readable while hiding package import without manage capability", async () => {
+  renderPage({
+    principalContext: {
+      session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+      roles: [],
+      capabilities: ["CAPABILITY_INFERENCE_CATALOG_READ"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_INFERENCE_CATALOG_READ" }] },
+      warnings: [],
+    },
+  });
+
+  expect(await screen.findByText("standard-openai-chat")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /import package json/i })).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Endpoints" }));
+  expect(await screen.findByText("openai-compatible")).toBeInTheDocument();
+});
+
 test("imports package JSON and shows summary", async () => {
   const services = renderPage();
 

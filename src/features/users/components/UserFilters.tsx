@@ -28,6 +28,8 @@ export function UserFilters({ value, onChange }: UserFiltersProps) {
             id="user-query"
             placeholder="Filter by username"
             value={value.query}
+            autoCapitalize="none"
+            spellCheck={false}
             onChange={(event) => onChange({ ...value, query: event.target.value })}
           />
         </div>

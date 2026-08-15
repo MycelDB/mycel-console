@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardPage } from "./DashboardPage";
+import { getBackupStatus } from "../../../services/adminService";
 
 jest.mock("../../../services/adminService", () => ({
   getBackupStatus: jest.fn().mockResolvedValue({
@@ -35,11 +36,17 @@ jest.mock("../../../services/adminService", () => ({
   }),
 }));
 
+const mockedGetBackupStatus = getBackupStatus as jest.Mock;
+
 const session = {
   addr: "127.0.0.1:9091",
   principalId: "prn_operator",
   username: "operator",
 };
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 test("renders dashboard cards and shortcuts", async () => {
   render(
@@ -55,4 +62,25 @@ test("renders dashboard cards and shortcuts", async () => {
   expect(await screen.findByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /manage backups/i })).toHaveAttribute("href", "/backups");
   expect(screen.getByRole("link", { name: /manage principals/i })).toHaveAttribute("href", "/principals");
+});
+
+test("hides backup panel for principals without backup read capability", () => {
+  render(
+    <MemoryRouter>
+      <DashboardPage
+        session={session}
+        principalContext={{
+          session,
+          roles: [],
+          capabilities: [],
+          capabilityState: { kind: "complete", capabilities: [] },
+          warnings: [],
+        }}
+      />
+    </MemoryRouter>,
+  );
+
+  expect(screen.queryByText(/backup status/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /manage backups/i })).not.toBeInTheDocument();
+  expect(mockedGetBackupStatus).not.toHaveBeenCalled();
 });

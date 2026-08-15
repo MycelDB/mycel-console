@@ -12,10 +12,11 @@ test("renders main navigation links", () => {
 
   for (const label of [
     "Dashboard",
+    "Account",
     "Principals",
     "Spaces",
     "Backups",
-    "Admin access",
+    "Access management",
     "Semantic",
     "Maintenance",
     "Inference",
@@ -35,6 +36,31 @@ test("marks the active route", () => {
 
   expect(screen.getByRole("link", { name: "Principals" })).toHaveAttribute("aria-current", "page");
 });
+
+test("filters navigation when complete capabilities are available", () => {
+  render(
+    <MemoryRouter>
+      <Sidebar
+        theme="dark"
+        principalContext={{
+          session: { addr: "127.0.0.1:19091", principalId: "prn_viewer", username: "viewer" },
+          roles: [],
+          capabilities: ["CAPABILITY_SPACE_READ"],
+          capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SPACE_READ" }] },
+          warnings: [],
+        }}
+        onToggleTheme={jest.fn()}
+      />
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Account" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Spaces" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Principals" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Backups" })).not.toBeInTheDocument();
+});
+
 
 test("invokes theme toggle", async () => {
   const onToggleTheme = jest.fn();

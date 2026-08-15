@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, clientQueryLogin, clientQueryLogout, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
+import { canUseCapability, type ConsolePrincipalContext } from "../../console";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
 import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo } from "../../../types/automations";
-import type { ClientQuerySessionInfo } from "../../../types/clientQuery";
+import type { PrincipalSession } from "../../../types/auth";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
 import type { DomainSchemaInfo, GetDomainSchemaInput } from "../../../types/schemas";
@@ -31,9 +32,10 @@ export type SpaceDetailPageProps = {
   disableAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
   listAutomationInvocationsService?: (input: ListAutomationInvocationsInput) => Promise<ListAutomationInvocationsResponseInfo>;
   getAutomationRunService?: (input: GetAutomationRunInput) => Promise<AutomationRunInfo>;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
-export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun }: SpaceDetailPageProps) {
+export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun, principalContext }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
   const [space, setSpace] = useState<SpaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +70,8 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   const [automationRunDetail, setAutomationRunDetail] = useState("");
   const [automationLoading, setAutomationLoading] = useState(false);
   const [automationError, setAutomationError] = useState("");
+  const canManageSemantic = canUseCapability(principalContext, "semantic.manage");
+  const canManageAutomations = canUseCapability(principalContext, "automation.manage");
 
   const loadDomains = useCallback(
     async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
@@ -431,6 +435,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         onProcess={() => void runBulkMaintenanceAction("process")}
         actionLoading={maintenanceActionLoading}
         result={maintenanceResult}
+        canMutate={canManageSemantic}
         />
 
         <SemanticIndexesSection
@@ -441,10 +446,11 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         onIncludeDisabledChange={setIncludeDisabledIndexes}
         onBackfill={(index) => void runBulkMaintenanceAction("backfill", index.semanticIndexId)}
         actionLoading={maintenanceActionLoading}
+        canMutate={canManageSemantic}
         />
       </div>}
 
-      {activeTab === "query" && <div role="tabpanel" aria-label="Graph query"><GraphQueryConsolePreview spaceId={spaceId} domains={domains} /></div>}
+      {activeTab === "query" && <div role="tabpanel" aria-label="Graph query"><GraphQueryConsolePreview spaceId={spaceId} domains={domains} currentPrincipal={principalContext?.session} /></div>}
 
       {activeTab === "domains" && <div role="tabpanel" aria-label="Domains"><DomainSection
         domains={domains}
@@ -458,7 +464,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       /></div>}
       {activeTab === "schemas" && <div role="tabpanel" aria-label="Schemas"><SchemaSection domains={domains} schemas={domainSchemas} loading={schemaLoading || domainsLoading} error={schemaError || domainsError} onRefresh={() => void loadSchemas()} /></div>}
 
-      {activeTab === "automations" && <div role="tabpanel" aria-label="Automations"><AutomationSection rows={automationRows} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} /></div>}
+      {activeTab === "automations" && <div role="tabpanel" aria-label="Automations"><AutomationSection rows={automationRows} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} canToggle={canManageAutomations} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} /></div>}
 
       {confirmMaintenanceAction && (
         <ConfirmMaintenanceActionDialog
@@ -487,7 +493,7 @@ function ConfirmMaintenanceActionDialog({ kind, item, loading, onCancel, onConfi
   );
 }
 
-function SemanticMaintenanceSection({ status, workItems, loading, error, workStatus, onWorkStatusChange, onRetry, onCancel, onAnalyze, onProcess, actionLoading, result }: { status: SemanticMaintenanceStatusInfo | null; workItems: SemanticMaintenanceWorkItemInfo[]; loading: boolean; error: string; workStatus: string; onWorkStatusChange: (value: string) => void; onRetry: (item: SemanticMaintenanceWorkItemInfo) => void; onCancel: (item: SemanticMaintenanceWorkItemInfo) => void; onAnalyze: () => void; onProcess: () => void; actionLoading: boolean; result: string }) {
+function SemanticMaintenanceSection({ status, workItems, loading, error, workStatus, onWorkStatusChange, onRetry, onCancel, onAnalyze, onProcess, actionLoading, result, canMutate }: { status: SemanticMaintenanceStatusInfo | null; workItems: SemanticMaintenanceWorkItemInfo[]; loading: boolean; error: string; workStatus: string; onWorkStatusChange: (value: string) => void; onRetry: (item: SemanticMaintenanceWorkItemInfo) => void; onCancel: (item: SemanticMaintenanceWorkItemInfo) => void; onAnalyze: () => void; onProcess: () => void; actionLoading: boolean; result: string; canMutate: boolean }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -495,7 +501,7 @@ function SemanticMaintenanceSection({ status, workItems, loading, error, workSta
           <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Semantic maintenance</Text>
           <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Daemon maintenance status and dirty-work queue for this space.</Text>
         </div>
-        <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={onAnalyze} disabled={actionLoading}>Analyze dirty work</Button><Button variant="secondary" onClick={onProcess} disabled={actionLoading}>Process work</Button></div>
+        {canMutate ? <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={onAnalyze} disabled={actionLoading}>Analyze dirty work</Button><Button variant="secondary" onClick={onProcess} disabled={actionLoading}>Process work</Button></div> : <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Read-only</Text>}
         <label className="text-sm text-slate-700 dark:text-slate-300">Work status <select className="ml-2 rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-950" value={workStatus} onChange={(event) => onWorkStatusChange(event.target.value)}><option value="">Any</option><option value="pending">Pending</option><option value="running">Running</option><option value="failed_retryable">Failed retryable</option><option value="failed_permanent">Failed permanent</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
       </div>
       {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
@@ -507,7 +513,7 @@ function SemanticMaintenanceSection({ status, workItems, loading, error, workSta
           <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Action</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Attempts</th><th className="px-4 py-3">Domain</th><th className="px-4 py-3">Index</th><th className="px-4 py-3">Last error</th><th className="px-4 py-3">Safe actions</th></tr></thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{workItems.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={7}>No maintenance work items found.</td></tr> : workItems.map((item) => <tr key={item.workItemId}><td className="px-4 py-3">{item.action || "—"}</td><td className="px-4 py-3">{item.status || "—"}</td><td className="px-4 py-3">{item.attemptCount}</td><td className="px-4 py-3 font-mono text-xs">{item.domainId || "—"}</td><td className="px-4 py-3 font-mono text-xs">{item.semanticIndexId || "—"}</td><td className="px-4 py-3 max-w-md truncate" title={item.lastErrorMessageSanitized}>{item.lastErrorCategory || item.lastErrorMessageSanitized || "—"}</td><td className="px-4 py-3"><div className="flex gap-2"><Button variant="secondary" onClick={() => onRetry(item)}>Retry</Button><Button variant="secondary" className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40" onClick={() => onCancel(item)}>Cancel</Button></div></td></tr>)}</tbody>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{workItems.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={7}>No maintenance work items found.</td></tr> : workItems.map((item) => <tr key={item.workItemId}><td className="px-4 py-3">{item.action || "—"}</td><td className="px-4 py-3">{item.status || "—"}</td><td className="px-4 py-3">{item.attemptCount}</td><td className="px-4 py-3 font-mono text-xs">{item.domainId || "—"}</td><td className="px-4 py-3 font-mono text-xs">{item.semanticIndexId || "—"}</td><td className="px-4 py-3 max-w-md truncate" title={item.lastErrorMessageSanitized}>{item.lastErrorCategory || item.lastErrorMessageSanitized || "—"}</td><td className="px-4 py-3">{canMutate ? <div className="flex gap-2"><Button variant="secondary" onClick={() => onRetry(item)}>Retry</Button><Button variant="secondary" className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40" onClick={() => onCancel(item)}>Cancel</Button></div> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
             </table>
           </div>
         </>
@@ -521,7 +527,7 @@ function Metric({ label, value, tone = "default" }: { label: string; value: Reac
   return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40"><Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">{label}</Text><Text className={`mt-1 font-semibold ${valueClass}`}>{value}</Text></div>;
 }
 
-function SemanticIndexesSection({ indexes, loading, error, includeDisabled, onIncludeDisabledChange, onBackfill, actionLoading }: { indexes: SemanticIndexInfo[]; loading: boolean; error: string; includeDisabled: boolean; onIncludeDisabledChange: (value: boolean) => void; onBackfill: (index: SemanticIndexInfo) => void; actionLoading: boolean }) {
+function SemanticIndexesSection({ indexes, loading, error, includeDisabled, onIncludeDisabledChange, onBackfill, actionLoading, canMutate }: { indexes: SemanticIndexInfo[]; loading: boolean; error: string; includeDisabled: boolean; onIncludeDisabledChange: (value: boolean) => void; onBackfill: (index: SemanticIndexInfo) => void; actionLoading: boolean; canMutate: boolean }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -543,7 +549,7 @@ function SemanticIndexesSection({ indexes, loading, error, includeDisabled, onIn
         <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
             <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Key</th><th className="px-4 py-3">Domain ID</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Model</th><th className="px-4 py-3">Vector store</th><th className="px-4 py-3">Index ID</th><th className="px-4 py-3">Safe actions</th></tr></thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{indexes.map((index) => <tr key={index.semanticIndexId}><td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{index.displayName || index.key}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.domainId}</td><td className="px-4 py-3">{index.state}</td><td className="px-4 py-3">{index.modelLabel || "—"}</td><td className="px-4 py-3">{index.vectorStoreLabel || "—"}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.semanticIndexId}</td><td className="px-4 py-3"><Button variant="secondary" disabled={actionLoading} onClick={() => onBackfill(index)}>Backfill</Button></td></tr>)}</tbody>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{indexes.map((index) => <tr key={index.semanticIndexId}><td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{index.displayName || index.key}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.domainId}</td><td className="px-4 py-3">{index.state}</td><td className="px-4 py-3">{index.modelLabel || "—"}</td><td className="px-4 py-3">{index.vectorStoreLabel || "—"}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.semanticIndexId}</td><td className="px-4 py-3">{canMutate ? <Button variant="secondary" disabled={actionLoading} onClick={() => onBackfill(index)}>Backfill</Button> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
           </table>
         </div>
       )}
@@ -551,48 +557,18 @@ function SemanticIndexesSection({ indexes, loading, error, includeDisabled, onIn
   );
 }
 
-function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domains: DomainInfo[] }) {
+function GraphQueryConsolePreview({ spaceId, domains, currentPrincipal }: { spaceId: string; domains: DomainInfo[]; currentPrincipal?: PrincipalSession }) {
   const [domainId, setDomainId] = useState("");
   const exampleQuery = "MATCH (n) RETURN n";
   const [queryText, setQueryText] = useState(exampleQuery);
-  const [clientSession, setClientSession] = useState<ClientQuerySessionInfo | null>(null);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [addr, setAddr] = useState("127.0.0.1:19091");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<unknown>(null);
   const [resultView, setResultView] = useState<"rows" | "graph" | "raw">("rows");
-  const [readWrite, setReadWrite] = useState(false);
+  const readWrite = true;
   const [confirmWrite, setConfirmWrite] = useState(false);
   const [alwaysConfirmWrite, setAlwaysConfirmWrite] = useState(() => localStorage.getItem("mycelAdmin.gql.alwaysConfirmWrite") !== "false");
   const [stopOnError, setStopOnError] = useState(true);
-
-  async function connect() {
-    setLoading(true);
-    setError("");
-    try {
-      const session = await clientQueryLogin({ addr, username, password });
-      setClientSession(session);
-      setPassword("");
-      setLoginOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Client query login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function disconnect() {
-    setLoading(true);
-    try {
-      await clientQueryLogout();
-      setClientSession(null);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   useEffect(() => {
     if (domainId || domains.length === 0) return;
@@ -606,7 +582,7 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
   }, [alwaysConfirmWrite]);
 
   function requestRunQuery() {
-    if (readWrite && alwaysConfirmWrite) {
+    if (alwaysConfirmWrite) {
       setConfirmWrite(true);
       return;
     }
@@ -630,37 +606,35 @@ function GraphQueryConsolePreview({ spaceId, domains }: { spaceId: string; domai
     }
   }
 
-  const canRun = Boolean(clientSession && domainId && queryText.trim() && !loading);
+  const canRun = Boolean(domainId && queryText.trim() && !loading);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Graph query console</Text>
-          <Text intent="muted" size="sm" className="mt-1 max-w-3xl text-slate-600 dark:text-slate-400">Execute read-only structured GraphQuery JSON against this space using a separate client/user query identity.</Text>
+          <Text intent="muted" size="sm" className="mt-1 max-w-3xl text-slate-600 dark:text-slate-400">Execute GQL against this space using the currently logged-in console principal.</Text>
         </div>
-        {clientSession ? <Button variant="secondary" onClick={() => void disconnect()} disabled={loading}>Disconnect client</Button> : <Button variant="secondary" onClick={() => setLoginOpen(true)}>Connect client session</Button>}
       </div>
       {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
-          <div><span className="font-medium">Client identity:</span> {clientSession ? `${clientSession.username} @ ${clientSession.addr}` : "Not connected"}</div>
+          <div><span className="font-medium">Principal:</span> {currentPrincipal ? `${currentPrincipal.username} @ ${currentPrincipal.addr}` : "Current console principal"}</div>
           <div><span className="font-medium">Space:</span> <span className="font-mono text-xs">{spaceId}</span></div>
           <label className="block font-medium">Domain<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={domainId} onChange={(event) => setDomainId(event.target.value)}><option value="">Select domain…</option>{domains.map((domain) => <option key={domain.domainId} value={domain.domainId}>{domain.name || domain.key || domain.domainId}</option>)}</select></label>
-          <label className="block font-medium">Mode<select className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-950" value={readWrite ? "read-write" : "read-only"} onChange={(event) => setReadWrite(event.target.value === "read-write")}><option value="read-only">Read-only</option><option value="read-write">Read-write</option></select></label>
+          <div><span className="font-medium">Transaction:</span> Read-write, subject to daemon authorization</div>
           <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={stopOnError} onChange={(event) => setStopOnError(event.target.checked)} />Stop script on first error</label>
-          <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={alwaysConfirmWrite} onChange={(event) => setAlwaysConfirmWrite(event.target.checked)} />Confirm write queries before running</label>
+          <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600" checked={alwaysConfirmWrite} onChange={(event) => setAlwaysConfirmWrite(event.target.checked)} />Confirm before running queries</label>
         </div>
         <div>
           <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">GQL query</Text>
           <textarea className="mt-2 h-52 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={queryText} onChange={(event) => setQueryText(event.target.value)} onKeyDown={(event) => event.stopPropagation()} spellCheck={false} />
-          <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canRun} onClick={requestRunQuery}>{loading ? "Running…" : readWrite ? "Run write query" : "Run query"}</Button><Button variant="secondary" disabled={!result} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(result ?? null, null, 2))}>Copy result</Button></div>
+          <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canRun} onClick={requestRunQuery}>{loading ? "Running…" : "Run query"}</Button><Button variant="secondary" disabled={!result} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(result ?? null, null, 2))}>Copy result</Button></div>
           {Boolean(result) && <div className="mt-4 flex gap-2" role="tablist" aria-label="Query result views">{(["rows", "graph", "raw"] as const).map((view) => <button key={view} type="button" className={`rounded-md px-3 py-1 text-sm ${resultView === view ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" : "text-slate-600 dark:text-slate-400"}`} onClick={() => setResultView(view)}>{view === "rows" ? "Rows" : view === "graph" ? "Graph" : "Raw JSON"}</button>)}</div>}
           <QueryResultView result={result} view={resultView} />
         </div>
       </div>
-      {confirmWrite && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Run read-write GQL?</Text><Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">This will execute in a read-write transaction and commit if the query succeeds. Target: {spaceId} / {domainId}.</Text><pre className="mt-4 max-h-40 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{queryText}</pre><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setConfirmWrite(false)} disabled={loading}>Cancel</Button><Button onClick={() => { setConfirmWrite(false); void runQuery(); }} disabled={loading}>Run and commit</Button></div></div></div>}
-      {loginOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Connect client query identity</Text><div className="mt-4 space-y-3"><label className="block text-sm font-medium">Address<input className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={addr} onChange={(e) => setAddr(e.target.value)} /></label><label className="block text-sm font-medium">Username<input className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={username} onChange={(e) => setUsername(e.target.value)} /></label><label className="block text-sm font-medium">Password<input type="password" className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950" value={password} onChange={(e) => setPassword(e.target.value)} /></label></div><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setLoginOpen(false)} disabled={loading}>Cancel</Button><Button onClick={() => void connect()} disabled={loading}>{loading ? "Connecting…" : "Connect"}</Button></div></div></div>}
+      {confirmWrite && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Run GQL?</Text><Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">This will execute in a read-write transaction and commit if the query succeeds. Daemon authorization remains authoritative. Target: {spaceId} / {domainId}.</Text><pre className="mt-4 max-h-40 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{queryText}</pre><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setConfirmWrite(false)} disabled={loading}>Cancel</Button><Button onClick={() => { setConfirmWrite(false); void runQuery(); }} disabled={loading}>Run and commit</Button></div></div></div>}
     </div>
   );
 }
@@ -812,7 +786,7 @@ function formatTimestamp(value?: string) {
   return new Date(seconds * 1000).toLocaleString();
 }
 
-function AutomationSection({ rows, invocations, loading, error, detail, runDetail, onRefresh, onToggle, onShow, onShowRun }: { rows: Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }>; invocations: Record<string, AutomationInvocationSummaryInfo[]>; loading: boolean; error: string; detail: string; runDetail: string; onRefresh: () => void; onToggle: (domainId: string, automationId: string, enabled: boolean) => void; onShow: (domainId: string, automationId: string) => void; onShowRun: (domainId: string, runId: string) => void }) {
+function AutomationSection({ rows, invocations, loading, error, detail, runDetail, canToggle, onRefresh, onToggle, onShow, onShowRun }: { rows: Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }>; invocations: Record<string, AutomationInvocationSummaryInfo[]>; loading: boolean; error: string; detail: string; runDetail: string; canToggle: boolean; onRefresh: () => void; onToggle: (domainId: string, automationId: string, enabled: boolean) => void; onShow: (domainId: string, automationId: string) => void; onShowRun: (domainId: string, runId: string) => void }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -831,7 +805,7 @@ function AutomationSection({ rows, invocations, loading, error, detail, runDetai
               {rows.map(({ domain, automation }) => {
                 const enabled = automation.status === "enabled";
                 const key = `${domain.domainId}:${automation.id}`;
-                return <tr key={key} className="align-top"><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{domain.name || domain.key}</div><div className="font-mono text-xs text-slate-500">{domain.domainId}</div></td><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{automation.name || automation.id}</div><div className="font-mono text-xs text-slate-500">{automation.id} · v{automation.version}</div><RecentInvocations domainId={domain.domainId} items={invocations[key] || []} onShowRun={onShowRun} /></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs ${enabled ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>{automation.status}</span></td><td className="px-4 py-3"><div>{automation.events.join(", ") || "—"}</div><div className="text-xs text-slate-500">{automation.labels.join(", ") || "No label filter"}</div></td><td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onShow(domain.domainId, automation.id)}>View JSON</Button><Button variant="secondary" onClick={() => onToggle(domain.domainId, automation.id, enabled)}>{enabled ? "Disable" : "Enable"}</Button></div></td></tr>;
+                return <tr key={key} className="align-top"><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{domain.name || domain.key}</div><div className="font-mono text-xs text-slate-500">{domain.domainId}</div></td><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{automation.name || automation.id}</div><div className="font-mono text-xs text-slate-500">{automation.id} · v{automation.version}</div><RecentInvocations domainId={domain.domainId} items={invocations[key] || []} onShowRun={onShowRun} /></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs ${enabled ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>{automation.status}</span></td><td className="px-4 py-3"><div>{automation.events.join(", ") || "—"}</div><div className="text-xs text-slate-500">{automation.labels.join(", ") || "No label filter"}</div></td><td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onShow(domain.domainId, automation.id)}>View JSON</Button>{canToggle ? <Button variant="secondary" onClick={() => onToggle(domain.domainId, automation.id, enabled)}>{enabled ? "Disable" : "Enable"}</Button> : <span className="self-center text-slate-500 dark:text-slate-400">Read-only</span>}</div></td></tr>;
               })}
             </tbody>
           </table>

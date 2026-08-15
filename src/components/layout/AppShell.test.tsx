@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -49,7 +50,7 @@ const session = {
   username: "operator",
 };
 
-function renderShell(path = "/dashboard", onLogout = jest.fn()) {
+function renderShell(path = "/dashboard", onLogout = jest.fn(), props: Partial<ComponentProps<typeof AppShell>> = {}) {
   render(
     <MemoryRouter initialEntries={[path]}>
       <AppShell
@@ -59,6 +60,7 @@ function renderShell(path = "/dashboard", onLogout = jest.fn()) {
         theme="dark"
         onToggleTheme={jest.fn()}
         onLogout={onLogout}
+        {...props}
       />
     </MemoryRouter>,
   );
@@ -68,8 +70,30 @@ function renderShell(path = "/dashboard", onLogout = jest.fn()) {
 test("renders dashboard route", () => {
   renderShell("/dashboard");
 
-  expect(screen.getByText(/monitor mycel cluster state/i)).toBeInTheDocument();
+  expect(screen.getByText(/capability-oriented console for a mycel cluster/i)).toBeInTheDocument();
   expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
+});
+
+test("renders account route", () => {
+  renderShell("/me");
+
+  expect(screen.getByRole("heading", { name: /my principal/i })).toBeInTheDocument();
+  expect(screen.getByText("prn_operator")).toBeInTheDocument();
+});
+
+test("redirects principals route when principal read capability is missing", async () => {
+  renderShell("/principals", jest.fn(), {
+    principalContext: {
+      session,
+      roles: [],
+      capabilities: [],
+      capabilityState: { kind: "complete", capabilities: [] },
+      warnings: [],
+    },
+  });
+
+  expect(screen.queryByRole("heading", { name: "Principal Management" })).not.toBeInTheDocument();
+  expect(screen.getByText(/capability-oriented console for a mycel cluster/i)).toBeInTheDocument();
 });
 
 test("renders principals section route", async () => {

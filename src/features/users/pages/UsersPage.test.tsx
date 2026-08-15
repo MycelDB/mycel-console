@@ -126,6 +126,52 @@ test("creates a principal and refreshes the list", async () => {
   await waitFor(() => expect(listPrincipalsService).toHaveBeenCalledTimes(2));
 });
 
+test("hides lifecycle actions for read-only principal capability context", async () => {
+  render(
+    <MemoryRouter>
+      <UsersPage
+        listPrincipalsService={jest.fn().mockResolvedValue(listPrincipalsResponse())}
+        principalContext={{
+          session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+          roles: [],
+          capabilities: ["CAPABILITY_IDENTITY_PRINCIPAL_READ"],
+          capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_IDENTITY_PRINCIPAL_READ" }] },
+          warnings: [],
+        }}
+      />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("alice")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^create principal$/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^enable$/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^disable$/i })).not.toBeInTheDocument();
+});
+
+test("shows partial success warning when personal space creation fails", async () => {
+  const createPrincipalService = jest.fn().mockResolvedValue({ principalId: "prn_new", username: "new-user", state: "PRINCIPAL_STATE_ACTIVE" });
+  const createSpaceService = jest.fn().mockRejectedValue(new Error("space denied"));
+  render(
+    <MemoryRouter>
+      <UsersPage
+        listPrincipalsService={jest.fn().mockResolvedValue(listPrincipalsResponse())}
+        createPrincipalService={createPrincipalService}
+        createSpaceService={createSpaceService}
+      />
+    </MemoryRouter>,
+  );
+
+  await screen.findByText("alice");
+  await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
+  const usernameFields = screen.getAllByLabelText(/^username$/i);
+  await userEvent.type(usernameFields[usernameFields.length - 1], "new-user");
+  await userEvent.click(screen.getByLabelText(/create a personal space/i));
+  const createButtons = screen.getAllByRole("button", { name: /^create principal$/i });
+  await userEvent.click(createButtons[createButtons.length - 1]);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Principal created, but personal space creation failed: space denied");
+});
+
 test("enables a disabled principal", async () => {
   const enablePrincipalService = jest.fn().mockResolvedValue({ principalId: "prn_disabled", username: "disabled-user", state: "PRINCIPAL_STATE_ACTIVE" });
   render(

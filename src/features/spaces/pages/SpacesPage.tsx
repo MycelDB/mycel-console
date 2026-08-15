@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { createSpace as defaultCreateSpace, listSpaces as defaultListSpaces } from "../../../services/adminService";
 import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
 import { SpaceFilters, type SpaceFiltersValue } from "../components/SpaceFilters";
@@ -13,9 +14,10 @@ const defaultFilters: SpaceFiltersValue = {
 export type SpacesPageProps = {
   listSpacesService?: (input: ListSpacesInput) => Promise<ListSpacesResponse>;
   createSpaceService?: (input: CreateSpaceInput) => Promise<CreateSpaceResponse>;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
-export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceService = defaultCreateSpace }: SpacesPageProps) {
+export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceService = defaultCreateSpace, principalContext }: SpacesPageProps) {
   const [filters, setFilters] = useState<SpaceFiltersValue>(defaultFilters);
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [nextPageToken, setNextPageToken] = useState("");
@@ -24,7 +26,7 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateSpaceInput>({ name: "", ownerUsername: "", defaultDomainKey: "default", defaultDomainName: "Default" });
+  const [createForm, setCreateForm] = useState<CreateSpaceInput>({ name: "", ownerUsername: "", defaultDomainKey: "default", defaultDomainName: "default" });
 
   const loadSpaces = useCallback(
     async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
@@ -60,7 +62,7 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
     try {
       await createSpaceService(createForm);
       setShowCreate(false);
-      setCreateForm({ name: "", ownerUsername: "", defaultDomainKey: "default", defaultDomainName: "Default" });
+      setCreateForm({ name: "", ownerUsername: "", defaultDomainKey: "default", defaultDomainName: "default" });
       await loadSpaces();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create space");
@@ -68,6 +70,8 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
       setCreating(false);
     }
   }, [createForm, createSpaceService, loadSpaces]);
+
+  const canCreateSpace = canUseCapability(principalContext, "space.create");
 
   const filteredSpaces = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
@@ -98,30 +102,32 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
           <Button variant="secondary" onClick={() => void loadSpaces()} disabled={loading || loadingMore}>
             Refresh
           </Button>
-          <Button variant="secondary" onClick={() => setShowCreate((value) => !value)}>
-            Create space
-          </Button>
+          {canCreateSpace && (
+            <Button variant="secondary" onClick={() => setShowCreate((value) => !value)}>
+              Create space
+            </Button>
+          )}
         </div>
       </div>
 
-      {showCreate && (
+      {showCreate && canCreateSpace && (
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               <span>Space name</span>
-              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.name} onChange={(event) => setCreateForm((form) => ({ ...form, name: event.target.value }))} placeholder="martin_space" />
+              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.name} onChange={(event) => setCreateForm((form) => ({ ...form, name: event.target.value }))} placeholder="martin_space" autoCapitalize="none" spellCheck={false} />
             </label>
             <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               <span>Owner username</span>
-              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.ownerUsername || ""} onChange={(event) => setCreateForm((form) => ({ ...form, ownerUsername: event.target.value }))} placeholder="martin" />
+              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.ownerUsername || ""} onChange={(event) => setCreateForm((form) => ({ ...form, ownerUsername: event.target.value }))} placeholder="martin" autoComplete="username" autoCapitalize="none" spellCheck={false} />
             </label>
             <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               <span>Default domain key</span>
-              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.defaultDomainKey || ""} onChange={(event) => setCreateForm((form) => ({ ...form, defaultDomainKey: event.target.value }))} placeholder="default" />
+              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.defaultDomainKey || ""} onChange={(event) => setCreateForm((form) => ({ ...form, defaultDomainKey: event.target.value }))} placeholder="default" autoCapitalize="none" spellCheck={false} />
             </label>
             <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               <span>Default domain name</span>
-              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.defaultDomainName || ""} onChange={(event) => setCreateForm((form) => ({ ...form, defaultDomainName: event.target.value }))} placeholder="Default" />
+              <input className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={createForm.defaultDomainName || ""} onChange={(event) => setCreateForm((form) => ({ ...form, defaultDomainName: event.target.value }))} placeholder="default" autoCapitalize="none" spellCheck={false} />
             </label>
           </div>
           <div className="mt-4 flex gap-2">

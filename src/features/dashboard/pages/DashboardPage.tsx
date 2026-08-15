@@ -1,4 +1,5 @@
 import { Text } from "../../../components/typography";
+import { canUseCapability, consoleBranding, type ConsolePrincipalContext } from "../../console";
 import type { PrincipalSession } from "../../../types/auth";
 import { AlarmList } from "../components/AlarmList";
 import { BackupStatusCard } from "../components/BackupStatusCard";
@@ -7,9 +8,12 @@ import { ShortcutGrid } from "../components/ShortcutGrid";
 
 export type DashboardPageProps = {
   session: PrincipalSession;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
-export function DashboardPage({ session }: DashboardPageProps) {
+export function DashboardPage({ session, principalContext }: DashboardPageProps) {
+  const canReadBackups = canUseCapability(principalContext, "backup.read");
+
   return (
     <section className="space-y-6">
       <div>
@@ -21,7 +25,7 @@ export function DashboardPage({ session }: DashboardPageProps) {
           Dashboard
         </Text>
         <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-          Monitor Mycel cluster state, alarms, and operational shortcuts from here.
+          {consoleBranding.productDescription} Monitor cluster state, alarms, and operational shortcuts from here.
         </Text>
       </div>
 
@@ -30,9 +34,9 @@ export function DashboardPage({ session }: DashboardPageProps) {
         <AlarmList />
       </div>
 
-      <BackupStatusCard />
+      {canReadBackups && <BackupStatusCard />}
 
-      <ShortcutGrid />
+      <ShortcutGrid principalContext={principalContext} />
     </section>
   );
 }

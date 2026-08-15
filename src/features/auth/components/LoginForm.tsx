@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { consoleBranding } from "../../console";
 import { DEFAULT_CLUSTER_ADDR, type ConnectionDiagnosticsResponse, type LoginInput } from "../../../types/auth";
 
 export type LoginFormProps = {
@@ -24,9 +25,9 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
         void onSubmit({ addr, username, password });
       }}
     >
-      <H2 className="mb-1">Mycel Admin</H2>
+      <H2 className="mb-1">{consoleBranding.currentDisplayName}</H2>
       <Text intent="muted" size="sm" className="mb-6">
-        Log in with admin-capable principal credentials to manage a mycel cluster.
+        Log in with principal credentials that have console capabilities for a mycel cluster.
       </Text>
 
       {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
@@ -48,6 +49,8 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
         value={username}
         onChange={(event) => setUsername(event.target.value)}
         autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
         autoFocus
         disabled={loading}
       />

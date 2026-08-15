@@ -76,6 +76,51 @@ test("refresh invokes list service with current include archived flag", async ()
   );
 });
 
+test("creates a space without capitalizing submitted names", async () => {
+  const listSpacesService = jest.fn<Promise<ListSpacesResponse>, [ListSpacesInput]>().mockResolvedValue(listSpacesResponse());
+  const createSpaceService = jest.fn().mockResolvedValue({ space: { spaceId: "sp_martin", name: "martin_space", state: "SPACE_STATE_ACTIVE" }, defaultDomainId: "dom_default" });
+  render(
+    <MemoryRouter>
+      <SpacesPage listSpacesService={listSpacesService} createSpaceService={createSpaceService} />
+    </MemoryRouter>,
+  );
+
+  await screen.findByText("Main");
+  await userEvent.click(screen.getByRole("button", { name: /^create space$/i }));
+  await userEvent.type(screen.getByLabelText(/space name/i), "martin_space");
+  await userEvent.type(screen.getByLabelText(/owner username/i), "martin");
+  expect(screen.getByLabelText(/default domain name/i)).toHaveValue("default");
+  const createButtons = screen.getAllByRole("button", { name: /^create space$/i });
+  await userEvent.click(createButtons[createButtons.length - 1]);
+
+  await waitFor(() => expect(createSpaceService).toHaveBeenCalledWith({
+    name: "martin_space",
+    ownerUsername: "martin",
+    defaultDomainKey: "default",
+    defaultDomainName: "default",
+  }));
+});
+
+test("hides create action without space create capability", async () => {
+  render(
+    <MemoryRouter>
+      <SpacesPage
+        listSpacesService={jest.fn().mockResolvedValue(listSpacesResponse())}
+        principalContext={{
+          session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+          roles: [],
+          capabilities: ["CAPABILITY_SPACE_READ"],
+          capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SPACE_READ" }] },
+          warnings: [],
+        }}
+      />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Main")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^create space$/i })).not.toBeInTheDocument();
+});
+
 test("loads additional pages", async () => {
   const listSpacesService = jest
     .fn<Promise<ListSpacesResponse>, [ListSpacesInput]>()

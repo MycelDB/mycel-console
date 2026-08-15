@@ -67,6 +67,24 @@ test("renders principal identity and sessions", async () => {
   expect(screen.getByText(/ExplainSemanticSearch/)).toBeInTheDocument();
 });
 
+test("keeps principal detail readable while hiding session revocation without manage capability", async () => {
+  renderDetail({
+    principalContext: {
+      session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+      roles: [],
+      capabilities: ["CAPABILITY_IDENTITY_PRINCIPAL_READ"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_IDENTITY_PRINCIPAL_READ" }] },
+      warnings: [],
+    },
+  });
+
+  expect(await screen.findByRole("heading", { name: "alice" })).toBeInTheDocument();
+  expect(screen.getByText("sess_1")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^revoke$/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /revoke all sessions/i })).not.toBeInTheDocument();
+  expect(screen.getByText("Read-only")).toBeInTheDocument();
+});
+
 test("revokes one session after confirmation", async () => {
   const services = renderDetail();
 

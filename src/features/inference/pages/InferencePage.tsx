@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
   applyInferencePackage as defaultApplyInferencePackage,
   listInferencePackages as defaultListInferencePackages,
@@ -56,6 +57,7 @@ export type InferencePageProps = {
   listVectorStoresService?: (input?: ListVectorStoresInput) => Promise<ListVectorStoresResponse>;
   listModelEndpointCapabilitiesService?: (input?: ListModelEndpointCapabilitiesInput) => Promise<ListModelEndpointCapabilitiesResponse>;
   applyInferencePackageService?: (input: InferencePackageDocument) => Promise<ApplyInferencePackageResponse>;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
 export function InferencePage({
@@ -65,6 +67,7 @@ export function InferencePage({
   listVectorStoresService = defaultListVectorStores,
   listModelEndpointCapabilitiesService = defaultListModelEndpointCapabilities,
   applyInferencePackageService = defaultApplyInferencePackage,
+  principalContext,
 }: InferencePageProps) {
   const [packages, setPackages] = useState<InferencePackageInfo[]>([]);
   const [nextPageToken, setNextPageToken] = useState("");
@@ -84,6 +87,7 @@ export function InferencePage({
   const [includeDisabledCatalog, setIncludeDisabledCatalog] = useState(false);
   const [operationFilter, setOperationFilter] = useState("");
   const [detail, setDetail] = useState<{ title: string; data: unknown } | null>(null);
+  const canImportPackages = canUseCapability(principalContext, "inference.catalog.manage");
 
   const loadPackages = useCallback(async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
     setError("");
@@ -160,7 +164,7 @@ export function InferencePage({
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void loadPackages()} disabled={loading || loadingMore || importing}>Refresh</Button>
-          <Button variant="secondary" onClick={() => setImportOpen(true)} disabled={importing}>Import package JSON</Button>
+          {canImportPackages && <Button variant="secondary" onClick={() => setImportOpen(true)} disabled={importing}>Import package JSON</Button>}
         </div>
       </div>
 
@@ -253,7 +257,7 @@ export function InferencePage({
         <ModelEndpointCapabilityTable capabilities={capabilities} />
       )}
 
-      <ImportInferencePackageModal open={importOpen} loading={importing} onClose={() => setImportOpen(false)} onImport={handleImport} />
+      <ImportInferencePackageModal open={importOpen && canImportPackages} loading={importing} onClose={() => setImportOpen(false)} onImport={handleImport} />
       {detail && <CatalogDetailDrawer title={detail.title} data={detail.data} onClose={() => setDetail(null)} />}
 
       <ImportInferencePackageSummaryDialog

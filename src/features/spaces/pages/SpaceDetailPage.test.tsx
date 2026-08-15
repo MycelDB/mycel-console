@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { SpaceDetailPage } from "./SpaceDetailPage";
+import type { ConsolePrincipalContext } from "../../console";
 
 function renderDetail(
   getSpaceService = jest.fn().mockResolvedValue({ spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" }),
@@ -11,11 +12,12 @@ function renderDetail(
   getSemanticMaintenanceStatusService = jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 0, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
   listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [] }),
   lookupSpaceRouteService = jest.fn().mockResolvedValue({ spaceId: "sp_main", partitionId: 3, leaderNodeId: 2, replicaNodeIds: [1, 2, 3] }),
+  principalContext: ConsolePrincipalContext | undefined = undefined,
 ) {
   render(
     <MemoryRouter initialEntries={["/spaces/sp_main"]}>
       <Routes>
-        <Route path="/spaces/:spaceId" element={<SpaceDetailPage getSpaceService={getSpaceService} listDomainsService={listDomainsService} listSemanticIndexesService={listSemanticIndexesService} getDomainSchemaService={getDomainSchemaService} getSemanticMaintenanceStatusService={getSemanticMaintenanceStatusService} listSemanticMaintenanceWorkService={listSemanticMaintenanceWorkService} lookupSpaceRouteService={lookupSpaceRouteService} />} />
+        <Route path="/spaces/:spaceId" element={<SpaceDetailPage getSpaceService={getSpaceService} listDomainsService={listDomainsService} listSemanticIndexesService={listSemanticIndexesService} getDomainSchemaService={getDomainSchemaService} getSemanticMaintenanceStatusService={getSemanticMaintenanceStatusService} listSemanticMaintenanceWorkService={listSemanticMaintenanceWorkService} lookupSpaceRouteService={lookupSpaceRouteService} principalContext={principalContext} />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -91,6 +93,50 @@ test("loads and renders selected space properties", async () => {
 
   await userEvent.click(screen.getByRole("tab", { name: "Schemas" }));
   expect(screen.getByRole("heading", { name: "Domain schemas" })).toBeInTheDocument();});
+
+test("keeps semantic panels readable while hiding maintenance mutations without semantic manage capability", async () => {
+  const listSemanticIndexesService = jest.fn().mockResolvedValue({
+    indexes: [{ semanticIndexId: "idx_notes", key: "notes", displayName: "Notes", description: "", spaceId: "sp_main", domainId: "dom_default", modelLabel: "text-embedding-3-small", vectorStoreLabel: "mycel-file", state: "SEMANTIC_INDEX_STATE_ACTIVE" }],
+    nextPageToken: "",
+  });
+  const listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [{ workItemId: "work_1", spaceId: "sp_main", domainId: "dom_default", semanticIndexId: "idx_notes", targetNodeId: "node_1", action: "embed", status: "failed_retryable", attemptCount: 2, notBefore: "", claimedUntil: "", lastErrorCategory: "provider", lastErrorMessageSanitized: "rate limited", createdAt: "", updatedAt: "" }] });
+
+  renderDetail(undefined, undefined, listSemanticIndexesService, undefined, undefined, listSemanticMaintenanceWorkService, undefined, {
+    session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+    roles: [],
+    capabilities: ["CAPABILITY_SEMANTIC_SEARCH"],
+    capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SEMANTIC_SEARCH" }] },
+    warnings: [],
+  });
+
+  await screen.findByRole("heading", { name: "Main" });
+  await userEvent.click(screen.getByRole("tab", { name: "Semantic" }));
+
+  expect(await screen.findByText("provider")).toBeInTheDocument();
+  expect(screen.getAllByText("Read-only").length).toBeGreaterThan(0);
+  expect(screen.queryByRole("button", { name: /analyze dirty work/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^retry$/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /backfill/i })).not.toBeInTheDocument();
+});
+
+test("uses current console principal for graph query without a separate client login", async () => {
+  renderDetail(undefined, jest.fn().mockResolvedValue({ domains: [{ spaceId: "sp_main", domainId: "dom_default", key: "default", name: "default", description: "", state: "DOMAIN_STATE_ACTIVE", isDefault: true, system: false }], nextPageToken: "" }), undefined, undefined, undefined, undefined, undefined, {
+    session: { addr: "127.0.0.1:19091", principalId: "prn_martin", username: "martin" },
+    roles: [],
+    capabilities: ["CAPABILITY_SPACE_READ"],
+    capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SPACE_READ" }] },
+    warnings: [],
+  });
+
+  await screen.findByRole("heading", { name: "Main" });
+  await userEvent.click(screen.getByRole("tab", { name: "Graph query" }));
+
+  expect(screen.getByText(/martin @ 127.0.0.1:19091/i)).toBeInTheDocument();
+  expect(screen.getByText(/read-write, subject to daemon authorization/i)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /connect client session/i })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/mode/i)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^run query$/i })).toBeEnabled();
+});
 
 test("supports system domain toggle and domain pagination", async () => {
   const listDomainsService = jest

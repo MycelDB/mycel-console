@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { getPrincipal as defaultGetPrincipal, listPrincipalSessions as defaultListPrincipalSessions, listSpaces as defaultListSpaces, revokePrincipalSession as defaultRevokePrincipalSession, revokePrincipalSessions as defaultRevokePrincipalSessions } from "../../../services/adminService";
 import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
 import type { ListPrincipalSessionsInput, ListPrincipalSessionsResponse, PrincipalInfo, PrincipalSessionInfo, RevokePrincipalSessionInput, RevokePrincipalSessionsResponse } from "../../../types/users";
@@ -13,9 +14,10 @@ export type UserDetailPageProps = {
   listSpacesService?: (input: ListSpacesInput) => Promise<ListSpacesResponse>;
   revokePrincipalSessionService?: (input: RevokePrincipalSessionInput) => Promise<void>;
   revokePrincipalSessionsService?: (principalId: string) => Promise<RevokePrincipalSessionsResponse>;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
-export function UserDetailPage({ getPrincipalService = defaultGetPrincipal, listPrincipalSessionsService = defaultListPrincipalSessions, listSpacesService = defaultListSpaces, revokePrincipalSessionService = defaultRevokePrincipalSession, revokePrincipalSessionsService = defaultRevokePrincipalSessions }: UserDetailPageProps) {
+export function UserDetailPage({ getPrincipalService = defaultGetPrincipal, listPrincipalSessionsService = defaultListPrincipalSessions, listSpacesService = defaultListSpaces, revokePrincipalSessionService = defaultRevokePrincipalSession, revokePrincipalSessionsService = defaultRevokePrincipalSessions, principalContext }: UserDetailPageProps) {
   const { principalId = "" } = useParams();
   const routePrincipalId = principalId;
   const [user, setUser] = useState<PrincipalInfo | null>(null);
@@ -25,6 +27,7 @@ export function UserDetailPage({ getPrincipalService = defaultGetPrincipal, list
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState<{ kind: "one"; sessionId: string } | { kind: "all" } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const canManageSessions = canUseCapability(principalContext, "identity.session.manage");
 
   async function load() {
     if (!routePrincipalId) {
@@ -96,7 +99,7 @@ export function UserDetailPage({ getPrincipalService = defaultGetPrincipal, list
 
       {error && <ErrorBox>{error}</ErrorBox>}
       {loading ? <Loading /> : user ? <UserIdentity user={user} /> : null}
-      {!loading && <UserSessionsTable sessions={sessions} onRevokeSession={(sessionId) => setConfirm({ kind: "one", sessionId })} onRevokeAll={() => setConfirm({ kind: "all" })} />}
+      {!loading && <UserSessionsTable sessions={sessions} canRevoke={canManageSessions} onRevokeSession={(sessionId) => setConfirm({ kind: "one", sessionId })} onRevokeAll={() => setConfirm({ kind: "all" })} />}
       {!loading && <OwnedSpaces spaces={ownedSpaces} />}
       {!loading && <SemanticDiagnosticsNote ownedSpaceCount={ownedSpaces.length} />}
       {confirm && (
@@ -138,18 +141,18 @@ function UserIdentity({ user }: { user: PrincipalInfo }) {
   );
 }
 
-function UserSessionsTable({ sessions, onRevokeSession, onRevokeAll }: { sessions: PrincipalSessionInfo[]; onRevokeSession: (sessionId: string) => void; onRevokeAll: () => void }) {
+function UserSessionsTable({ sessions, canRevoke, onRevokeSession, onRevokeAll }: { sessions: PrincipalSessionInfo[]; canRevoke: boolean; onRevokeSession: (sessionId: string) => void; onRevokeAll: () => void }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Auth sessions</Text>
-        <Button variant="secondary" onClick={onRevokeAll} disabled={sessions.length === 0}>Revoke all sessions</Button>
+        {canRevoke && <Button variant="secondary" onClick={onRevokeAll} disabled={sessions.length === 0}>Revoke all sessions</Button>}
       </div>
       {sessions.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No active sessions found.</Text> : (
         <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
             <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Session ID</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Last seen</th><th className="px-4 py-3">Expires</th><th className="px-4 py-3">Client</th><th className="px-4 py-3">Actions</th></tr></thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{sessions.map((session) => <tr key={session.authSessionId}><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{session.authSessionId}</td><td className="px-4 py-3">{session.state}</td><td className="px-4 py-3">{formatTimestamp(session.lastSeenTime)}</td><td className="px-4 py-3">{formatTimestamp(session.expireTime)}</td><td className="px-4 py-3">{clientLabel(session)}</td><td className="px-4 py-3"><button className="rounded px-2 py-1 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/50" onClick={() => onRevokeSession(session.authSessionId)}>Revoke</button></td></tr>)}</tbody>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{sessions.map((session) => <tr key={session.authSessionId}><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{session.authSessionId}</td><td className="px-4 py-3">{session.state}</td><td className="px-4 py-3">{formatTimestamp(session.lastSeenTime)}</td><td className="px-4 py-3">{formatTimestamp(session.expireTime)}</td><td className="px-4 py-3">{clientLabel(session)}</td><td className="px-4 py-3">{canRevoke ? <button className="rounded px-2 py-1 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/50" onClick={() => onRevokeSession(session.authSessionId)}>Revoke</button> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
           </table>
         </div>
       )}

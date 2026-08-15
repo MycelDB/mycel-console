@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { AccountPage } from "../../features/account";
 import { AccessPage } from "../../features/access";
 import { BackupsPage } from "../../features/backups";
 import { ClusterPage, NodeDetailPage } from "../../features/cluster";
@@ -11,6 +13,7 @@ import { ComingSoonPage } from "../../features/placeholder/ComingSoonPage";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
 import { UserDetailPage, UsersPage } from "../../features/users";
 import { Text } from "../typography";
+import { evaluateRequirements, navigationCapabilityState, requirement, type CapabilityRequirement, type ConsolePrincipalContext } from "../../features/console";
 import type { PrincipalSession } from "../../types/auth";
 import type { Theme } from "../../types/theme";
 
@@ -18,6 +21,8 @@ export type AppShellProps = {
   session: PrincipalSession;
   loggingOut: boolean;
   logoutError: string;
+  principalContext?: ConsolePrincipalContext | null;
+  principalContextLoading?: boolean;
   theme: Theme;
   onToggleTheme: () => void;
   onLogout: () => void;
@@ -36,19 +41,29 @@ const placeholderRoutes = [
   },
 ];
 
+function RequireCapabilities({ principalContext, requirements, children }: { principalContext?: ConsolePrincipalContext | null; requirements: CapabilityRequirement[]; children: ReactNode }) {
+  const state = navigationCapabilityState(principalContext);
+  if (!evaluateRequirements(state, requirements).available) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 export function AppShell({
   session,
   loggingOut,
   logoutError,
+  principalContext,
+  principalContextLoading = false,
   theme,
   onToggleTheme,
   onLogout,
 }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <Sidebar theme={theme} onToggleTheme={onToggleTheme} />
+      <Sidebar theme={theme} principalContext={principalContext} onToggleTheme={onToggleTheme} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header session={session} loggingOut={loggingOut} onLogout={onLogout} />
+        <Header session={session} principalContext={principalContext} principalContextLoading={principalContextLoading} loggingOut={loggingOut} onLogout={onLogout} />
         {logoutError && (
           <Text
             intent="danger"
@@ -61,18 +76,19 @@ export function AppShell({
         <main className="min-h-0 flex-1 overflow-y-auto p-6">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage session={session} />} />
-            <Route path="/principals" element={<UsersPage />} />
-            <Route path="/principals/:principalId" element={<UserDetailPage />} />
-            <Route path="/principals/:principalId/access" element={<AccessPage />} />
-            <Route path="/access" element={<AccessPage />} />
+            <Route path="/dashboard" element={<DashboardPage session={session} principalContext={principalContext} />} />
+            <Route path="/me" element={<AccountPage session={session} principalContext={principalContext} loading={principalContextLoading} />} />
+            <Route path="/principals" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UsersPage principalContext={principalContext} /></RequireCapabilities>} />
+            <Route path="/principals/:principalId" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UserDetailPage principalContext={principalContext} /></RequireCapabilities>} />
+            <Route path="/principals/:principalId/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.grant.manage")]}><AccessPage /></RequireCapabilities>} />
+            <Route path="/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.grant.manage")]}><AccessPage /></RequireCapabilities>} />
             <Route path="/operators" element={<Navigate to="/access" replace />} />
-            <Route path="/spaces" element={<SpacesPage />} />
-            <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
-            <Route path="/backups" element={<BackupsPage />} />
+            <Route path="/spaces" element={<SpacesPage principalContext={principalContext} />} />
+            <Route path="/spaces/:spaceId" element={<SpaceDetailPage principalContext={principalContext} />} />
+            <Route path="/backups" element={<BackupsPage principalContext={principalContext} />} />
             <Route path="/cluster" element={<ClusterPage />} />
             <Route path="/cluster/nodes/:nodeKey" element={<NodeDetailPage />} />
-            <Route path="/inference" element={<InferencePage />} />
+            <Route path="/inference" element={<InferencePage principalContext={principalContext} />} />
             <Route path="/maintenance" element={<MaintenancePage />} />
             {placeholderRoutes.map((route) => (
               <Route

@@ -38,7 +38,7 @@ test("renders principal roles and capabilities", async () => {
   const services = renderAccessPage();
 
   expect(screen.getByRole("heading", { name: /roles & capabilities/i })).toBeInTheDocument();
-  expect(screen.getByText(/loading admin access/i)).toBeInTheDocument();
+  expect(screen.getByText(/loading access/i)).toBeInTheDocument();
   expect(await screen.findByRole("link", { name: "admin" })).toHaveAttribute("href", "/principals/prn_admin");
   expect(screen.getByRole("link", { name: "reader" })).toHaveAttribute("href", "/principals/prn_reader");
   expect(screen.getAllByText("system_admin")).toHaveLength(2);

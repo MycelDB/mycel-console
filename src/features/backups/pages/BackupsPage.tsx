@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, ErrorBox, FieldHint, H2, Input, Text } from "../../../components/typography";
+import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
   deleteBackup as defaultDeleteBackup,
   getBackupPolicy as defaultGetBackupPolicy,
@@ -28,6 +29,7 @@ export type BackupsPageProps = {
   listBackupsService?: (input?: ListBackupsInput) => Promise<ListBackupsResponse>;
   triggerBackupService?: (input?: TriggerBackupInput) => Promise<TriggerBackupResponse>;
   deleteBackupService?: (backupId: string) => Promise<DeleteBackupResponse>;
+  principalContext?: ConsolePrincipalContext | null;
 };
 
 export function BackupsPage({
@@ -37,6 +39,7 @@ export function BackupsPage({
   listBackupsService = defaultListBackups,
   triggerBackupService = defaultTriggerBackup,
   deleteBackupService = defaultDeleteBackup,
+  principalContext,
 }: BackupsPageProps) {
   const [policy, setPolicy] = useState<BackupPolicyInfo | null>(null);
   const [status, setStatus] = useState<BackupStatusResponse | null>(null);
@@ -140,6 +143,7 @@ export function BackupsPage({
     }
   }
 
+  const canManageBackups = canUseCapability(principalContext, "backup.manage");
   const busy = loading || loadingMore || savingPolicy || triggering || Boolean(deletingBackupId);
 
   return (
@@ -158,9 +162,11 @@ export function BackupsPage({
           <Button variant="secondary" onClick={() => void load()} disabled={busy}>
             Refresh
           </Button>
-          <Button variant="secondary" onClick={() => void handleTriggerBackup()} disabled={busy}>
-            {triggering ? "Triggering…" : "Trigger backup"}
-          </Button>
+          {canManageBackups && (
+            <Button variant="secondary" onClick={() => void handleTriggerBackup()} disabled={busy}>
+              {triggering ? "Triggering…" : "Trigger backup"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -212,6 +218,7 @@ export function BackupsPage({
               onChange={setPolicy}
               onSave={() => void handleSavePolicy()}
               saving={savingPolicy}
+              readOnly={!canManageBackups}
             />
           )}
           {activeTab === "files" && (
@@ -220,6 +227,7 @@ export function BackupsPage({
                 backups={backups}
                 deletingBackupId={deletingBackupId}
                 onDelete={requestDeleteBackup}
+                canDelete={canManageBackups}
               />
               {nextPageToken && (
                 <div className="flex justify-center">
@@ -269,11 +277,13 @@ function PolicyPanel({
   onChange,
   onSave,
   saving,
+  readOnly,
 }: {
   policy: BackupPolicyInfo;
   onChange: (policy: BackupPolicyInfo) => void;
   onSave: () => void;
   saving: boolean;
+  readOnly: boolean;
 }) {
   function set<K extends keyof BackupPolicyInfo>(key: K, value: BackupPolicyInfo[K]) {
     onChange({ ...policy, [key]: value });
@@ -285,27 +295,31 @@ function PolicyPanel({
         <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
           Backup policy
         </Text>
-        <Button variant="secondary" onClick={onSave} disabled={saving}>
-          {saving ? "Saving…" : "Save policy"}
-        </Button>
+        {readOnly ? (
+          <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Read-only</Text>
+        ) : (
+          <Button variant="secondary" onClick={onSave} disabled={saving}>
+            {saving ? "Saving…" : "Save policy"}
+          </Button>
+        )}
       </div>
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <CheckboxField label="Backups enabled" checked={policy.enabled} onChange={(value) => set("enabled", value)} hint="Turns scheduled backups on or off. Manual backups can still be triggered separately if the daemon allows it." />
-        <CheckboxField label="Include logs" checked={policy.includeLogs} onChange={(value) => set("includeLogs", value)} hint="Includes daemon log files in backup archives when supported." />
-        <CheckboxField label="Allow reads during backup" checked={policy.allowReadsDuringBackup} onChange={(value) => set("allowReadsDuringBackup", value)} hint="Allows read traffic while backup quiescing is active. Writes may still be paused." />
-        <CheckboxField label="Run missed schedule" checked={policy.runMissed} onChange={(value) => set("runMissed", value)} hint="If enabled, the daemon may run a missed daily or weekly backup after restart." />
-        <Field label="Backup directory" value={policy.backupDir} onChange={(value) => set("backupDir", value)} hint="Filesystem path on the Mycel daemon host or container where backup archives are written." />
-        <ArchiveFormatField value={policy.archiveFormat} onChange={(value) => set("archiveFormat", value)} />
-        <ScheduleKindField value={policy.scheduleKind || "interval"} onChange={(value) => set("scheduleKind", value)} />
-        {(policy.scheduleKind === "" || policy.scheduleKind === "interval") && <NumberField label="Interval seconds" value={policy.intervalSeconds} onChange={(value) => set("intervalSeconds", value)} hint="Number of seconds between scheduled backup attempts when schedule kind is interval." />}
-        {(policy.scheduleKind === "daily" || policy.scheduleKind === "weekly") && <Field label="Time of day" value={policy.timeOfDay} onChange={(value) => set("timeOfDay", value)} hint="Local wall-clock time for daily or weekly backups, in HH:MM 24-hour format." />}
-        {(policy.scheduleKind === "daily" || policy.scheduleKind === "weekly") && <Field label="Timezone" value={policy.timezone} onChange={(value) => set("timezone", value)} hint="IANA timezone used for wall-clock schedules, such as UTC or America/Toronto." />}
-        {policy.scheduleKind === "weekly" && <WeekdaysField value={policy.weekdays} onChange={(value) => set("weekdays", value)} />}
-        <NumberField label="Retention count" value={policy.retentionCount} onChange={(value) => set("retentionCount", value)} hint="Maximum number of completed backups to keep before old backups are eligible for deletion." />
-        <NumberField label="Backup timeout seconds" value={policy.backupTimeoutSeconds} onChange={(value) => set("backupTimeoutSeconds", value)} hint="Maximum time a backup run may take before it is considered failed." />
-        <NumberField label="Quiesce drain timeout seconds" value={policy.quiesceDrainTimeoutSeconds} onChange={(value) => set("quiesceDrainTimeoutSeconds", value)} hint="How long the daemon waits for active work to drain before taking a backup." />
-        <NumberField label="Retry after seconds" value={policy.retryAfterSeconds} onChange={(value) => set("retryAfterSeconds", value)} hint="Delay before retrying after a scheduled backup failure." />
-        <NumberField label="Status history limit" value={policy.statusHistoryLimit} onChange={(value) => set("statusHistoryLimit", value)} hint="Number of recent backup status records the daemon should retain." />
+        <CheckboxField label="Backups enabled" checked={policy.enabled} disabled={readOnly} onChange={(value) => set("enabled", value)} hint="Turns scheduled backups on or off. Manual backups can still be triggered separately if the daemon allows it." />
+        <CheckboxField label="Include logs" checked={policy.includeLogs} disabled={readOnly} onChange={(value) => set("includeLogs", value)} hint="Includes daemon log files in backup archives when supported." />
+        <CheckboxField label="Allow reads during backup" checked={policy.allowReadsDuringBackup} disabled={readOnly} onChange={(value) => set("allowReadsDuringBackup", value)} hint="Allows read traffic while backup quiescing is active. Writes may still be paused." />
+        <CheckboxField label="Run missed schedule" checked={policy.runMissed} disabled={readOnly} onChange={(value) => set("runMissed", value)} hint="If enabled, the daemon may run a missed daily or weekly backup after restart." />
+        <Field label="Backup directory" value={policy.backupDir} disabled={readOnly} onChange={(value) => set("backupDir", value)} hint="Filesystem path on the Mycel daemon host or container where backup archives are written." />
+        <ArchiveFormatField value={policy.archiveFormat} disabled={readOnly} onChange={(value) => set("archiveFormat", value)} />
+        <ScheduleKindField value={policy.scheduleKind || "interval"} disabled={readOnly} onChange={(value) => set("scheduleKind", value)} />
+        {(policy.scheduleKind === "" || policy.scheduleKind === "interval") && <NumberField label="Interval seconds" value={policy.intervalSeconds} disabled={readOnly} onChange={(value) => set("intervalSeconds", value)} hint="Number of seconds between scheduled backup attempts when schedule kind is interval." />}
+        {(policy.scheduleKind === "daily" || policy.scheduleKind === "weekly") && <Field label="Time of day" value={policy.timeOfDay} disabled={readOnly} onChange={(value) => set("timeOfDay", value)} hint="Local wall-clock time for daily or weekly backups, in HH:MM 24-hour format." />}
+        {(policy.scheduleKind === "daily" || policy.scheduleKind === "weekly") && <Field label="Timezone" value={policy.timezone} disabled={readOnly} onChange={(value) => set("timezone", value)} hint="IANA timezone used for wall-clock schedules, such as UTC or America/Toronto." />}
+        {policy.scheduleKind === "weekly" && <WeekdaysField value={policy.weekdays} disabled={readOnly} onChange={(value) => set("weekdays", value)} />}
+        <NumberField label="Retention count" value={policy.retentionCount} disabled={readOnly} onChange={(value) => set("retentionCount", value)} hint="Maximum number of completed backups to keep before old backups are eligible for deletion." />
+        <NumberField label="Backup timeout seconds" value={policy.backupTimeoutSeconds} disabled={readOnly} onChange={(value) => set("backupTimeoutSeconds", value)} hint="Maximum time a backup run may take before it is considered failed." />
+        <NumberField label="Quiesce drain timeout seconds" value={policy.quiesceDrainTimeoutSeconds} disabled={readOnly} onChange={(value) => set("quiesceDrainTimeoutSeconds", value)} hint="How long the daemon waits for active work to drain before taking a backup." />
+        <NumberField label="Retry after seconds" value={policy.retryAfterSeconds} disabled={readOnly} onChange={(value) => set("retryAfterSeconds", value)} hint="Delay before retrying after a scheduled backup failure." />
+        <NumberField label="Status history limit" value={policy.statusHistoryLimit} disabled={readOnly} onChange={(value) => set("statusHistoryLimit", value)} hint="Number of recent backup status records the daemon should retain." />
       </div>
     </article>
   );
@@ -315,10 +329,12 @@ function BackupFilesPanel({
   backups,
   deletingBackupId,
   onDelete,
+  canDelete,
 }: {
   backups: BackupSummaryInfo[];
   deletingBackupId: string;
   onDelete: (backup: BackupSummaryInfo) => void;
+  canDelete: boolean;
 }) {
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
@@ -349,13 +365,17 @@ function BackupFilesPanel({
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatBytes(backup.sizeBytes)}</td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatArchiveFormat(backup.archiveFormat)}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="secondary"
-                      onClick={() => onDelete(backup)}
-                      disabled={deletingBackupId === backup.backupId}
-                    >
-                      {deletingBackupId === backup.backupId ? "Deleting…" : "Delete"}
-                    </Button>
+                    {canDelete ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => onDelete(backup)}
+                        disabled={deletingBackupId === backup.backupId}
+                      >
+                        {deletingBackupId === backup.backupId ? "Deleting…" : "Delete"}
+                      </Button>
+                    ) : (
+                      <span className="text-slate-500 dark:text-slate-400">Read-only</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -403,28 +423,28 @@ function DeleteBackupDialog({
   );
 }
 
-function Field({ label, value, onChange, hint }: { label: string; value: string; onChange: (value: string) => void; hint: string }) {
+function Field({ label, value, disabled = false, onChange, hint }: { label: string; value: string; disabled?: boolean; onChange: (value: string) => void; hint: string }) {
   return (
     <label className="block text-sm text-slate-700 dark:text-slate-300">
       <FieldLabel label={label} hint={hint} />
-      <Input value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
 
-function NumberField({ label, value, onChange, hint }: { label: string; value: number; onChange: (value: number) => void; hint: string }) {
+function NumberField({ label, value, disabled = false, onChange, hint }: { label: string; value: number; disabled?: boolean; onChange: (value: number) => void; hint: string }) {
   return (
     <label className="block text-sm text-slate-700 dark:text-slate-300">
       <FieldLabel label={label} hint={hint} />
-      <Input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <Input type="number" value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
   );
 }
 
-function CheckboxField({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (value: boolean) => void; hint: string }) {
+function CheckboxField({ label, checked, disabled = false, onChange, hint }: { label: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void; hint: string }) {
   return (
     <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-200">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
       <span className="flex items-center gap-1">
         {label}
         <FieldHint label={`${label} help`}>{hint}</FieldHint>
@@ -433,11 +453,11 @@ function CheckboxField({ label, checked, onChange, hint }: { label: string; chec
   );
 }
 
-function ArchiveFormatField({ value, onChange }: { value: BackupArchiveFormat; onChange: (value: BackupArchiveFormat) => void }) {
+function ArchiveFormatField({ value, disabled = false, onChange }: { value: BackupArchiveFormat; disabled?: boolean; onChange: (value: BackupArchiveFormat) => void }) {
   return (
     <label className="block text-sm text-slate-700 dark:text-slate-300">
       <FieldLabel label="Archive format" hint="Backup archive/container format written by the daemon, such as ZIP or TAR.ZST." />
-      <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={value} onChange={(event) => onChange(event.target.value as BackupArchiveFormat)}>
+      <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as BackupArchiveFormat)}>
         <option value="BACKUP_ARCHIVE_FORMAT_ZIP">ZIP</option>
         <option value="BACKUP_ARCHIVE_FORMAT_TAR">TAR</option>
         <option value="BACKUP_ARCHIVE_FORMAT_TAR_GZ">TAR.GZ</option>
@@ -447,11 +467,11 @@ function ArchiveFormatField({ value, onChange }: { value: BackupArchiveFormat; o
   );
 }
 
-function ScheduleKindField({ value, onChange }: { value: BackupScheduleKind; onChange: (value: BackupScheduleKind) => void }) {
+function ScheduleKindField({ value, disabled = false, onChange }: { value: BackupScheduleKind; disabled?: boolean; onChange: (value: BackupScheduleKind) => void }) {
   return (
     <label className="block text-sm text-slate-700 dark:text-slate-300">
       <FieldLabel label="Schedule kind" hint="Controls whether backups run by interval, once per day, or on selected weekdays." />
-      <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={value} onChange={(event) => onChange(event.target.value as BackupScheduleKind)}>
+      <select className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as BackupScheduleKind)}>
         <option value="interval">Interval</option>
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
@@ -462,7 +482,7 @@ function ScheduleKindField({ value, onChange }: { value: BackupScheduleKind; onC
 
 const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function WeekdaysField({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
+function WeekdaysField({ value, disabled = false, onChange }: { value: number[]; disabled?: boolean; onChange: (value: number[]) => void }) {
   function toggle(day: number) {
     onChange(value.includes(day) ? value.filter((item) => item !== day) : [...value, day].sort());
   }
@@ -472,7 +492,7 @@ function WeekdaysField({ value, onChange }: { value: number[]; onChange: (value:
       <div className="mt-2 flex flex-wrap gap-2">
         {weekdayLabels.map((label, day) => (
           <label key={label} className="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-300">
-            <input type="checkbox" checked={value.includes(day)} onChange={() => toggle(day)} />
+            <input type="checkbox" checked={value.includes(day)} disabled={disabled} onChange={() => toggle(day)} />
             {label}
           </label>
         ))}

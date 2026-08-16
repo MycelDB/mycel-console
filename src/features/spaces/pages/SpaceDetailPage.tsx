@@ -11,6 +11,8 @@ import type { DomainSchemaInfo, GetDomainSchemaInput } from "../../../types/sche
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse, SemanticIndexInfo } from "../../../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, BackfillSemanticIndexInput, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../../../types/semanticMaintenance";
 import type { SpaceInfo } from "../../../types/spaces";
+import { GraphResultCanvas } from "../components/GraphResultCanvas";
+import { graphFromQueryResponse } from "../components/graphResultExtraction";
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
 
 export type SpaceDetailPageProps = {
@@ -630,10 +632,10 @@ function GraphQueryConsolePreview({ spaceId, domains, currentPrincipal }: { spac
           <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">GQL query</Text>
           <textarea className="mt-2 h-52 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={queryText} onChange={(event) => setQueryText(event.target.value)} onKeyDown={(event) => event.stopPropagation()} spellCheck={false} />
           <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canRun} onClick={requestRunQuery}>{loading ? "Running…" : "Run query"}</Button><Button variant="secondary" disabled={!result} onClick={() => void navigator.clipboard?.writeText(JSON.stringify(result ?? null, null, 2))}>Copy result</Button></div>
-          {Boolean(result) && <div className="mt-4 flex gap-2" role="tablist" aria-label="Query result views">{(["rows", "graph", "raw"] as const).map((view) => <button key={view} type="button" className={`rounded-md px-3 py-1 text-sm ${resultView === view ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" : "text-slate-600 dark:text-slate-400"}`} onClick={() => setResultView(view)}>{view === "rows" ? "Rows" : view === "graph" ? "Graph" : "Raw JSON"}</button>)}</div>}
-          <QueryResultView result={result} view={resultView} />
         </div>
       </div>
+      {Boolean(result) && <div className="mt-4 flex gap-2" role="tablist" aria-label="Query result views">{(["rows", "graph", "raw"] as const).map((view) => <button key={view} type="button" className={`rounded-md px-3 py-1 text-sm ${resultView === view ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" : "text-slate-600 dark:text-slate-400"}`} onClick={() => setResultView(view)}>{view === "rows" ? "Rows" : view === "graph" ? "Graph" : "Raw JSON"}</button>)}</div>}
+      <QueryResultView result={result} view={resultView} />
       {confirmWrite && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><Text as="h3" className="font-semibold">Run GQL?</Text><Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">This will execute in a read-write transaction and commit if the query succeeds. Daemon authorization remains authoritative. Target: {spaceId} / {domainId}.</Text><pre className="mt-4 max-h-40 overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">{queryText}</pre><div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => setConfirmWrite(false)} disabled={loading}>Cancel</Button><Button onClick={() => { setConfirmWrite(false); void runQuery(); }} disabled={loading}>Run and commit</Button></div></div></div>}
     </div>
   );
@@ -643,20 +645,9 @@ function QueryResultView({ result, view }: { result: any; view: "rows" | "graph"
   if (!result) return <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">No query run yet.</div>;
   const payload = result.result ?? result;
   const statements = payload?.statements ?? result?.statements;
+  if (view === "graph") return <GraphResultCanvas graph={graphFromQueryResponse(result)} />;
   if (Array.isArray(statements)) {
     return <div className="mt-3 space-y-3"><div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"><table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800"><thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">#</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Statement</th><th className="px-4 py-3">Error</th></tr></thead><tbody className="divide-y divide-slate-200 dark:divide-slate-800">{statements.map((statement: any) => <tr key={statement.index}><td className="px-4 py-3">{statement.index}</td><td className="px-4 py-3">{statement.success ? "✓" : "✗"}</td><td className="px-4 py-3 font-mono text-xs">{statement.statement}</td><td className="px-4 py-3 text-red-600 dark:text-red-300">{statement.error || "—"}</td></tr>)}</tbody></table></div>{view === "raw" ? <pre className="max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{JSON.stringify(result, null, 2)}</pre> : null}</div>;
-  }
-  if (view === "graph") {
-    const nodes = payload?.graph?.nodes ?? [];
-    const edges = payload?.graph?.edges ?? [];
-    return (
-      <div className="mt-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-        <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">Graph preview</Text>
-        {nodes.length === 0 && edges.length === 0 ? <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">No graph elements returned.</Text> : null}
-        {nodes.length > 0 ? <div className="mt-3"><Text as="p" size="sm" className="font-medium">Nodes</Text><div className="mt-2 grid gap-2 sm:grid-cols-2">{nodes.map((node: any) => <div key={node.nodeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{node.nodeId}</div><div className="mt-1 font-medium">{(node.labels ?? []).join(", ") || "Unlabeled node"}</div><div className="mt-1 text-xs text-slate-500">{Object.keys(node.properties ?? {}).length} properties</div></div>)}</div></div> : null}
-        {edges.length > 0 ? <div className="mt-4"><Text as="p" size="sm" className="font-medium">Edges</Text><div className="mt-2 grid gap-2">{edges.map((edge: any) => <div key={edge.edgeId} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/40"><div className="font-mono text-xs text-slate-600 dark:text-slate-400">{edge.edgeId}</div><div className="mt-1 font-medium">{(edge.labels ?? []).join(", ") || "Unlabeled edge"}</div><div className="mt-1 font-mono text-xs text-slate-500">{edge.fromNodeId} → {edge.toNodeId}</div><div className="mt-1 text-xs text-slate-500">{Object.keys(edge.properties ?? {}).length} properties</div></div>)}</div></div> : null}
-      </div>
-    );
   }
   if (view === "rows") {
     const rows = payload?.rows ?? [];

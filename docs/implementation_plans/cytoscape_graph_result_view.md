@@ -33,7 +33,7 @@ users should see an interactive graph containing the `Family` node, the `Person`
 - Show selected node/edge details in an inspector.
 - Gracefully handle empty graph results and scalar-only query results.
 - Keep daemon/API authorization authoritative; this is a visualization-only frontend feature.
-- Keep implementation scoped to `mycel-admin`; do not rename to `mycel-console` as part of this work.
+- Keep implementation scoped to `mycel-console`; do not rename to `mycel-console` as part of this work.
 
 ## Non-Goals
 

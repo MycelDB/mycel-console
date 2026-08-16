@@ -99,7 +99,7 @@ pub async fn admin_console_client_query_login(
         addr: addr.clone(),
         username: username.clone(),
         password: input.password,
-        client_name: "mycel-admin-query-console".to_string(),
+        client_name: "mycel-console-query-console".to_string(),
         ..Config::default()
     };
     let client = mycel_sdk::dial(cfg).await.map_err(|err| err.to_string())?;

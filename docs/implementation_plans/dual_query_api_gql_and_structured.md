@@ -7,7 +7,7 @@ Support two first-class query entry points for Mycel graph data:
 1. **Programmatic structured queries** using the existing protobuf `GraphQuery` API.
 2. **Textual GQL queries** using the existing Mycel GQL parser/compiler/executor pipeline.
 
-This gives SDK users a typed API for generated/programmatic queries while giving humans, CLIs, notebooks, and `mycel-admin` a natural text query interface.
+This gives SDK users a typed API for generated/programmatic queries while giving humans, CLIs, notebooks, and `mycel-console` a natural text query interface.
 
 ## Current state
 
@@ -285,7 +285,7 @@ pub async fn query_gql_read_only(
 ) -> Result<QueryResult>;
 ```
 
-## mycel-admin work
+## mycel-console work
 
 ### 1. Replace JSON-first query editor with GQL-first editor
 
@@ -355,7 +355,7 @@ Update docs/examples in each repo:
 - `mycel`: daemon and CLI examples
 - `mycel-go-sdk`: GQL examples
 - `mycel-rust-sdk`: GQL examples
-- `mycel-admin`: operator query console usage
+- `mycel-console`: operator query console usage
 
 ## Phased rollout
 
@@ -372,7 +372,7 @@ Update docs/examples in each repo:
 - Add Rust SDK methods.
 - Add examples and tests.
 
-### Phase 3: mycel-admin
+### Phase 3: mycel-console
 
 - Convert graph query tab to GQL-first.
 - Add `admin_console_execute_gql` command.

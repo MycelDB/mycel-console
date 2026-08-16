@@ -2,9 +2,9 @@
 
 ## Status
 
-Implemented migration plan for the Raft-aware `mycel-admin` cluster view.
+Implemented migration plan for the Raft-aware `mycel-console` cluster view.
 
-This supersedes the earlier static-primary cluster console design for active UI work. The old static-primary backend can still exist during the transition, but `mycel-admin` no longer exposes static-primary mutation actions.
+This supersedes the earlier static-primary cluster console design for active UI work. The old static-primary backend can still exist during the transition, but `mycel-console` no longer exposes static-primary mutation actions.
 
 ## Goals
 
@@ -142,7 +142,7 @@ Shows the read-only membership table, plus a notice:
 
 ```text
 Static primary operations such as add/remove node, switchover, promotion,
-and follower resync are no longer exposed in mycel-admin. Raft membership
+and follower resync are no longer exposed in mycel-console. Raft membership
 changes are not available yet.
 ```
 
@@ -216,16 +216,16 @@ Backend/API:
 
 Admin app:
 
-- `mycel-admin/src-tauri/src/commands/cluster.rs`
-- `mycel-admin/src-tauri/src/lib.rs`
-- `mycel-admin/src/services/adminService.ts`
-- `mycel-admin/src/types/cluster.ts`
-- `mycel-admin/src/features/cluster/pages/ClusterPage.tsx`
-- `mycel-admin/src/features/cluster/pages/ClusterPage.test.tsx`
-- `mycel-admin/src/features/cluster/pages/NodeDetailPage.tsx`
-- `mycel-admin/src/features/cluster/pages/NodeDetailPage.test.tsx`
-- `mycel-admin/src/features/spaces/pages/SpaceDetailPage.tsx`
-- `mycel-admin/src/features/spaces/pages/SpaceDetailPage.test.tsx`
+- `mycel-console/src-tauri/src/commands/cluster.rs`
+- `mycel-console/src-tauri/src/lib.rs`
+- `mycel-console/src/services/adminService.ts`
+- `mycel-console/src/types/cluster.ts`
+- `mycel-console/src/features/cluster/pages/ClusterPage.tsx`
+- `mycel-console/src/features/cluster/pages/ClusterPage.test.tsx`
+- `mycel-console/src/features/cluster/pages/NodeDetailPage.tsx`
+- `mycel-console/src/features/cluster/pages/NodeDetailPage.test.tsx`
+- `mycel-console/src/features/spaces/pages/SpaceDetailPage.tsx`
+- `mycel-console/src/features/spaces/pages/SpaceDetailPage.test.tsx`
 
 ## Validation
 
@@ -239,7 +239,7 @@ go test ./internal/...
 Admin app:
 
 ```bash
-cd mycel-admin
+cd mycel-console
 cargo check --manifest-path src-tauri/Cargo.toml
 npm test -- --runInBand ClusterPage.test.tsx NodeDetailPage.test.tsx SpaceDetailPage.test.tsx
 npm run build

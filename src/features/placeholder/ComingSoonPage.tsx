@@ -26,7 +26,7 @@ export function ComingSoonPage({ title, description }: ComingSoonPageProps) {
           Coming soon
         </Text>
         <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
-          This section is part of the admin console navigation and will be implemented in a dedicated feature phase.
+          This section is part of the console navigation and will be implemented in a dedicated feature phase.
         </Text>
       </div>
     </section>

@@ -569,7 +569,7 @@ function GraphQueryConsolePreview({ spaceId, domains, currentPrincipal }: { spac
   const [resultView, setResultView] = useState<"rows" | "graph" | "raw">("rows");
   const readWrite = true;
   const [confirmWrite, setConfirmWrite] = useState(false);
-  const [alwaysConfirmWrite, setAlwaysConfirmWrite] = useState(() => localStorage.getItem("mycelAdmin.gql.alwaysConfirmWrite") !== "false");
+  const [alwaysConfirmWrite, setAlwaysConfirmWrite] = useState(() => localStorage.getItem("mycelConsole.gql.alwaysConfirmWrite") !== "false");
   const [stopOnError, setStopOnError] = useState(true);
 
   useEffect(() => {
@@ -580,7 +580,7 @@ function GraphQueryConsolePreview({ spaceId, domains, currentPrincipal }: { spac
   }, [domainId, domains]);
 
   useEffect(() => {
-    localStorage.setItem("mycelAdmin.gql.alwaysConfirmWrite", alwaysConfirmWrite ? "true" : "false");
+    localStorage.setItem("mycelConsole.gql.alwaysConfirmWrite", alwaysConfirmWrite ? "true" : "false");
   }, [alwaysConfirmWrite]);
 
   function requestRunQuery() {

@@ -1,8 +1,8 @@
 import { consoleBranding } from "./branding";
 
-test("keeps current release branding separate from future console name", () => {
-  expect(consoleBranding.currentAppName).toBe("mycel-admin");
-  expect(consoleBranding.currentDisplayName).toBe("Mycel Admin");
-  expect(consoleBranding.futureDisplayName).toBe("mycel-console");
-  expect(consoleBranding.renameDeferredNote).toMatch(/still ships as mycel-admin/i);
+test("uses Mycel Console as the user-facing identity", () => {
+  expect(consoleBranding.currentAppName).toBe("mycel-console");
+  expect(consoleBranding.currentDisplayName).toBe("Mycel Console");
+  expect(consoleBranding.formerAppName).toBe("mycel-admin");
+  expect(consoleBranding.renamePhaseNote).toMatch(/package and Tauri release metadata/i);
 });

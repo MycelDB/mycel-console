@@ -2,11 +2,11 @@
 
 ## Objective
 
-Refactor `mycel-admin` toward the future `mycel-console` model without renaming the application yet.
+Refactor `mycel-console` toward the future `mycel-console` model without renaming the application yet.
 
 The app should become a principal-oriented console for a mycel environment. The authenticated principal sees features according to daemon-enforced capabilities, role bindings, and scoped access, instead of the frontend assuming an administrator-only audience.
 
-This is an internal structure and UX refactor first. The package name, app name, repository name, binary naming, and release identity remain `mycel-admin` until a later explicit rename tranche.
+This is an internal structure and UX refactor first. The package name, app name, repository name, binary naming, and release identity remain `mycel-console` until a later explicit rename tranche.
 
 ## Design Doc Decision
 
@@ -28,7 +28,7 @@ The daemon has moved from split user/admin identity toward a unified principal m
 - APIs remain authoritative for authorization;
 - clients should not infer authority from legacy `isAdmin` style checks.
 
-`mycel-admin` currently presents itself as an operator/admin console. That is still acceptable for the current release name, but the internal structure should stop assuming that every authenticated principal is a full administrator.
+`mycel-console` currently presents itself as an operator/console. That is still acceptable for the current release name, but the internal structure should stop assuming that every authenticated principal is a full administrator.
 
 ## Goals
 
@@ -58,7 +58,7 @@ Use internally where safe:
 - **capability**: the daemon-authoritative permission checked by APIs.
 - **scope**: the resource boundary for a capability, such as system, space, domain, inference profile, or subsystem.
 
-Keep user-facing `mycel-admin` branding until the rename tranche.
+Keep user-facing `mycel-console` branding until the rename tranche.
 
 ## Role and Feature Model
 
@@ -268,7 +268,7 @@ Pages that should support read-only mode:
 
 Labels and paths that still reflect older admin/user framing:
 
-- Application branding remains `Mycel Admin` by design for now.
+- Application branding remains `Mycel Console` by design for now.
 - Route/folder/component names use `users` while UI copy now mostly says `principal`; keep compatibility until a file/folder rename phase.
 - `Admin access` implies admin-only; future label should be `Access` or `Access management`.
 - Tauri commands use `admin_*` prefixes because they target Admin API surfaces. This can remain until the product rename/API split is explicitly planned.
@@ -425,7 +425,7 @@ npm run build
 
 ## Phase CC5 — Split General Principal Pages from Privileged Admin Pages
 
-Status: implemented. Added a general `/me` account page for the current authenticated principal, linked it from the header, added it to the console feature registry/navigation, and kept existing principal/access admin routes intact. Access navigation/copy now starts moving from `Admin access` toward `Access management` while the app remains branded as `mycel-admin`.
+Status: implemented. Added a general `/me` account page for the current authenticated principal, linked it from the header, added it to the console feature registry/navigation, and kept existing principal/access admin routes intact. Access navigation/copy now starts moving from `Admin access` toward `Access management` while the app remains branded as `mycel-console`.
 
 Validation passed:
 
@@ -532,7 +532,7 @@ npm run build
 
 ## Phase CC8 — Prepare Rename Seam for `mycel-console`
 
-Status: completed as a rename seam only. Current release identity remains `mycel-admin`; source UI branding is isolated and a future rename checklist exists at `docs/implementation_plans/mycel_console_rename_checklist.md`.
+Status: completed as a rename seam only. Current release identity remains `mycel-console`; source UI branding is isolated and a future rename checklist exists at `docs/implementation_plans/mycel_console_rename_checklist.md`.
 
 ### Goal
 
@@ -555,7 +555,7 @@ Make a future rename mostly mechanical.
 ### Acceptance
 
 - Future rename has a clear checklist.
-- Current app still ships as `mycel-admin`.
+- Current app still ships as `mycel-console`.
 
 ### Validation
 
@@ -579,7 +579,7 @@ Only needed if capability discovery/current-principal APIs are insufficient. Do 
 
 Regenerate or add helper methods only if `mycel-api` changes.
 
-### mycel-admin
+### mycel-console
 
 Primary implementation target for this plan.
 

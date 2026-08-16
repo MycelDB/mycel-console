@@ -2,7 +2,7 @@
 
 ## Goal
 
-Evolve `mycel-admin` from a resource browser into an operator-focused debugging and incident response console.
+Evolve `mycel-console` from a resource browser into an operator-focused debugging and incident response console.
 
 The app should help a responsible DevOps/operator answer:
 
@@ -28,7 +28,7 @@ The app should help a responsible DevOps/operator answer:
    - Diagnostic pages should have copy/export report actions.
 
 5. **Separate local app settings from cluster resources**
-   - Settings configure the admin console; feature pages manage cluster resources.
+   - Settings configure the console; feature pages manage cluster resources.
 
 ---
 
@@ -385,7 +385,7 @@ Add `Copy report` and later `Export JSON` to:
 Report format:
 
 ```markdown
-# Mycel Admin Diagnostic Report
+# Mycel Console Diagnostic Report
 Generated: ...
 Cluster: ...
 Operator: ...

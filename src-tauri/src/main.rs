@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mycel_admin_lib::run();
+    mycel_console_lib::run();
 }

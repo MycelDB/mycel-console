@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 0 complete on `mycel-admin/raft_improvements`; phases 1–7 planned.
+Phase 0 complete on `mycel-console/raft_improvements`; phases 1–7 planned.
 
-This plan updates `mycel-admin` for the current `mycel/develop` and `mycel-api/develop` raft reliability work. The goal is an operator-focused, read-only-first console for cluster readiness, raft health, read consistency diagnostics, graph consistency evidence, forensic export, and snapshot/compaction visibility.
+This plan updates `mycel-console` for the current `mycel/develop` and `mycel-api/develop` raft reliability work. The goal is an operator-focused, read-only-first console for cluster readiness, raft health, read consistency diagnostics, graph consistency evidence, forensic export, and snapshot/compaction visibility.
 
 ## Context
 
@@ -44,13 +44,13 @@ Status: Complete.
 ### Tasks
 
 - [x] Update `mycel-rust-sdk` from `mycel-api/develop` so the Tauri backend can access the latest admin cluster proto fields/RPCs.
-- [x] Confirm `mycel-admin/src-tauri/Cargo.toml` continues to use the local SDK path:
+- [x] Confirm `mycel-console/src-tauri/Cargo.toml` continues to use the local SDK path:
   - `../../mycel-rust-sdk/crates/mycel-sdk`
 - [x] Add default `read_options: None` values required by the latest graph/query protos.
 - [x] Run:
   ```sh
   cd mycel-rust-sdk && MYCEL_API_ROOT="$PWD/../mycel-api" make test
-  cd ../mycel-admin/src-tauri && cargo check
+  cd ../mycel-console/src-tauri && cargo check
   cd .. && npm test -- --runInBand --watch=false
   ```
 
@@ -398,7 +398,7 @@ Password: admin-password
 Run:
 
 ```sh
-cd mycel-admin
+cd mycel-console
 npm run tauri dev
 ```
 
@@ -420,7 +420,7 @@ Manual/live checks:
 Run:
 
 ```sh
-cd mycel-admin
+cd mycel-console
 npm test -- --runInBand --watch=false
 npm run build
 cd src-tauri

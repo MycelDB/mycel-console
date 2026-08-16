@@ -2,7 +2,7 @@
 
 ## Objective
 
-Add a testable operator login/logout feature to `mycel-admin` using the existing Tauri + React + Tailwind skeleton and the Rust `mycel-sdk`.
+Add a testable operator login/logout feature to `mycel-console` using the existing Tauri + React + Tailwind skeleton and the Rust `mycel-sdk`.
 
 The work should proceed in phases. Each phase should leave the project buildable and testable.
 

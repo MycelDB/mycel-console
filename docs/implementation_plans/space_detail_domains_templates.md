@@ -66,7 +66,7 @@ Templates are confirmed to be space-scoped in the client API:
 
 - `mycel.client.v1.TemplateService.ListTemplates(space_id)`
 
-However, the operator-facing Admin API currently has no `AdminTemplateService`. Because this app is operator/admin login only, the admin console does not create a user-scoped client session as a workaround.
+However, the operator-facing Admin API currently has no `AdminTemplateService`. Because this app is operator/admin login only, the console does not create a user-scoped client session as a workaround.
 
 The space detail page therefore renders a Templates section explaining the API status and reserving the space for a future admin-safe template endpoint.
 

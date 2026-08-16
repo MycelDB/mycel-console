@@ -179,7 +179,7 @@ test("triggers a manual backup and refreshes", async () => {
 
   await waitFor(() =>
     expect(services.triggerBackupService).toHaveBeenCalledWith({
-      reason: "Triggered from mycel-admin",
+      reason: "Triggered from Mycel Console",
     }),
   );
   expect(services.listBackupsService).toHaveBeenCalledTimes(2);

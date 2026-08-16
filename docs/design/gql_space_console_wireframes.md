@@ -4,7 +4,7 @@ Branch: `gkl`
 
 ## Design premise
 
-`mycel-admin` can support more than strict Admin API browsing by adding an operator debugging console for space-scoped graph queries. Current Mycel APIs expose a client-scoped structured `QueryService.ExecuteQuery` rather than an Admin GraphQL endpoint, so the console should keep two identities distinct:
+`mycel-console` can support more than strict Admin API browsing by adding an operator debugging console for space-scoped graph queries. Current Mycel APIs expose a client-scoped structured `QueryService.ExecuteQuery` rather than an Admin GraphQL endpoint, so the console should keep two identities distinct:
 
 - **Operator identity**: admin session used for administration.
 - **Client query identity**: user/session context used to execute graph queries in a selected space/domain.

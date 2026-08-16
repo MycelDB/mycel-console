@@ -2,7 +2,7 @@
 
 ## Objective
 
-Introduce the authenticated operator-console structure for `mycel-admin`: a persistent shell with sidebar/header navigation and a dashboard landing page.
+Introduce the authenticated operator-console structure for `mycel-console`: a persistent shell with sidebar/header navigation and a dashboard landing page.
 
 This feature establishes the application structure that later admin sections, such as user management, will plug into.
 
@@ -52,7 +52,7 @@ Login still works as before. After login, the operator sees the new shell and da
 
 ### Goal
 
-Add the first version of sidebar navigation for the admin console.
+Add the first version of sidebar navigation for the console.
 
 ### Tasks
 

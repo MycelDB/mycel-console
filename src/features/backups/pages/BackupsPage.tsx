@@ -109,7 +109,7 @@ export function BackupsPage({
     setNotice("");
     setTriggering(true);
     try {
-      await triggerBackupService({ reason: "Triggered from mycel-admin" });
+      await triggerBackupService({ reason: "Triggered from Mycel Console" });
       setNotice("Backup triggered.");
       await load();
     } catch (err) {

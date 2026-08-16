@@ -2,7 +2,7 @@
 
 ## Objective
 
-Update `mycel-admin` for the unified mycel identity model:
+Update `mycel-console` for the unified mycel identity model:
 
 ```text
 principal + role bindings + capability grants + scoped authorization
@@ -19,7 +19,7 @@ Each phase should leave the app in a testable state. Prefer small compatibility 
 
 ## Current State
 
-`mycel-admin` is on branch:
+`mycel-console` is on branch:
 
 ```text
 unified_principal_identity
@@ -372,7 +372,7 @@ Both old and new service paths work, or the app has fully moved to principal ser
 
 ### Goal
 
-Make the visible admin console reflect the unified model.
+Make the visible console reflect the unified model.
 
 ### Tasks
 
@@ -557,7 +557,7 @@ A stale API/SDK change breaks CI before merge.
 
 ## Final Acceptance Criteria
 
-- `mycel-admin/src-tauri` compiles with the unified `mycel-rust-sdk` branch.
+- `mycel-console/src-tauri` compiles with the unified `mycel-rust-sdk` branch.
 - Frontend tests pass.
 - Frontend build passes.
 - Admin login uses common principal auth through the SDK.
@@ -570,7 +570,7 @@ A stale API/SDK change breaks CI before merge.
 ## Full Validation Command Set
 
 ```bash
-cd /Users/martinbeauvais/Projects/knotbase/Knotbase/myceldb/mycel-admin
+cd /Users/martinbeauvais/Projects/knotbase/Knotbase/myceldb/mycel-console
 npm test -- --runInBand
 npm run build
 cd src-tauri

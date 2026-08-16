@@ -1,6 +1,6 @@
 # `mycel-console` Rename Checklist
 
-This checklist prepares the later rename from `mycel-admin` to `mycel-console`. Do not execute these steps during CC8; the current application still ships as `mycel-admin`.
+This checklist prepares the later rename from `mycel-console` to `mycel-console`. Do not execute these steps during CC8; the current application still ships as `mycel-console`.
 
 ## Release Identity
 
@@ -13,7 +13,7 @@ This checklist prepares the later rename from `mycel-admin` to `mycel-console`. 
 
 - Rename repository paths and project references when the repository move is approved.
 - Update CI workflow names, cache keys, artifact paths, and badge URLs.
-- Update scripts that assume `mycel-admin` paths.
+- Update scripts that assume `mycel-console` paths.
 - Update dependency and release automation references.
 
 ## Documentation

@@ -111,5 +111,5 @@ pub fn run() {
             admin_apply_inference_package
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Mycel Admin");
+        .expect("error while running Mycel Console");
 }

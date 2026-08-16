@@ -2,7 +2,7 @@
 
 ## Goal
 
-Allow users to execute multiple GQL statements from one text input, separated by semicolons, so operators/developers can seed data, set up tests, and run repeatable diagnostics from the CLI, SDKs, and `mycel-admin` query editor.
+Allow users to execute multiple GQL statements from one text input, separated by semicolons, so operators/developers can seed data, set up tests, and run repeatable diagnostics from the CLI, SDKs, and `mycel-console` query editor.
 
 Example:
 
@@ -20,9 +20,9 @@ Single-statement GQL is useful for ad hoc reads/writes. Script execution adds:
 - multi-node/edge seed data
 - repeatable admin/debugging workflows
 - one-shot smoke tests
-- operator runbooks that can be copied into `mycel-admin`
+- operator runbooks that can be copied into `mycel-console`
 
-This should be implemented in Mycel's GQL/parser/API layer, not only in `mycel-admin`, so all clients behave consistently.
+This should be implemented in Mycel's GQL/parser/API layer, not only in `mycel-console`, so all clients behave consistently.
 
 ## Current state
 
@@ -148,7 +148,7 @@ one script execution = one transaction
 
 ### Atomicity
 
-For `mycel-admin` and SDK helpers, default behavior should be:
+For `mycel-console` and SDK helpers, default behavior should be:
 
 ```text
 stop_on_error = true
@@ -392,7 +392,7 @@ or:
 mycel query gql-script --file seed.gql --space-id ... --domain default
 ```
 
-## mycel-admin work
+## mycel-console work
 
 Update Graph Query tab in:
 
@@ -476,7 +476,7 @@ Graph tab:
 - read-write helper commits on success
 - read-write helper does not commit on failed statement
 
-### mycel-admin tests
+### mycel-console tests
 
 - semicolon script keeps editor editable
 - script mode calls `executeGqlScript`
@@ -504,7 +504,7 @@ Graph tab:
 - Add Go/Rust helpers.
 - Update CLI to accept file/script use cases.
 
-### Phase 4: mycel-admin
+### Phase 4: mycel-console
 
 - Add script mode and `executeGqlScript` Tauri command.
 - Add statement result UI.

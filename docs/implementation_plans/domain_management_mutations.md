@@ -17,7 +17,7 @@ Domain mutations currently exist on the client API:
 - `DomainService.UpdateDomain`
 - `DomainService.DeleteDomain`
 
-Before implementing domain mutations in `mycel-admin`, choose one of these approaches:
+Before implementing domain mutations in `mycel-console`, choose one of these approaches:
 
 1. Add operator-facing domain mutation RPCs to `mycel/admin/v1/domain.proto`.
 2. Allow the admin app's Rust backend to create a client-scoped `Client` for domain mutations using appropriate credentials/capabilities.

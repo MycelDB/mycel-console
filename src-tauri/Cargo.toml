@@ -1,13 +1,13 @@
 [package]
-name = "mycel-admin"
+name = "mycel-console"
 version = "0.6.0"
-description = "Desktop administration UI for Mycel clusters"
+description = "Desktop console UI for Mycel clusters"
 authors = ["MycelDB"]
 license = "Apache-2.0"
 edition = "2021"
 
 [lib]
-name = "mycel_admin_lib"
+name = "mycel_console_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

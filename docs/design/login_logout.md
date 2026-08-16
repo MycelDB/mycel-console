@@ -2,7 +2,7 @@
 
 ## Goal
 
-Implement operator login/logout for the Mycel Admin desktop app using the Tauri + React + Rust SDK architecture.
+Implement operator login/logout for the Mycel Console desktop app using the Tauri + React + Rust SDK architecture.
 
 The login feature must authenticate a Mycel operator against the Mycel admin gRPC API and transition the UI from an unauthenticated login screen to an authenticated admin shell.
 

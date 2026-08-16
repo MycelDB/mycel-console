@@ -37,7 +37,7 @@ const placeholderRoutes = [
   {
     path: "/settings",
     title: "Settings",
-    description: "Configure local admin console preferences and cluster connection options.",
+    description: "Configure local console preferences and cluster connection options.",
   },
 ];
 

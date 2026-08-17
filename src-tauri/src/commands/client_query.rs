@@ -2,7 +2,7 @@ use mycel_sdk::proto::client::v1::{
     BeginTransactionRequest, CloseSessionRequest, CloseTransactionRequest,
     CommitTransactionRequest, Edge, ExecuteGqlRequest, ExecuteGqlScriptRequest,
     ExecuteQueryRequest, GraphPattern, GraphQuery, Node, NodePattern, OpenSessionRequest,
-    QueryResult, QueryRow, ReturnProjection, ReturnProjectionKind, TransactionMode,
+    PathValue, QueryResult, QueryRow, ReturnProjection, ReturnProjectionKind, TransactionMode,
 };
 use mycel_sdk::Config;
 use serde_json::{json, Value};
@@ -454,6 +454,9 @@ fn query_row_json(row: &QueryRow) -> Value {
             Some(mycel_sdk::proto::client::v1::query_value::Value::Edge(edge)) => {
                 fields.insert(name.clone(), json!({ "edge": edge_json(edge) }));
             }
+            Some(mycel_sdk::proto::client::v1::query_value::Value::Path(path)) => {
+                fields.insert(name.clone(), json!({ "path": path_json(path) }));
+            }
             Some(mycel_sdk::proto::client::v1::query_value::Value::Tree(tree)) => {
                 fields.insert(name.clone(), json!({ "tree": format!("{tree:?}") }));
             }
@@ -463,6 +466,13 @@ fn query_row_json(row: &QueryRow) -> Value {
         }
     }
     Value::Object(fields)
+}
+
+fn path_json(path: &PathValue) -> Value {
+    json!({
+        "nodes": path.nodes.iter().map(node_json).collect::<Vec<_>>(),
+        "edges": path.edges.iter().map(edge_json).collect::<Vec<_>>(),
+    })
 }
 
 fn node_json(node: &Node) -> Value {
@@ -547,6 +557,15 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
         limit,
         max_nodes: 0,
         max_edges: 0,
+        path_alias: value
+            .get("pathAlias")
+            .or_else(|| value.get("path_alias"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        aggregate_returns: vec![],
+        distinct: value.get("distinct").and_then(Value::as_bool).unwrap_or(false),
+        offset: value.get("offset").and_then(Value::as_i64).unwrap_or(0) as i32,
     })
 }
 

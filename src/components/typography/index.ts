@@ -6,5 +6,7 @@ export { H2 } from "./H2";
 export { Input } from "./Input";
 export { Label } from "./Label";
 export { Main } from "./Main";
+export { Select } from "./Select";
+export type { SelectOption, SelectProps } from "./Select";
 export { Text } from "./Text";
 export { themeClasses } from "./themeClasses";

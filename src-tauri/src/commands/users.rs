@@ -1,9 +1,12 @@
 use mycel_sdk::proto::admin::v1::{
     CreatePrincipalRequest, DeletePrincipalRequest, DisablePrincipalRequest,
-    EnablePrincipalRequest, GetPrincipalRequest, ListPrincipalCapabilitiesRequest,
-    ListPrincipalRolesRequest, ListPrincipalSessionsRequest, ListPrincipalsRequest, Principal,
-    PrincipalCapabilityGrant, PrincipalRoleGrant, RevokePrincipalSessionRequest,
-    RevokePrincipalSessionsRequest, SetPrincipalPasswordRequest,
+    EnablePrincipalRequest, GetPrincipalRequest, GrantPrincipalCapabilityRequest,
+    GrantPrincipalRoleRequest, ListPrincipalCapabilitiesRequest, ListPrincipalRolesRequest,
+    ListPrincipalSessionsRequest, ListPrincipalsRequest, Principal, PrincipalCapabilityGrant,
+    PrincipalRoleGrant, RevokePrincipalCapabilityRequest, RevokePrincipalRoleRequest,
+    RevokePrincipalSessionRequest, RevokePrincipalSessionsRequest,
+    SetPrincipalCapabilitiesForScopeRequest, SetPrincipalPasswordRequest,
+    SetPrincipalRolesForScopeRequest,
 };
 use mycel_sdk::proto::common::v1::{
     AccessScope, AccessScopeType, AuthSessionSummary, Capability, PrincipalType,
@@ -179,6 +182,119 @@ pub struct ListPrincipalCapabilitiesResponseInfo {
     pub effective_capabilities: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccessScopeInput {
+    pub r#type: String,
+    #[serde(default)]
+    pub space_id: Option<String>,
+    #[serde(default)]
+    pub domain_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrantPrincipalRoleInput {
+    pub principal_id: String,
+    pub role: String,
+    #[serde(default)]
+    pub scope: Option<AccessScopeInput>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrantPrincipalRoleResponseInfo {
+    pub grant: PrincipalRoleGrantInfo,
+    pub effective_capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokePrincipalRoleInput {
+    pub principal_id: String,
+    pub role_grant_id: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokePrincipalRoleResponseInfo {
+    pub effective_capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPrincipalRolesForScopeInput {
+    pub principal_id: String,
+    pub roles: Vec<String>,
+    #[serde(default)]
+    pub scope: Option<AccessScopeInput>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPrincipalRolesForScopeResponseInfo {
+    pub grants: Vec<PrincipalRoleGrantInfo>,
+    pub effective_roles: Vec<String>,
+    pub effective_capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrantPrincipalCapabilityInput {
+    pub principal_id: String,
+    pub capability: String,
+    #[serde(default)]
+    pub scope: Option<AccessScopeInput>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrantPrincipalCapabilityResponseInfo {
+    pub grant: PrincipalCapabilityGrantInfo,
+    pub effective_capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokePrincipalCapabilityInput {
+    pub principal_id: String,
+    pub capability_grant_id: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevokePrincipalCapabilityResponseInfo {
+    pub effective_capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPrincipalCapabilitiesForScopeInput {
+    pub principal_id: String,
+    pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub scope: Option<AccessScopeInput>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPrincipalCapabilitiesForScopeResponseInfo {
+    pub grants: Vec<PrincipalCapabilityGrantInfo>,
+    pub effective_capabilities: Vec<String>,
+}
+
 #[tauri::command]
 pub async fn admin_list_principals(
     input: ListPrincipalsInput,
@@ -298,6 +414,265 @@ pub async fn admin_list_principal_capabilities(
         .into_inner();
 
     Ok(ListPrincipalCapabilitiesResponseInfo {
+        grants: response
+            .grants
+            .into_iter()
+            .map(capability_grant_info)
+            .collect(),
+        effective_capabilities: response
+            .effective_capabilities
+            .into_iter()
+            .map(capability_name)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_grant_principal_role(
+    input: GrantPrincipalRoleInput,
+    state: State<'_, AppState>,
+) -> Result<GrantPrincipalRoleResponseInfo, String> {
+    let principal_id = input.principal_id.trim().to_string();
+    let role = input.role.trim().to_string();
+    if principal_id.is_empty() {
+        return Err("Principal ID is required".to_string());
+    }
+    if role.is_empty() {
+        return Err("Role is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .principals
+        .grant_principal_role(tonic::Request::new(GrantPrincipalRoleRequest {
+            principal_id,
+            role,
+            scope: Some(access_scope_input(input.scope)),
+            reason: input.reason.unwrap_or_default(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+
+    Ok(GrantPrincipalRoleResponseInfo {
+        grant: response
+            .grant
+            .map(role_grant_info)
+            .ok_or_else(|| "Grant principal role response did not include a grant".to_string())?,
+        effective_capabilities: response
+            .effective_capabilities
+            .into_iter()
+            .map(capability_name)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_revoke_principal_role(
+    input: RevokePrincipalRoleInput,
+    state: State<'_, AppState>,
+) -> Result<RevokePrincipalRoleResponseInfo, String> {
+    let principal_id = input.principal_id.trim().to_string();
+    let role_grant_id = input.role_grant_id.trim().to_string();
+    if principal_id.is_empty() {
+        return Err("Principal ID is required".to_string());
+    }
+    if role_grant_id.is_empty() {
+        return Err("Role grant ID is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .principals
+        .revoke_principal_role(tonic::Request::new(RevokePrincipalRoleRequest {
+            principal_id,
+            role_grant_id,
+            reason: input.reason.unwrap_or_default(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+
+    Ok(RevokePrincipalRoleResponseInfo {
+        effective_capabilities: response
+            .effective_capabilities
+            .into_iter()
+            .map(capability_name)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_set_principal_roles_for_scope(
+    input: SetPrincipalRolesForScopeInput,
+    state: State<'_, AppState>,
+) -> Result<SetPrincipalRolesForScopeResponseInfo, String> {
+    let principal_id = input.principal_id.trim().to_string();
+    if principal_id.is_empty() {
+        return Err("Principal ID is required".to_string());
+    }
+    let roles = input
+        .roles
+        .into_iter()
+        .map(|role| role.trim().to_string())
+        .filter(|role| !role.is_empty())
+        .collect::<Vec<_>>();
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .principals
+        .set_principal_roles_for_scope(tonic::Request::new(SetPrincipalRolesForScopeRequest {
+            principal_id,
+            scope: Some(access_scope_input(input.scope)),
+            roles,
+            reason: input.reason.unwrap_or_default(),
+        }))
+        .await
+        .map_err(access_api_error)?
+        .into_inner();
+
+    Ok(SetPrincipalRolesForScopeResponseInfo {
+        grants: response.grants.into_iter().map(role_grant_info).collect(),
+        effective_roles: response.effective_roles,
+        effective_capabilities: response
+            .effective_capabilities
+            .into_iter()
+            .map(capability_name)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_grant_principal_capability(
+    input: GrantPrincipalCapabilityInput,
+    state: State<'_, AppState>,
+) -> Result<GrantPrincipalCapabilityResponseInfo, String> {
+    let principal_id = input.principal_id.trim().to_string();
+    let capability = capability_from_name(&input.capability)?;
+    if principal_id.is_empty() {
+        return Err("Principal ID is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .principals
+        .grant_principal_capability(tonic::Request::new(GrantPrincipalCapabilityRequest {
+            principal_id,
+            capability: capability as i32,
+            scope: Some(access_scope_input(input.scope)),
+            reason: input.reason.unwrap_or_default(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+
+    Ok(GrantPrincipalCapabilityResponseInfo {
+        grant: response.grant.map(capability_grant_info).ok_or_else(|| {
+            "Grant principal capability response did not include a grant".to_string()
+        })?,
+        effective_capabilities: response
+            .effective_capabilities
+            .into_iter()
+            .map(capability_name)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_revoke_principal_capability(
+    input: RevokePrincipalCapabilityInput,
+    state: State<'_, AppState>,
+) -> Result<RevokePrincipalCapabilityResponseInfo, String> {
+    let principal_id = input.principal_id.trim().to_string();
+    let capability_grant_id = input.capability_grant_id.trim().to_string();
+    if principal_id.is_empty() {
+        return Err("Principal ID is required".to_string());
+    }
+    if capability_grant_id.is_empty() {
+        return Err("Capability grant ID is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .principals
+        .revoke_principal_capability(tonic::Request::new(RevokePrincipalCapabilityRequest {
+            principal_id,
+            capability_grant_id,
+            reason: input.reason.unwrap_or_default(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+
+    Ok(RevokePrincipalCapabilityResponseInfo {
+        effective_capabilities: response
+            .effective_capabilities
+            .into_iter()
+            .map(capability_name)
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_set_principal_capabilities_for_scope(
+    input: SetPrincipalCapabilitiesForScopeInput,
+    state: State<'_, AppState>,
+) -> Result<SetPrincipalCapabilitiesForScopeResponseInfo, String> {
+    let principal_id = input.principal_id.trim().to_string();
+    if principal_id.is_empty() {
+        return Err("Principal ID is required".to_string());
+    }
+    let mut capabilities = Vec::with_capacity(input.capabilities.len());
+    for capability in input.capabilities {
+        capabilities.push(capability_from_name(&capability)? as i32);
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    let response = session
+        ._client
+        .principals
+        .set_principal_capabilities_for_scope(tonic::Request::new(
+            SetPrincipalCapabilitiesForScopeRequest {
+                principal_id,
+                scope: Some(access_scope_input(input.scope)),
+                capabilities,
+                reason: input.reason.unwrap_or_default(),
+            },
+        ))
+        .await
+        .map_err(access_api_error)?
+        .into_inner();
+
+    Ok(SetPrincipalCapabilitiesForScopeResponseInfo {
         grants: response
             .grants
             .into_iter()
@@ -627,10 +1002,56 @@ fn access_scope_info(scope: AccessScope) -> AccessScopeInfo {
     }
 }
 
+fn access_scope_input(scope: Option<AccessScopeInput>) -> AccessScope {
+    let scope = scope.unwrap_or_else(|| AccessScopeInput {
+        r#type: "system".to_string(),
+        space_id: None,
+        domain_id: None,
+    });
+    let scope_type = match scope.r#type.trim().to_ascii_lowercase().as_str() {
+        "space" | "access_scope_type_space" => AccessScopeType::Space,
+        "domain" | "access_scope_type_domain" => AccessScopeType::Domain,
+        _ => AccessScopeType::System,
+    };
+    AccessScope {
+        r#type: scope_type as i32,
+        space_id: scope.space_id.filter(|value| !value.trim().is_empty()),
+        domain_id: scope.domain_id.filter(|value| !value.trim().is_empty()),
+    }
+}
+
+fn access_api_error(status: tonic::Status) -> String {
+    if status.code() == tonic::Code::Unimplemented
+        && (status.message().contains("SetPrincipalRolesForScope")
+            || status
+                .message()
+                .contains("SetPrincipalCapabilitiesForScope"))
+    {
+        return "Connected myceld does not implement the principal bulk access APIs. Rebuild and restart myceld from this branch, then reconnect Console.".to_string();
+    }
+    status.to_string()
+}
+
 fn capability_name(capability: i32) -> String {
     Capability::try_from(capability)
         .map(|capability| capability.as_str_name().to_string())
         .unwrap_or_else(|_| format!("CAPABILITY_UNKNOWN_{}", capability))
+}
+
+fn capability_from_name(raw: &str) -> Result<Capability, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("Capability is required".to_string());
+    }
+    let normalized = trimmed.replace(['.', '-'], "_").to_ascii_uppercase();
+    let name = if normalized.starts_with("CAPABILITY_") {
+        normalized
+    } else {
+        format!("CAPABILITY_{}", normalized)
+    };
+    Capability::from_str_name(&name)
+        .filter(|capability| *capability != Capability::Unspecified)
+        .ok_or_else(|| format!("Unknown capability: {}", raw))
 }
 
 fn principal_session_info(session: AuthSessionSummary) -> PrincipalSessionInfo {

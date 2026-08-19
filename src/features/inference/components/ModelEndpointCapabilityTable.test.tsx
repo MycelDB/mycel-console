@@ -2,9 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { ModelEndpointCapabilityTable } from "./ModelEndpointCapabilityTable";
 
 test("renders capability rows", () => {
-  render(<ModelEndpointCapabilityTable capabilities={[{ modelEndpointCapabilityId: "cap1", modelEndpointId: "ep1", modelId: "m1", operation: "embeddings", enabled: true, modelNameOverride: "" }]} />);
-  expect(screen.getByText("ep1")).toBeInTheDocument();
-  expect(screen.getByText("m1")).toBeInTheDocument();
+  render(<ModelEndpointCapabilityTable capabilities={[{ modelEndpointCapabilityId: "cap1", modelEndpointId: "ep1", modelEndpointKey: "openai", modelId: "m1", modelKey: "openai/text-embedding-3-small", operation: "embeddings", enabled: true }]} />);
+  expect(screen.getByText("openai")).toBeInTheDocument();
+  expect(screen.getByText("openai/text-embedding-3-small")).toBeInTheDocument();
   expect(screen.getByText("embeddings")).toBeInTheDocument();
 });
 

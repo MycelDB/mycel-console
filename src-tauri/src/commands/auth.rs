@@ -1,3 +1,4 @@
+use mycel_sdk::proto::common::v1::{AccessScope, AccessScopeType};
 use tauri::State;
 use tokio::{
     net::TcpStream,
@@ -143,7 +144,160 @@ pub async fn admin_logout(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyAccessScopeInput {
+    pub r#type: Option<String>,
+    pub space_id: Option<String>,
+    pub domain_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMyAccessInput {
+    pub scope: Option<MyAccessScopeInput>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyAccessScopeInfo {
+    pub kind: String,
+    pub space_id: Option<String>,
+    pub domain_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyAccessRoleInfo {
+    pub role: String,
+    pub scope: Option<MyAccessScopeInfo>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyAccessCapabilityInfo {
+    pub capability: String,
+    pub scope: Option<MyAccessScopeInfo>,
+    pub source: String,
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyAccessInfo {
+    pub principal: PrincipalSession,
+    pub effective_roles: Vec<String>,
+    pub effective_capabilities: Vec<String>,
+    pub roles: Vec<MyAccessRoleInfo>,
+    pub capabilities: Vec<MyAccessCapabilityInfo>,
+    pub warnings: Vec<String>,
+    pub complete: bool,
+}
+
 #[tauri::command]
 pub async fn admin_whoami(state: State<'_, AppState>) -> Result<Option<PrincipalSession>, String> {
     Ok(state.admin.read().await.as_ref().map(AdminSession::summary))
+}
+
+#[tauri::command]
+pub async fn admin_get_my_access(
+    input: Option<GetMyAccessInput>,
+    state: State<'_, AppState>,
+) -> Result<MyAccessInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .get_my_access(input.and_then(|value| value.scope).map(scope_input))
+        .await
+        .map_err(|err| err.to_string())?;
+    let principal = response.principal.unwrap_or_default();
+    Ok(MyAccessInfo {
+        principal: PrincipalSession {
+            addr: session.addr.clone(),
+            principal_id: principal.principal_id,
+            username: principal.username,
+        },
+        effective_roles: response.effective_roles,
+        effective_capabilities: response.effective_capabilities,
+        roles: response
+            .roles
+            .into_iter()
+            .map(|role| MyAccessRoleInfo {
+                role: role.role,
+                scope: role.scope.map(scope_info),
+                source: role.source,
+            })
+            .collect(),
+        capabilities: response
+            .capabilities
+            .into_iter()
+            .map(|capability| MyAccessCapabilityInfo {
+                capability: capability.capability,
+                scope: capability.scope.map(scope_info),
+                source: capability.source,
+                role: optional(capability.role),
+            })
+            .collect(),
+        warnings: response.warnings,
+        complete: response.complete,
+    })
+}
+
+fn scope_input(input: MyAccessScopeInput) -> AccessScope {
+    let kind = input.r#type.unwrap_or_default().to_ascii_lowercase();
+    let r#type = match kind.as_str() {
+        "space" => AccessScopeType::Space,
+        "domain" => AccessScopeType::Domain,
+        "system" => AccessScopeType::System,
+        _ if input
+            .domain_id
+            .as_ref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false) =>
+        {
+            AccessScopeType::Domain
+        }
+        _ if input
+            .space_id
+            .as_ref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false) =>
+        {
+            AccessScopeType::Space
+        }
+        _ => AccessScopeType::Unspecified,
+    };
+    AccessScope {
+        r#type: r#type as i32,
+        space_id: input.space_id.and_then(optional),
+        domain_id: input.domain_id.and_then(optional),
+    }
+}
+
+fn scope_info(scope: AccessScope) -> MyAccessScopeInfo {
+    let kind = match AccessScopeType::try_from(scope.r#type).unwrap_or(AccessScopeType::Unspecified)
+    {
+        AccessScopeType::System => "system",
+        AccessScopeType::Space => "space",
+        AccessScopeType::Domain => "domain",
+        AccessScopeType::Unspecified => "system",
+    };
+    MyAccessScopeInfo {
+        kind: kind.to_string(),
+        space_id: scope.space_id.and_then(optional),
+        domain_id: scope.domain_id.and_then(optional),
+    }
+}
+
+fn optional(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
 }

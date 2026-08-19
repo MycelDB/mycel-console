@@ -1,8 +1,8 @@
-import { listPrincipalCapabilities, listPrincipalRoles } from "../../services/adminService";
-import type { AccessScopeInfo, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse } from "../../types/access";
+import { getMyAccess, listPrincipalCapabilities, listPrincipalRoles } from "../../services/adminService";
+import type { AccessScopeInfo, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse, MyAccessInfo } from "../../types/access";
 import type { PrincipalSession } from "../../types/auth";
 import type { CapabilityGrantSummary, CapabilityScope, PrincipalCapabilityState } from "./capabilities";
-import { completeCapabilities, unknownCapabilities } from "./capabilities";
+import { capability, completeCapabilities, unknownCapabilities } from "./capabilities";
 
 export type ConsolePrincipalContext = {
   session: PrincipalSession;
@@ -13,6 +13,7 @@ export type ConsolePrincipalContext = {
 };
 
 export type PrincipalContextServices = {
+  getMyAccessService?: () => Promise<MyAccessInfo>;
   listPrincipalRolesService?: (principalId: string) => Promise<ListPrincipalRolesResponse>;
   listPrincipalCapabilitiesService?: (principalId: string) => Promise<ListPrincipalCapabilitiesResponse>;
 };
@@ -21,11 +22,40 @@ export async function loadConsolePrincipalContext(
   session: PrincipalSession,
   services: PrincipalContextServices = {},
 ): Promise<ConsolePrincipalContext> {
+  const myAccess = services.getMyAccessService ?? getMyAccess;
+  const myAccessResult = await settleAccessCall(() => myAccess());
+  if (myAccessResult.ok) {
+    const access = myAccessResult.value;
+    const roles = access.effectiveRoles;
+    const capabilities = access.effectiveCapabilities;
+    const stateCapabilities = access.capabilities.length > 0
+      ? access.capabilities.map((item) => capability(item.capability, item.scope ? { kind: scopeKind(item.scope.kind), spaceId: item.scope.spaceId, domainId: item.scope.domainId } : undefined))
+      : [
+        ...capabilities.map((item) => capability(item)),
+        ...roleCapabilitySummaries(roles),
+      ];
+    return {
+      session,
+      roles,
+      capabilities,
+      capabilityState: access.complete ? completeCapabilities(stateCapabilities) : { kind: "partial", roles, warnings: access.warnings },
+      warnings: access.warnings,
+    };
+  }
+
+  return loadConsolePrincipalContextViaAdminDiscovery(session, services, myAccessResult.error);
+}
+
+async function loadConsolePrincipalContextViaAdminDiscovery(
+  session: PrincipalSession,
+  services: PrincipalContextServices,
+  myAccessError: string,
+): Promise<ConsolePrincipalContext> {
   const listRoles = services.listPrincipalRolesService ?? listPrincipalRoles;
   const listCapabilities = services.listPrincipalCapabilitiesService ?? listPrincipalCapabilities;
   const rolesResult = await settleAccessCall(() => listRoles(session.principalId));
   const capabilitiesResult = await settleAccessCall(() => listCapabilities(session.principalId));
-  const warnings: string[] = [];
+  const warnings: string[] = [`Self access unavailable: ${friendlyAccessDiscoveryError(myAccessError)}`];
 
   if (!rolesResult.ok) warnings.push(`Roles unavailable: ${friendlyAccessDiscoveryError(rolesResult.error)}`);
   if (!capabilitiesResult.ok) warnings.push(`Capabilities unavailable: ${friendlyAccessDiscoveryError(capabilitiesResult.error)}`);
@@ -33,26 +63,24 @@ export async function loadConsolePrincipalContext(
   const roles = rolesResult.ok ? rolesResult.value.effectiveRoles : [];
   const capabilities = capabilitiesResult.ok ? capabilitiesResult.value.effectiveCapabilities : [];
 
-  const discoveryDenied = !rolesResult.ok
-    && !capabilitiesResult.ok
-    && accessDiscoveryPermissionDenied(rolesResult.error)
-    && accessDiscoveryPermissionDenied(capabilitiesResult.error);
-
-  let capabilityState: PrincipalCapabilityState;
-  if (discoveryDenied) {
-    capabilityState = completeCapabilities([]);
-  } else if (capabilitiesResult.ok) {
-    capabilityState = completeCapabilities([
-      ...capabilitySummaries(capabilitiesResult.value),
-      ...roleCapabilitySummaries(roles),
-    ]);
-  } else if (rolesResult.ok) {
-    capabilityState = { kind: "partial", roles, warnings };
-  } else {
-    capabilityState = unknownCapabilities(warnings.length > 0 ? warnings : ["Capability discovery has not run"]);
+  if (capabilitiesResult.ok) {
+    return { session, roles, capabilities, capabilityState: completeCapabilities([...capabilitySummaries(capabilitiesResult.value), ...roleCapabilitySummaries(roles)]), warnings };
   }
+  if (rolesResult.ok) {
+    return { session, roles, capabilities, capabilityState: { kind: "partial", roles, warnings }, warnings };
+  }
+  return { session, roles, capabilities, capabilityState: unknownCapabilities(warnings), warnings };
+}
 
-  return { session, roles, capabilities, capabilityState, warnings };
+function scopeKind(kind: string): CapabilityScope["kind"] {
+  switch (kind) {
+    case "space":
+    case "domain":
+    case "resource":
+      return kind;
+    default:
+      return "system";
+  }
 }
 
 export function roleCapabilitySummaries(roles: string[]): CapabilityGrantSummary[] {

@@ -33,17 +33,24 @@ test("derives role bundle capabilities for capability API gaps", () => {
   ]));
 });
 
-test("loads complete console principal context when capabilities are available", async () => {
+test("loads complete console principal context from self access", async () => {
   const context = await loadConsolePrincipalContext(session, {
-    listPrincipalRolesService: jest.fn().mockResolvedValue({ grants: [], effectiveRoles: ["system_admin"] }),
-    listPrincipalCapabilitiesService: jest.fn().mockResolvedValue({ grants: [], effectiveCapabilities: ["CAPABILITY_CLUSTER_READ"] }),
+    getMyAccessService: jest.fn().mockResolvedValue({
+      principal: session,
+      effectiveRoles: ["automation.admin"],
+      effectiveCapabilities: ["automation.read", "automation.manage"],
+      roles: [{ role: "automation.admin", scope: { kind: "domain", spaceId: "sp_main", domainId: "dom_default" }, source: "role_grant" }],
+      capabilities: [{ capability: "automation.read", scope: { kind: "domain", spaceId: "sp_main", domainId: "dom_default" }, source: "role", role: "automation.admin" }],
+      warnings: [],
+      complete: true,
+    }),
   });
 
-  expect(context.roles).toEqual(["system_admin"]);
-  expect(context.capabilities).toEqual(["CAPABILITY_CLUSTER_READ"]);
+  expect(context.roles).toEqual(["automation.admin"]);
+  expect(context.capabilities).toEqual(["automation.read", "automation.manage"]);
   expect(context.capabilityState.kind).toBe("complete");
   if (context.capabilityState.kind === "complete") {
-    expect(context.capabilityState.capabilities).toEqual(expect.arrayContaining([{ capability: "*" }]));
+    expect(context.capabilityState.capabilities).toEqual([{ capability: "automation.read", scope: { kind: "domain", spaceId: "sp_main", domainId: "dom_default" } }]);
   }
   expect(context.warnings).toEqual([]);
 });
@@ -52,36 +59,40 @@ test("sanitizes permission-denied access discovery errors", () => {
   expect(friendlyAccessDiscoveryError('status: PermissionDenied, message: "principal management capability is required", details: []')).toBe("principal management capability is required for access discovery; daemon APIs still authorize individual actions");
 });
 
-test("returns partial context when capabilities fail but roles load", async () => {
+test("falls back to partial admin discovery when self access fails and roles load", async () => {
   const context = await loadConsolePrincipalContext(session, {
+    getMyAccessService: jest.fn().mockRejectedValue(new Error("self access unavailable")),
     listPrincipalRolesService: jest.fn().mockResolvedValue({ grants: [], effectiveRoles: ["auditor"] }),
     listPrincipalCapabilitiesService: jest.fn().mockRejectedValue(new Error("status: PermissionDenied, message: \"principal management capability is required\", details: []")),
   });
 
   expect(context.roles).toEqual(["auditor"]);
-  expect(context.capabilityState).toEqual({ kind: "partial", roles: ["auditor"], warnings: ["Capabilities unavailable: principal management capability is required for access discovery; daemon APIs still authorize individual actions"] });
+  expect(context.capabilityState).toEqual({ kind: "partial", roles: ["auditor"], warnings: ["Self access unavailable: self access unavailable", "Capabilities unavailable: principal management capability is required for access discovery; daemon APIs still authorize individual actions"] });
 });
 
-test("treats principal-management denied discovery as known empty capabilities", async () => {
+test("reports unavailable context when self access and principal-management discovery are denied", async () => {
   const denied = 'status: PermissionDenied, message: "principal management capability is required", details: []';
   const context = await loadConsolePrincipalContext(session, {
+    getMyAccessService: jest.fn().mockRejectedValue(new Error("self access unavailable")),
     listPrincipalRolesService: jest.fn().mockRejectedValue(new Error(denied)),
     listPrincipalCapabilitiesService: jest.fn().mockRejectedValue(new Error(denied)),
   });
 
-  expect(context.capabilityState).toEqual({ kind: "complete", capabilities: [] });
+  expect(context.capabilityState.kind).toBe("unknown");
   expect(context.warnings).toEqual([
+    "Self access unavailable: self access unavailable",
     "Roles unavailable: principal management capability is required for access discovery; daemon APIs still authorize individual actions",
     "Capabilities unavailable: principal management capability is required for access discovery; daemon APIs still authorize individual actions",
   ]);
 });
 
-test("returns unknown context when role and capability discovery fail", async () => {
+test("returns unknown context when self, role, and capability discovery fail", async () => {
   const context = await loadConsolePrincipalContext(session, {
+    getMyAccessService: jest.fn().mockRejectedValue(new Error("self access unavailable")),
     listPrincipalRolesService: jest.fn().mockRejectedValue(new Error("roles denied")),
     listPrincipalCapabilitiesService: jest.fn().mockRejectedValue(new Error("capabilities denied")),
   });
 
   expect(context.capabilityState.kind).toBe("unknown");
-  expect(context.warnings).toEqual(["Roles unavailable: roles denied", "Capabilities unavailable: capabilities denied"]);
+  expect(context.warnings).toEqual(["Self access unavailable: self access unavailable", "Roles unavailable: roles denied", "Capabilities unavailable: capabilities denied"]);
 });

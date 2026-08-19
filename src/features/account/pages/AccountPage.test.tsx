@@ -48,4 +48,5 @@ test("renders unknown access context warnings", () => {
 
   expect(screen.getByText("unknown")).toBeInTheDocument();
   expect(screen.getByText("Capabilities unavailable")).toBeInTheDocument();
+  expect(screen.getAllByText("Access discovery unavailable.").length).toBeGreaterThan(0);
 });

@@ -1,10 +1,10 @@
-import { Text } from "../../../components/typography";
+import { Button, Text } from "../../../components/typography";
 import type { ModelEndpointInfo } from "../../../types/inference";
 
-export function ModelEndpointTable({ endpoints }: { endpoints: ModelEndpointInfo[] }) {
+export function ModelEndpointTable({ endpoints, onViewDetails }: { endpoints: ModelEndpointInfo[]; onViewDetails?: (endpoint: ModelEndpointInfo) => void }) {
   if (endpoints.length === 0) return <Empty message="No model endpoints found." />;
   return (
-    <CatalogTable headers={["Status", "Key", "Name", "Connector", "Operations", "Privacy", "Endpoint URL"]}>
+    <CatalogTable headers={["Status", "Key", "Name", "Connector", "Operations", "Privacy", "Endpoint URL", ...(onViewDetails ? ["Actions"] : [])]}>
       {endpoints.map((endpoint) => (
         <tr key={endpoint.modelEndpointId} className="hover:bg-slate-100 dark:hover:bg-slate-800/40">
           <Cell>{endpoint.enabled ? "Enabled" : "Disabled"}</Cell>
@@ -14,6 +14,7 @@ export function ModelEndpointTable({ endpoints }: { endpoints: ModelEndpointInfo
           <Cell>{endpoint.operations.length ? endpoint.operations.join(", ") : "—"}</Cell>
           <Cell>{endpoint.privacyClass || "—"}</Cell>
           <Cell mono>{endpoint.endpointUrl || "—"}</Cell>
+          {onViewDetails && <Cell><Button variant="secondary" onClick={() => onViewDetails(endpoint)}>View</Button></Cell>}
         </tr>
       ))}
     </CatalogTable>

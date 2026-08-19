@@ -12,8 +12,11 @@ import {
   getGraphConsistencyReport,
   getLocalGraphConsistency,
   getLocalGraphForensicExport,
+  getMyAccess,
   getPrincipal,
   getSpace,
+  grantPrincipalCapability,
+  grantPrincipalRole,
   listBackups,
   listPrincipalCapabilities,
   listPrincipalRoles,
@@ -29,8 +32,12 @@ import {
   listModels,
   listRaftGroups,
   listSemanticIndexes,
+  revokePrincipalCapability,
+  revokePrincipalRole,
   revokePrincipalSession,
   revokePrincipalSessions,
+  setPrincipalCapabilitiesForScope,
+  setPrincipalRolesForScope,
   listVectorStores,
   triggerBackup,
   updateBackupPolicy,
@@ -74,6 +81,38 @@ test("connectionDiagnostics invokes diagnostics command", async () => {
   await expect(connectionDiagnostics(input)).resolves.toEqual(response);
 
   expect(invokeMock).toHaveBeenCalledWith("admin_connection_diagnostics", { input });
+});
+
+test("getMyAccess invokes self-access command", async () => {
+  const response = { principal: { addr: "127.0.0.1:19091", principalId: "prn_alice", username: "alice" }, effectiveRoles: [], effectiveCapabilities: [], roles: [], capabilities: [], warnings: [], complete: true };
+  const input = { scope: { type: "domain", spaceId: "sp_main", domainId: "dom_default" } };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getMyAccess(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_my_access", { input });
+});
+
+test("principal grant mutations invoke access commands", async () => {
+  invokeMock.mockResolvedValue({ grant: {}, effectiveCapabilities: [] });
+
+  await grantPrincipalRole({ principalId: "prn_alice", role: "automation.admin", scope: { type: "space", spaceId: "sp_main" }, reason: "author" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_grant_principal_role", { input: { principalId: "prn_alice", role: "automation.admin", scope: { type: "space", spaceId: "sp_main" }, reason: "author" } });
+
+  await grantPrincipalCapability({ principalId: "prn_alice", capability: "CAPABILITY_GRAPH_READ", scope: { type: "space", spaceId: "sp_main" }, reason: "read" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_grant_principal_capability", { input: { principalId: "prn_alice", capability: "CAPABILITY_GRAPH_READ", scope: { type: "space", spaceId: "sp_main" }, reason: "read" } });
+
+  await revokePrincipalRole({ principalId: "prn_alice", roleGrantId: "role_1", reason: "done" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_revoke_principal_role", { input: { principalId: "prn_alice", roleGrantId: "role_1", reason: "done" } });
+
+  await revokePrincipalCapability({ principalId: "prn_alice", capabilityGrantId: "cap_1", reason: "done" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_revoke_principal_capability", { input: { principalId: "prn_alice", capabilityGrantId: "cap_1", reason: "done" } });
+
+  await setPrincipalRolesForScope({ principalId: "prn_alice", roles: ["space.viewer"], scope: { type: "space", spaceId: "sp_main" }, reason: "sync roles" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_set_principal_roles_for_scope", { input: { principalId: "prn_alice", roles: ["space.viewer"], scope: { type: "space", spaceId: "sp_main" }, reason: "sync roles" } });
+
+  await setPrincipalCapabilitiesForScope({ principalId: "prn_alice", capabilities: ["CAPABILITY_GRAPH_READ"], scope: { type: "space", spaceId: "sp_main" }, reason: "sync capabilities" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_set_principal_capabilities_for_scope", { input: { principalId: "prn_alice", capabilities: ["CAPABILITY_GRAPH_READ"], scope: { type: "space", spaceId: "sp_main" }, reason: "sync capabilities" } });
 });
 
 test("getBackupPolicy invokes backup policy command", async () => {

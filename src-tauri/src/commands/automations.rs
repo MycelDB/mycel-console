@@ -1,6 +1,8 @@
 use mycel_sdk::proto::admin::v1::{
-    DisableAutomationRequest, EnableAutomationRequest, GetAutomationRequest,
-    GetAutomationRunRequest, ListAutomationInvocationsRequest, ListAutomationsRequest,
+    CreateAutomationRequest, DeleteAutomationRequest, DisableAutomationRequest,
+    EnableAutomationRequest, GetAutomationRequest, GetAutomationRunRequest,
+    ListAutomationInvocationsRequest, ListAutomationsRequest, UpdateAutomationRequest,
+    ValidateAutomationRequest,
 };
 use tauri::State;
 use tonic::Request;
@@ -58,6 +60,29 @@ pub struct ListAutomationsResponseInfo {
 #[serde(rename_all = "camelCase")]
 pub struct AutomationDefinitionInfo {
     pub definition_json: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomationDefinitionInput {
+    pub domain_id: String,
+    pub definition_json: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateAutomationInput {
+    pub domain_id: String,
+    pub automation_id: String,
+    pub definition_json: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateAutomationInfo {
+    pub valid: bool,
+    pub error: String,
+    pub normalized_definition_json: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -193,6 +218,102 @@ pub async fn admin_disable_automation(
     Ok(AutomationDefinitionInfo {
         definition_json: response.definition_json,
     })
+}
+
+#[tauri::command]
+pub async fn admin_validate_automation(
+    input: AutomationDefinitionInput,
+    state: State<'_, AppState>,
+) -> Result<ValidateAutomationInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .validate_automation(Request::new(ValidateAutomationRequest {
+            domain_id: input.domain_id,
+            definition_json: input.definition_json,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(ValidateAutomationInfo {
+        valid: response.valid,
+        error: response.error,
+        normalized_definition_json: response.normalized_definition_json,
+    })
+}
+
+#[tauri::command]
+pub async fn admin_create_automation(
+    input: AutomationDefinitionInput,
+    state: State<'_, AppState>,
+) -> Result<AutomationDefinitionInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .create_automation(Request::new(CreateAutomationRequest {
+            domain_id: input.domain_id,
+            definition_json: input.definition_json,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(AutomationDefinitionInfo {
+        definition_json: response.definition_json,
+    })
+}
+
+#[tauri::command]
+pub async fn admin_update_automation(
+    input: UpdateAutomationInput,
+    state: State<'_, AppState>,
+) -> Result<AutomationDefinitionInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .update_automation(Request::new(UpdateAutomationRequest {
+            domain_id: input.domain_id,
+            automation_id: input.automation_id,
+            definition_json: input.definition_json,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(AutomationDefinitionInfo {
+        definition_json: response.definition_json,
+    })
+}
+
+#[tauri::command]
+pub async fn admin_delete_automation(
+    input: AutomationActionInput,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    session
+        ._client
+        .automation
+        .delete_automation(Request::new(DeleteAutomationRequest {
+            domain_id: input.domain_id,
+            automation_id: input.automation_id,
+        }))
+        .await
+        .map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]

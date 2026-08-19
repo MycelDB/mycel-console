@@ -11,7 +11,7 @@ test("renders operational shortcuts using permissive default navigation", () => 
 
   expect(screen.getByRole("link", { name: /manage principals/i })).toHaveAttribute("href", "/principals");
   expect(screen.getByRole("link", { name: /view spaces/i })).toHaveAttribute("href", "/spaces");
-  expect(screen.getByRole("link", { name: /access management/i })).toHaveAttribute("href", "/access");
+  expect(screen.queryByRole("link", { name: /access management/i })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: /maintenance/i })).toHaveAttribute("href", "/maintenance");
 });
 

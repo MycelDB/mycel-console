@@ -15,6 +15,7 @@ export function AccountPage({ session, principalContext, loading = false }: Acco
   const capabilities = principalContext?.capabilities ?? [];
   const warnings = principalContext?.warnings ?? [];
   const state = principalContext?.capabilityState.kind ?? "unknown";
+  const discoveryUnavailable = state === "unknown";
 
   return (
     <section className="space-y-6">
@@ -45,8 +46,8 @@ export function AccountPage({ session, principalContext, loading = false }: Acco
       </div>
 
       <Panel title="Roles and capabilities">
-        <TokenSection label="Roles" values={roles} empty="No roles loaded for this principal." />
-        <TokenSection label="Effective capabilities" values={capabilities} empty="No capabilities loaded for this principal." />
+        <TokenSection label="Roles" values={roles} empty={discoveryUnavailable ? "Access discovery unavailable." : "No effective roles reported for this principal."} />
+        <TokenSection label="Effective capabilities" values={capabilities} empty={discoveryUnavailable ? "Access discovery unavailable." : "No effective capabilities reported for this principal."} />
         <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">
           Role labels help operators understand common bundles; effective capabilities and scopes are what the daemon authorizes.
         </Text>
@@ -58,7 +59,7 @@ export function AccountPage({ session, principalContext, loading = false }: Acco
         <div className="flex flex-wrap gap-2">
           <ConsoleLink to="/spaces">Open accessible spaces</ConsoleLink>
           <ConsoleLink to={`/principals/${encodeURIComponent(session.principalId)}`}>Open principal detail</ConsoleLink>
-          <ConsoleLink to={`/principals/${encodeURIComponent(session.principalId)}/access`}>Open access details</ConsoleLink>
+          <ConsoleLink to={`/principals/${encodeURIComponent(session.principalId)}?tab=access`}>Open access details</ConsoleLink>
         </div>
         <Text intent="muted" size="sm" className="mt-3 text-slate-600 dark:text-slate-400">
           Some links may require additional capabilities. Permission-denied responses are still enforced by the daemon.

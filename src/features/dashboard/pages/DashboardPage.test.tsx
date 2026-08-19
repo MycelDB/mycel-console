@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardPage } from "./DashboardPage";
-import { getBackupStatus } from "../../../services/adminService";
+import { getBackupStatus, getClusterRuntimeStatus } from "../../../services/adminService";
 
 jest.mock("../../../services/adminService", () => ({
+  getClusterRuntimeStatus: jest.fn().mockResolvedValue({ engine: "static", clusterName: "dev", raftNodeCount: 0, raftPartitionCount: 0, raftReplicaFactor: 0, localRaftNodeId: 0, raftNodeAddrs: [], raftGroupCount: 0, raftGroupsWithLeader: 0 }),
   getBackupStatus: jest.fn().mockResolvedValue({
     status: {
       backupId: "backup-1",
@@ -37,6 +38,7 @@ jest.mock("../../../services/adminService", () => ({
 }));
 
 const mockedGetBackupStatus = getBackupStatus as jest.Mock;
+const mockedGetClusterRuntimeStatus = getClusterRuntimeStatus as jest.Mock;
 
 const session = {
   addr: "127.0.0.1:9091",
@@ -56,7 +58,9 @@ test("renders dashboard cards and shortcuts", async () => {
   );
 
   expect(screen.getByText("127.0.0.1:9091")).toBeInTheDocument();
-  expect(screen.getByText("operator")).toBeInTheDocument();
+  expect(screen.queryByText("operator")).not.toBeInTheDocument();
+  expect(screen.queryByText("Principal")).not.toBeInTheDocument();
+  expect(await screen.findByText("Standalone")).toBeInTheDocument();
   expect(screen.getByText("Connected")).toBeInTheDocument();
   expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
   expect(await screen.findByText("backup-1.tar.zst")).toBeInTheDocument();
@@ -64,7 +68,23 @@ test("renders dashboard cards and shortcuts", async () => {
   expect(screen.getByRole("link", { name: /manage principals/i })).toHaveAttribute("href", "/principals");
 });
 
-test("hides backup panel for principals without backup read capability", () => {
+test("shows cluster topology counts for raft runtime", async () => {
+  mockedGetClusterRuntimeStatus.mockResolvedValueOnce({ engine: "raft", clusterName: "prod", raftNodeCount: 4, raftPartitionCount: 32, raftReplicaFactor: 3, localRaftNodeId: 1, raftNodeAddrs: ["a", "b", "c", "d"], raftGroupCount: 33, raftGroupsWithLeader: 33 });
+
+  render(
+    <MemoryRouter>
+      <DashboardPage session={session} />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Cluster")).toBeInTheDocument();
+  expect(screen.getByText("Pods / nodes")).toBeInTheDocument();
+  expect(screen.getByText("Partitions")).toBeInTheDocument();
+  expect(screen.getByText("4")).toBeInTheDocument();
+  expect(screen.getByText("32")).toBeInTheDocument();
+});
+
+test("hides backup panel for principals without backup read capability", async () => {
   render(
     <MemoryRouter>
       <DashboardPage
@@ -80,6 +100,7 @@ test("hides backup panel for principals without backup read capability", () => {
     </MemoryRouter>,
   );
 
+  expect(await screen.findByText("Standalone")).toBeInTheDocument();
   expect(screen.queryByText(/backup status/i)).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: /manage backups/i })).not.toBeInTheDocument();
   expect(mockedGetBackupStatus).not.toHaveBeenCalled();

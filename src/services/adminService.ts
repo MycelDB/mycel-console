@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AutomationActionInput, AutomationDefinitionInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo } from "../types/automations";
+import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../types/automations";
 import type {
   BackupPolicyInfo,
   BackupStatusResponse,
@@ -9,24 +9,53 @@ import type {
   TriggerBackupInput,
   TriggerBackupResponse,
 } from "../types/backups";
-import type { ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse } from "../types/access";
+import type { GetMyAccessInput, GrantPrincipalCapabilityInput, GrantPrincipalCapabilityResponse, GrantPrincipalRoleInput, GrantPrincipalRoleResponse, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse, MyAccessInfo, RevokePrincipalCapabilityInput, RevokePrincipalCapabilityResponse, RevokePrincipalRoleInput, RevokePrincipalRoleResponse, SetPrincipalCapabilitiesForScopeInput, SetPrincipalCapabilitiesForScopeResponse, SetPrincipalRolesForScopeInput, SetPrincipalRolesForScopeResponse } from "../types/access";
 import type { ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../types/auth";
 import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGqlScriptInput, ExecuteGqlScriptResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
 import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyInput, GraphConsistencyReport, GraphForensicExportInput, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
 import type {
   ApplyInferencePackageResponse,
+  CreateCredentialGrantInput,
+  CreateCredentialInput,
+  CreateInferencePolicyInput,
+  CreateInferenceProfileInput,
+  CredentialGrantActionInput,
+  CredentialGrantResponse,
+  CredentialResponse,
+  CredentialStatusInput,
+  DeleteCredentialGrantResponse,
+  DeleteCredentialInput,
+  DeleteCredentialResponse,
+  DeleteInferencePolicyResponse,
   InferencePackageDocument,
+  InferencePolicyActionInput,
+  InferencePolicyResponse,
+  InferenceProfileActionInput,
+  InferenceProfileResponse,
+  ListCredentialGrantsInput,
+  ListCredentialGrantsResponse,
+  ListCredentialsInput,
+  ListCredentialsResponse,
   ListInferencePackagesInput,
   ListInferencePackagesResponse,
+  ListInferencePoliciesInput,
+  ListInferencePoliciesResponse,
+  ListInferenceProfilesInput,
+  ListInferenceProfilesResponse,
   ListModelEndpointCapabilitiesInput,
   ListModelEndpointCapabilitiesResponse,
   ListModelEndpointsInput,
   ListModelEndpointsResponse,
   ListModelsInput,
   ListModelsResponse,
+  ListUsageEventsInput,
+  ListUsageEventsResponse,
   ListVectorStoresInput,
   ListVectorStoresResponse,
+  RotateCredentialInput,
+  SummarizeUsageInput,
+  SummarizeUsageResponse,
 } from "../types/inference";
 import type { DeleteDomainSchemaInput, GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../types/semantic";
@@ -82,6 +111,10 @@ export async function whoAmI(): Promise<PrincipalSession | null> {
   return invoke<PrincipalSession | null>("admin_whoami");
 }
 
+export async function getMyAccess(input: GetMyAccessInput = {}): Promise<MyAccessInfo> {
+  return invoke<MyAccessInfo>("admin_get_my_access", { input });
+}
+
 export async function getClusterStatus(): Promise<ClusterStatusInfo> {
   return invoke<ClusterStatusInfo>("admin_get_cluster_status");
 }
@@ -135,6 +168,30 @@ export async function listPrincipalCapabilities(principalId: string): Promise<Li
   return invoke<ListPrincipalCapabilitiesResponse>("admin_list_principal_capabilities", { principalId });
 }
 
+export async function grantPrincipalRole(input: GrantPrincipalRoleInput): Promise<GrantPrincipalRoleResponse> {
+  return invoke<GrantPrincipalRoleResponse>("admin_grant_principal_role", { input });
+}
+
+export async function revokePrincipalRole(input: RevokePrincipalRoleInput): Promise<RevokePrincipalRoleResponse> {
+  return invoke<RevokePrincipalRoleResponse>("admin_revoke_principal_role", { input });
+}
+
+export async function setPrincipalRolesForScope(input: SetPrincipalRolesForScopeInput): Promise<SetPrincipalRolesForScopeResponse> {
+  return invoke<SetPrincipalRolesForScopeResponse>("admin_set_principal_roles_for_scope", { input });
+}
+
+export async function grantPrincipalCapability(input: GrantPrincipalCapabilityInput): Promise<GrantPrincipalCapabilityResponse> {
+  return invoke<GrantPrincipalCapabilityResponse>("admin_grant_principal_capability", { input });
+}
+
+export async function revokePrincipalCapability(input: RevokePrincipalCapabilityInput): Promise<RevokePrincipalCapabilityResponse> {
+  return invoke<RevokePrincipalCapabilityResponse>("admin_revoke_principal_capability", { input });
+}
+
+export async function setPrincipalCapabilitiesForScope(input: SetPrincipalCapabilitiesForScopeInput): Promise<SetPrincipalCapabilitiesForScopeResponse> {
+  return invoke<SetPrincipalCapabilitiesForScopeResponse>("admin_set_principal_capabilities_for_scope", { input });
+}
+
 
 export async function listPrincipalSessions(input: ListPrincipalSessionsInput): Promise<ListPrincipalSessionsResponse> {
   return invoke<ListPrincipalSessionsResponse>("admin_list_principal_sessions", { input });
@@ -171,6 +228,22 @@ export async function listAutomations(input: DomainAutomationInput): Promise<Lis
 
 export async function getAutomation(input: AutomationActionInput): Promise<AutomationDefinitionInfo> {
   return invoke<AutomationDefinitionInfo>("admin_get_automation", { input });
+}
+
+export async function validateAutomation(input: AutomationDefinitionInput): Promise<ValidateAutomationInfo> {
+  return invoke<ValidateAutomationInfo>("admin_validate_automation", { input });
+}
+
+export async function createAutomation(input: AutomationDefinitionInput): Promise<AutomationDefinitionInfo> {
+  return invoke<AutomationDefinitionInfo>("admin_create_automation", { input });
+}
+
+export async function updateAutomation(input: UpdateAutomationInput): Promise<AutomationDefinitionInfo> {
+  return invoke<AutomationDefinitionInfo>("admin_update_automation", { input });
+}
+
+export async function deleteAutomation(input: AutomationActionInput): Promise<void> {
+  return invoke<void>("admin_delete_automation", { input });
 }
 
 export async function enableAutomation(input: AutomationActionInput): Promise<AutomationDefinitionInfo> {
@@ -312,5 +385,81 @@ export async function applyInferencePackage(
   input: InferencePackageDocument,
 ): Promise<ApplyInferencePackageResponse> {
   return invoke<ApplyInferencePackageResponse>("admin_apply_inference_package", { input });
+}
+
+export async function listInferenceProfiles(input: ListInferenceProfilesInput = {}): Promise<ListInferenceProfilesResponse> {
+  return invoke<ListInferenceProfilesResponse>("admin_list_inference_profiles", { input });
+}
+
+export async function createInferenceProfile(input: CreateInferenceProfileInput): Promise<InferenceProfileResponse> {
+  return invoke<InferenceProfileResponse>("admin_create_inference_profile", { input });
+}
+
+export async function setInferenceProfileEnabled(input: InferenceProfileActionInput): Promise<InferenceProfileResponse> {
+  return invoke<InferenceProfileResponse>("admin_set_inference_profile_enabled", { input });
+}
+
+export async function deleteInferenceProfile(input: InferenceProfileActionInput): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("admin_delete_inference_profile", { input });
+}
+
+export async function listInferenceCredentials(input: ListCredentialsInput = {}): Promise<ListCredentialsResponse> {
+  return invoke<ListCredentialsResponse>("admin_list_inference_credentials", { input });
+}
+
+export async function createInferenceCredential(input: CreateCredentialInput): Promise<CredentialResponse> {
+  return invoke<CredentialResponse>("admin_create_inference_credential", { input });
+}
+
+export async function setInferenceCredentialStatus(input: CredentialStatusInput): Promise<CredentialResponse> {
+  return invoke<CredentialResponse>("admin_set_inference_credential_status", { input });
+}
+
+export async function rotateInferenceCredential(input: RotateCredentialInput): Promise<CredentialResponse> {
+  return invoke<CredentialResponse>("admin_rotate_inference_credential", { input });
+}
+
+export async function deleteInferenceCredential(input: DeleteCredentialInput): Promise<DeleteCredentialResponse> {
+  return invoke<DeleteCredentialResponse>("admin_delete_inference_credential", { input });
+}
+
+export async function listInferenceCredentialGrants(input: ListCredentialGrantsInput): Promise<ListCredentialGrantsResponse> {
+  return invoke<ListCredentialGrantsResponse>("admin_list_inference_credential_grants", { input });
+}
+
+export async function createInferenceCredentialGrant(input: CreateCredentialGrantInput): Promise<CredentialGrantResponse> {
+  return invoke<CredentialGrantResponse>("admin_create_inference_credential_grant", { input });
+}
+
+export async function expireInferenceCredentialGrant(input: CredentialGrantActionInput): Promise<CredentialGrantResponse> {
+  return invoke<CredentialGrantResponse>("admin_expire_inference_credential_grant", { input });
+}
+
+export async function deleteInferenceCredentialGrant(input: CredentialGrantActionInput): Promise<DeleteCredentialGrantResponse> {
+  return invoke<DeleteCredentialGrantResponse>("admin_delete_inference_credential_grant", { input });
+}
+
+export async function listInferencePolicies(input: ListInferencePoliciesInput): Promise<ListInferencePoliciesResponse> {
+  return invoke<ListInferencePoliciesResponse>("admin_list_inference_policies", { input });
+}
+
+export async function createInferencePolicy(input: CreateInferencePolicyInput): Promise<InferencePolicyResponse> {
+  return invoke<InferencePolicyResponse>("admin_create_inference_policy", { input });
+}
+
+export async function expireInferencePolicy(input: InferencePolicyActionInput): Promise<InferencePolicyResponse> {
+  return invoke<InferencePolicyResponse>("admin_expire_inference_policy", { input });
+}
+
+export async function deleteInferencePolicy(input: InferencePolicyActionInput): Promise<DeleteInferencePolicyResponse> {
+  return invoke<DeleteInferencePolicyResponse>("admin_delete_inference_policy", { input });
+}
+
+export async function listInferenceUsageEvents(input: ListUsageEventsInput): Promise<ListUsageEventsResponse> {
+  return invoke<ListUsageEventsResponse>("admin_list_inference_usage_events", { input });
+}
+
+export async function summarizeInferenceUsage(input: SummarizeUsageInput): Promise<SummarizeUsageResponse> {
+  return invoke<SummarizeUsageResponse>("admin_summarize_inference_usage", { input });
 }
 

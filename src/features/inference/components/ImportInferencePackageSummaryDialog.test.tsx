@@ -46,12 +46,11 @@ test("renders catalog view actions", async () => {
   await userEvent.click(screen.getByRole("button", { name: /view endpoints/i }));
   await userEvent.click(screen.getByRole("button", { name: /view models/i }));
   await userEvent.click(screen.getByRole("button", { name: /view vector stores/i }));
-  await userEvent.click(screen.getByRole("button", { name: /view capabilities/i }));
+  expect(screen.queryByRole("button", { name: /view capabilities/i })).not.toBeInTheDocument();
 
   expect(onViewCatalog).toHaveBeenNthCalledWith(1, "endpoints");
   expect(onViewCatalog).toHaveBeenNthCalledWith(2, "models");
   expect(onViewCatalog).toHaveBeenNthCalledWith(3, "vectorStores");
-  expect(onViewCatalog).toHaveBeenNthCalledWith(4, "capabilities");
 });
 
 test("invokes close callback", async () => {

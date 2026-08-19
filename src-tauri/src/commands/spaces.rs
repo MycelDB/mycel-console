@@ -102,18 +102,21 @@ pub async fn admin_get_space(
 
     let space = match admin_result {
         Ok(response) => response.into_inner().space,
-        Err(err) if err.code() == Code::PermissionDenied => session
-            ._data_client
-            .space
-            .get_space(tonic::Request::new(GetSpaceRequest { space_id }))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .space,
+        Err(err) if err.code() == Code::PermissionDenied => {
+            session
+                ._data_client
+                .space
+                .get_space(tonic::Request::new(GetSpaceRequest { space_id }))
+                .await
+                .map_err(|err| err.to_string())?
+                .into_inner()
+                .space
+        }
         Err(err) => return Err(err.to_string()),
     };
 
-    space.map(space_info)
+    space
+        .map(space_info)
         .ok_or_else(|| "Get space response did not include a space".to_string())
 }
 

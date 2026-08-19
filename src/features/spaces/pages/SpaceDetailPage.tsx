@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { Button, ErrorBox, H2, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork } from "../../../services/adminService";
-import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo } from "../../../types/automations";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, createAutomation as defaultCreateAutomation, deleteAutomation as defaultDeleteAutomation, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listInferenceProfiles as defaultListInferenceProfiles, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork, updateAutomation as defaultUpdateAutomation, validateAutomation as defaultValidateAutomation } from "../../../services/adminService";
+import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../../../types/automations";
 import type { PrincipalSession } from "../../../types/auth";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
 import type { DomainSchemaInfo, GetDomainSchemaInput } from "../../../types/schemas";
+import type { InferenceProfileInfo, ListInferenceProfilesInput, ListInferenceProfilesResponse } from "../../../types/inference";
 import type { ListSemanticIndexesInput, ListSemanticIndexesResponse, SemanticIndexInfo } from "../../../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, BackfillSemanticIndexInput, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../../../types/semanticMaintenance";
 import type { SpaceInfo } from "../../../types/spaces";
 import { GraphResultCanvas } from "../components/GraphResultCanvas";
 import { aggregateRowsFromQueryResponse, diagnosticsFromQueryResponse, diagnosticsMessage, graphFromQueryResponse, pathGraphsFromQueryResponse } from "../components/graphResultExtraction";
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message || fallback;
+  if (typeof err === "string") return err || fallback;
+  return fallback;
+}
 
 export type SpaceDetailPageProps = {
   getSpaceService?: (spaceId: string) => Promise<SpaceInfo>;
@@ -32,12 +39,17 @@ export type SpaceDetailPageProps = {
   getAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
   enableAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
   disableAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
+  validateAutomationService?: (input: AutomationDefinitionInput) => Promise<ValidateAutomationInfo>;
+  createAutomationService?: (input: AutomationDefinitionInput) => Promise<AutomationDefinitionInfo>;
+  updateAutomationService?: (input: UpdateAutomationInput) => Promise<AutomationDefinitionInfo>;
+  deleteAutomationService?: (input: AutomationActionInput) => Promise<void>;
   listAutomationInvocationsService?: (input: ListAutomationInvocationsInput) => Promise<ListAutomationInvocationsResponseInfo>;
   getAutomationRunService?: (input: GetAutomationRunInput) => Promise<AutomationRunInfo>;
+  listInferenceProfilesService?: (input: ListInferenceProfilesInput) => Promise<ListInferenceProfilesResponse>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
-export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun, principalContext }: SpaceDetailPageProps) {
+export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, validateAutomationService = defaultValidateAutomation, createAutomationService = defaultCreateAutomation, updateAutomationService = defaultUpdateAutomation, deleteAutomationService = defaultDeleteAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun, listInferenceProfilesService = defaultListInferenceProfiles, principalContext }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
   const [space, setSpace] = useState<SpaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +82,10 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   const [automationInvocations, setAutomationInvocations] = useState<Record<string, AutomationInvocationSummaryInfo[]>>({});
   const [automationDetail, setAutomationDetail] = useState("");
   const [automationRunDetail, setAutomationRunDetail] = useState("");
+  const [automationEditor, setAutomationEditor] = useState<{ mode: "create" | "edit"; domainId: string; automationId?: string; definitionJson: string } | null>(null);
+  const [automationProfiles, setAutomationProfiles] = useState<InferenceProfileInfo[]>([]);
+  const [automationProfileId, setAutomationProfileId] = useState("");
+  const [automationSaving, setAutomationSaving] = useState(false);
   const [automationLoading, setAutomationLoading] = useState(false);
   const [automationError, setAutomationError] = useState("");
   const canManageSemantic = canUseCapability(principalContext, "semantic.manage");
@@ -194,7 +210,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       setAutomationRows(rows.sort((a, b) => `${a.domain.name}:${a.automation.id}`.localeCompare(`${b.domain.name}:${b.automation.id}`)));
       setAutomationInvocations(invocations);
     } catch (err) {
-      setAutomationError(err instanceof Error ? err.message : "Failed to load automations");
+      setAutomationError(errorMessage(err, "Failed to load automations"));
     } finally {
       setAutomationLoading(false);
     }
@@ -204,6 +220,93 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
     if (activeTab === "automations") void loadAutomations();
   }, [activeTab, loadAutomations]);
 
+  const loadAutomationProfiles = useCallback(async (domainId = "") => {
+    if (!spaceId) return;
+    try {
+      const response = await listInferenceProfilesService({ spaceId, domainId, purpose: "automation", includeDisabled: false, pageSize: 100 });
+      setAutomationProfiles(response.inferenceProfiles);
+    } catch {
+      setAutomationProfiles([]);
+    }
+  }, [listInferenceProfilesService, spaceId]);
+
+  function openCreateAutomation(domainId = domains[0]?.domainId || "") {
+    const definition = {
+      id: "new-automation",
+      name: "New automation",
+      version: 1,
+      enabled: true,
+      labels: [],
+      events: ["node.updated"],
+      inference: { operation: "chat", profile: "" },
+      actions: [],
+    };
+    setAutomationProfileId("");
+    setAutomationEditor({ mode: "create", domainId, definitionJson: JSON.stringify(definition, null, 2) });
+    void loadAutomationProfiles(domainId);
+  }
+
+  async function openEditAutomation(domainId: string, automationId: string) {
+    setAutomationError("");
+    try {
+      const detail = await getAutomationService({ domainId, automationId });
+      setAutomationEditor({ mode: "edit", domainId, automationId, definitionJson: detail.definitionJson });
+      try {
+        const parsed = JSON.parse(detail.definitionJson) as { inference?: { profile?: string; profileId?: string } };
+        setAutomationProfileId(parsed.inference?.profile || parsed.inference?.profileId || "");
+      } catch { setAutomationProfileId(""); }
+      await loadAutomationProfiles(domainId);
+    } catch (err) {
+      setAutomationError(errorMessage(err, "Failed to load automation"));
+    }
+  }
+
+  function applyAutomationProfile(profileKeyOrId: string) {
+    setAutomationProfileId(profileKeyOrId);
+    setAutomationEditor((current) => {
+      if (!current) return current;
+      try {
+        const parsed = JSON.parse(current.definitionJson) as Record<string, unknown>;
+        const selected = automationProfiles.find((profile) => profile.key === profileKeyOrId || profile.inferenceProfileId === profileKeyOrId);
+        parsed.inference = { ...(typeof parsed.inference === "object" && parsed.inference !== null ? parsed.inference : {}), operation: selected?.operation || "chat", profile: selected?.key || profileKeyOrId, profileId: selected?.inferenceProfileId || "" };
+        return { ...current, definitionJson: JSON.stringify(parsed, null, 2) };
+      } catch { return current; }
+    });
+  }
+
+  async function deleteAutomationRow(domainId: string, automationId: string) {
+    if (!window.confirm(`Delete automation ${automationId}?`)) return;
+    setAutomationSaving(true);
+    setAutomationError("");
+    try {
+      await deleteAutomationService({ domainId, automationId });
+      await loadAutomations();
+    } catch (err) {
+      setAutomationError(errorMessage(err, "Failed to delete automation"));
+    } finally {
+      setAutomationSaving(false);
+    }
+  }
+
+  async function saveAutomationEditor() {
+    if (!automationEditor) return;
+    setAutomationSaving(true);
+    setAutomationError("");
+    try {
+      const validation = await validateAutomationService({ domainId: automationEditor.domainId, definitionJson: automationEditor.definitionJson });
+      if (!validation.valid) throw new Error(validation.error || "Automation definition is invalid");
+      const definitionJson = validation.normalizedDefinitionJson || automationEditor.definitionJson;
+      if (automationEditor.mode === "create") await createAutomationService({ domainId: automationEditor.domainId, definitionJson });
+      else await updateAutomationService({ domainId: automationEditor.domainId, automationId: automationEditor.automationId || "", definitionJson });
+      setAutomationEditor(null);
+      await loadAutomations();
+    } catch (err) {
+      setAutomationError(errorMessage(err, "Failed to save automation"));
+    } finally {
+      setAutomationSaving(false);
+    }
+  }
+
   async function toggleAutomation(domainId: string, automationId: string, enabled: boolean) {
     setAutomationError("");
     try {
@@ -211,7 +314,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       else await enableAutomationService({ domainId, automationId });
       await loadAutomations();
     } catch (err) {
-      setAutomationError(err instanceof Error ? err.message : "Failed to update automation");
+      setAutomationError(errorMessage(err, "Failed to update automation"));
     }
   }
 
@@ -221,7 +324,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       const detail = await getAutomationService({ domainId, automationId });
       setAutomationDetail(detail.definitionJson);
     } catch (err) {
-      setAutomationError(err instanceof Error ? err.message : "Failed to load automation");
+      setAutomationError(errorMessage(err, "Failed to load automation"));
     }
   }
 
@@ -466,7 +569,9 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       /></div>}
       {activeTab === "schemas" && <div role="tabpanel" aria-label="Schemas"><SchemaSection domains={domains} schemas={domainSchemas} loading={schemaLoading || domainsLoading} error={schemaError || domainsError} onRefresh={() => void loadSchemas()} /></div>}
 
-      {activeTab === "automations" && <div role="tabpanel" aria-label="Automations"><AutomationSection rows={automationRows} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} canToggle={canManageAutomations} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} /></div>}
+      {activeTab === "automations" && <div role="tabpanel" aria-label="Automations"><AutomationSection rows={automationRows} domains={domains} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} canManage={canManageAutomations} onCreate={openCreateAutomation} onEdit={(domainId, automationId) => void openEditAutomation(domainId, automationId)} onDelete={(domainId, automationId) => void deleteAutomationRow(domainId, automationId)} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} /></div>}
+
+      {automationEditor && <AutomationEditorDialog editor={automationEditor} domains={domains} profiles={automationProfiles} selectedProfile={automationProfileId} loading={automationSaving} onProfileChange={applyAutomationProfile} onChange={(definitionJson) => setAutomationEditor((current) => current ? { ...current, definitionJson } : current)} onDomainChange={(domainId) => { setAutomationEditor((current) => current ? { ...current, domainId } : current); void loadAutomationProfiles(domainId); }} onClose={() => setAutomationEditor(null)} onSave={() => void saveAutomationEditor()} />}
 
       {confirmMaintenanceAction && (
         <ConfirmMaintenanceActionDialog
@@ -783,7 +888,7 @@ function formatTimestamp(value?: string) {
   return new Date(seconds * 1000).toLocaleString();
 }
 
-function AutomationSection({ rows, invocations, loading, error, detail, runDetail, canToggle, onRefresh, onToggle, onShow, onShowRun }: { rows: Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }>; invocations: Record<string, AutomationInvocationSummaryInfo[]>; loading: boolean; error: string; detail: string; runDetail: string; canToggle: boolean; onRefresh: () => void; onToggle: (domainId: string, automationId: string, enabled: boolean) => void; onShow: (domainId: string, automationId: string) => void; onShowRun: (domainId: string, runId: string) => void }) {
+function AutomationSection({ rows, domains, invocations, loading, error, detail, runDetail, canManage, onCreate, onEdit, onDelete, onRefresh, onToggle, onShow, onShowRun }: { rows: Array<{ domain: DomainInfo; automation: AutomationDefinitionSummaryInfo }>; domains: DomainInfo[]; invocations: Record<string, AutomationInvocationSummaryInfo[]>; loading: boolean; error: string; detail: string; runDetail: string; canManage: boolean; onCreate: (domainId?: string) => void; onEdit: (domainId: string, automationId: string) => void; onDelete: (domainId: string, automationId: string) => void; onRefresh: () => void; onToggle: (domainId: string, automationId: string, enabled: boolean) => void; onShow: (domainId: string, automationId: string) => void; onShowRun: (domainId: string, runId: string) => void }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -791,7 +896,7 @@ function AutomationSection({ rows, invocations, loading, error, detail, runDetai
           <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Graph automations</Text>
           <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Inspect definitions, toggle status, and review recent invocation history.</Text>
         </div>
-        <Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh automations"}</Button>
+        <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh automations"}</Button>{canManage && <Button onClick={() => onCreate(domains[0]?.domainId)}>Create automation</Button>}</div>
       </div>
       {error && <ErrorBox>{error}</ErrorBox>}
       {rows.length === 0 ? <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">{loading ? "Loading automations…" : "No automations found for this space."}</Text> : (
@@ -802,7 +907,7 @@ function AutomationSection({ rows, invocations, loading, error, detail, runDetai
               {rows.map(({ domain, automation }) => {
                 const enabled = automation.status === "enabled";
                 const key = `${domain.domainId}:${automation.id}`;
-                return <tr key={key} className="align-top"><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{domain.name || domain.key}</div><div className="font-mono text-xs text-slate-500">{domain.domainId}</div></td><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{automation.name || automation.id}</div><div className="font-mono text-xs text-slate-500">{automation.id} · v{automation.version}</div><RecentInvocations domainId={domain.domainId} items={invocations[key] || []} onShowRun={onShowRun} /></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs ${enabled ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>{automation.status}</span></td><td className="px-4 py-3"><div>{automation.events.join(", ") || "—"}</div><div className="text-xs text-slate-500">{automation.labels.join(", ") || "No label filter"}</div></td><td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onShow(domain.domainId, automation.id)}>View JSON</Button>{canToggle ? <Button variant="secondary" onClick={() => onToggle(domain.domainId, automation.id, enabled)}>{enabled ? "Disable" : "Enable"}</Button> : <span className="self-center text-slate-500 dark:text-slate-400">Read-only</span>}</div></td></tr>;
+                return <tr key={key} className="align-top"><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{domain.name || domain.key}</div><div className="font-mono text-xs text-slate-500">{domain.domainId}</div></td><td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{automation.name || automation.id}</div><div className="font-mono text-xs text-slate-500">{automation.id} · v{automation.version}</div><RecentInvocations domainId={domain.domainId} items={invocations[key] || []} onShowRun={onShowRun} /></td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs ${enabled ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>{automation.status}</span></td><td className="px-4 py-3"><div>{automation.events.join(", ") || "—"}</div><div className="text-xs text-slate-500">{automation.labels.join(", ") || "No label filter"}</div></td><td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onShow(domain.domainId, automation.id)}>View JSON</Button>{canManage ? <><Button variant="secondary" onClick={() => onEdit(domain.domainId, automation.id)}>Edit</Button><Button variant="secondary" onClick={() => onToggle(domain.domainId, automation.id, enabled)}>{enabled ? "Disable" : "Enable"}</Button><Button variant="secondary" onClick={() => onDelete(domain.domainId, automation.id)}>Delete</Button></> : <span className="self-center text-slate-500 dark:text-slate-400">Read-only</span>}</div></td></tr>;
               })}
             </tbody>
           </table>
@@ -810,6 +915,42 @@ function AutomationSection({ rows, invocations, loading, error, detail, runDetai
       )}
       {detail && <pre className="max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{detail}</pre>}
       {runDetail && <pre className="max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-300">{runDetail}</pre>}
+    </div>
+  );
+}
+
+function AutomationEditorDialog({ editor, domains, profiles, selectedProfile, loading, onProfileChange, onChange, onDomainChange, onClose, onSave }: { editor: { mode: "create" | "edit"; domainId: string; automationId?: string; definitionJson: string }; domains: DomainInfo[]; profiles: InferenceProfileInfo[]; selectedProfile: string; loading: boolean; onProfileChange: (profile: string) => void; onChange: (definitionJson: string) => void; onDomainChange: (domainId: string) => void; onClose: () => void; onSave: () => void }) {
+  const domainOptions = domains.map((domain) => ({
+    value: domain.domainId,
+    label: domain.name || domain.key || domain.domainId,
+    hint: domain.name || domain.key ? domain.domainId : undefined,
+  }));
+  const profileOptions = profiles.map((profile) => ({
+    value: profile.key,
+    label: profile.displayName || profile.key,
+    hint: `${profile.operation} · ${profile.enabled ? "enabled" : "disabled"}`,
+  }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+      <div className="w-full max-w-4xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">{editor.mode === "create" ? "Create automation" : "Edit automation"}</Text>
+            <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Definitions reference inference profiles/model refs/capabilities, never raw API keys. The daemon validates and authorizes the final JSON.</Text>
+          </div>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>Close</Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <Select label="Domain" value={editor.domainId} onChange={onDomainChange} options={domainOptions} disabled={loading} />
+          <Select label="Inference profile" value={selectedProfile} onChange={onProfileChange} options={profileOptions} placeholder="No profile selected" disabled={loading} />
+        </div>
+        <textarea className="mt-4 h-96 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={editor.definitionJson} onChange={(event) => onChange(event.target.value)} />
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={onSave} disabled={loading}>{loading ? "Saving…" : "Validate and save"}</Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Button, H2, Text } from "../../../components/typography";
 import type { ApplyInferencePackageResponse } from "../../../types/inference";
 
-export type ImportSummaryTarget = "endpoints" | "models" | "vectorStores" | "capabilities";
+export type ImportSummaryTarget = "endpoints" | "models" | "vectorStores";
 
 export type ImportInferencePackageSummaryDialogProps = {
   result: ApplyInferencePackageResponse | null;
@@ -30,7 +30,7 @@ export function ImportInferencePackageSummaryDialog({ result, onClose, onViewCat
             {result.modelEndpointCount > 0 && <Button variant="secondary" onClick={() => onViewCatalog("endpoints")}>View endpoints</Button>}
             {result.modelCount > 0 && <Button variant="secondary" onClick={() => onViewCatalog("models")}>View models</Button>}
             {result.vectorStoreCount > 0 && <Button variant="secondary" onClick={() => onViewCatalog("vectorStores")}>View vector stores</Button>}
-            {result.capabilityCount > 0 && <Button variant="secondary" onClick={() => onViewCatalog("capabilities")}>View capabilities</Button>}
+            {result.capabilityCount > 0 && result.modelCount === 0 && <Button variant="secondary" onClick={() => onViewCatalog("models")}>View models</Button>}
           </div>
         )}
         <div className="mt-6 flex justify-end">

@@ -11,10 +11,7 @@ export type HeaderProps = {
   onLogout: () => void;
 };
 
-export function Header({ session, principalContext, principalContextLoading = false, loggingOut, onLogout }: HeaderProps) {
-  const roleCount = principalContext?.roles.length ?? 0;
-  const capabilityCount = principalContext?.capabilities.length ?? 0;
-  const capabilityState = principalContext?.capabilityState.kind ?? "unknown";
+export function Header({ session, loggingOut, onLogout }: HeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-6 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="flex min-w-0 items-center gap-6">
@@ -32,15 +29,6 @@ export function Header({ session, principalContext, principalContextLoading = fa
           </Text>
           <Text as="p" size="sm" className="truncate font-medium text-slate-900 dark:text-slate-100">
             {session.username}
-          </Text>
-          <Text as="p" size="xs" intent={principalContext?.warnings.length ? "danger" : "muted"} className="truncate text-slate-500 dark:text-slate-400">
-            {principalContextLoading
-              ? "Loading access…"
-              : capabilityState === "complete"
-                ? `${roleCount} role${roleCount === 1 ? "" : "s"} · ${capabilityCount} capabilit${capabilityCount === 1 ? "y" : "ies"}`
-                : capabilityState === "partial"
-                  ? `Partial access context · ${roleCount} role${roleCount === 1 ? "" : "s"}`
-                  : "Access context unavailable"}
           </Text>
         </div>
       </div>

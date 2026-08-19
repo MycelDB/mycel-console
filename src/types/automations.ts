@@ -57,3 +57,21 @@ export interface GetAutomationRunInput {
 export interface AutomationRunInfo {
   runJson: string;
 }
+
+
+export interface AutomationDefinitionInput {
+  domainId: string;
+  definitionJson: string;
+}
+
+export interface UpdateAutomationInput {
+  domainId: string;
+  automationId: string;
+  definitionJson: string;
+}
+
+export interface ValidateAutomationInfo {
+  valid: boolean;
+  error: string;
+  normalizedDefinitionJson: string;
+}

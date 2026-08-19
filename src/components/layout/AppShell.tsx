@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { AccountPage } from "../../features/account";
-import { AccessPage } from "../../features/access";
 import { BackupsPage } from "../../features/backups";
 import { ClusterPage, NodeDetailPage } from "../../features/cluster";
 import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
@@ -49,6 +48,11 @@ function RequireCapabilities({ principalContext, requirements, children }: { pri
   return <>{children}</>;
 }
 
+function PrincipalAccessRedirect() {
+  const { principalId = "" } = useParams();
+  return <Navigate to={`/principals/${encodeURIComponent(principalId)}?tab=access`} replace />;
+}
+
 export function AppShell({
   session,
   loggingOut,
@@ -80,9 +84,9 @@ export function AppShell({
             <Route path="/me" element={<AccountPage session={session} principalContext={principalContext} loading={principalContextLoading} />} />
             <Route path="/principals" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UsersPage principalContext={principalContext} /></RequireCapabilities>} />
             <Route path="/principals/:principalId" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UserDetailPage principalContext={principalContext} /></RequireCapabilities>} />
-            <Route path="/principals/:principalId/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.grant.manage")]}><AccessPage /></RequireCapabilities>} />
-            <Route path="/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.grant.manage")]}><AccessPage /></RequireCapabilities>} />
-            <Route path="/operators" element={<Navigate to="/access" replace />} />
+            <Route path="/principals/:principalId/access" element={<PrincipalAccessRedirect />} />
+            <Route path="/access" element={<Navigate to="/principals" replace />} />
+            <Route path="/operators" element={<Navigate to="/principals" replace />} />
             <Route path="/spaces" element={<SpacesPage principalContext={principalContext} />} />
             <Route path="/spaces/:spaceId" element={<SpaceDetailPage principalContext={principalContext} />} />
             <Route path="/backups" element={<BackupsPage principalContext={principalContext} />} />

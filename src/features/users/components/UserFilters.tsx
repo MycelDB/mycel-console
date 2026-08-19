@@ -1,4 +1,4 @@
-import { Input, Label, Text } from "../../../components/typography";
+import { Input, Label, Select, Text } from "../../../components/typography";
 import type { PrincipalState } from "../../../types/users";
 
 export type UserStateFilter = "all" | PrincipalState;
@@ -34,18 +34,17 @@ export function UserFilters({ value, onChange }: UserFiltersProps) {
           />
         </div>
         <div>
-          <Label htmlFor="user-state">State</Label>
-          <select
-            id="user-state"
-            className="w-full rounded-md border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950 px-3 py-2 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-sky-500"
+          <Select
+            label="State"
             value={value.state}
-            onChange={(event) => onChange({ ...value, state: event.target.value as UserStateFilter })}
-          >
-            <option value="all">All states</option>
-            <option value="PRINCIPAL_STATE_ACTIVE">Active</option>
-            <option value="PRINCIPAL_STATE_DISABLED">Disabled</option>
-            <option value="PRINCIPAL_STATE_DELETED">Deleted</option>
-          </select>
+            onChange={(state) => onChange({ ...value, state: state as UserStateFilter })}
+            options={[
+              { value: "all", label: "All states" },
+              { value: "PRINCIPAL_STATE_ACTIVE", label: "Active" },
+              { value: "PRINCIPAL_STATE_DISABLED", label: "Disabled" },
+              { value: "PRINCIPAL_STATE_DELETED", label: "Deleted" },
+            ]}
+          />
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-4">

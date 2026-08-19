@@ -22,12 +22,14 @@ test("renders cluster and principal session details", () => {
 
   expect(screen.getByText("127.0.0.1:9091")).toBeInTheDocument();
   expect(screen.getByText("operator")).toBeInTheDocument();
-  expect(screen.getByText(/access context unavailable/i)).toBeInTheDocument();
+  expect(screen.queryByText(/access context/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/role/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/capabilit/i)).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/me");
 });
 
 
-test("renders loaded role and capability counts", () => {
+test("does not render role and capability counts", () => {
   renderHeader({
     principalContext: {
       session,
@@ -38,13 +40,8 @@ test("renders loaded role and capability counts", () => {
     },
   });
 
-  expect(screen.getByText(/1 role · 2 capabilities/i)).toBeInTheDocument();
-});
-
-test("renders loading access state", () => {
-  renderHeader({ principalContextLoading: true });
-
-  expect(screen.getByText(/loading access/i)).toBeInTheDocument();
+  expect(screen.getByText("operator")).toBeInTheDocument();
+  expect(screen.queryByText(/1 role · 2 capabilities/i)).not.toBeInTheDocument();
 });
 
 test("invokes logout callback", async () => {

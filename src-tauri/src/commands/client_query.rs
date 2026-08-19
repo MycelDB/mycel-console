@@ -564,7 +564,10 @@ fn parse_graph_query(raw: &str) -> Result<GraphQuery, String> {
             .unwrap_or_default()
             .to_string(),
         aggregate_returns: vec![],
-        distinct: value.get("distinct").and_then(Value::as_bool).unwrap_or(false),
+        distinct: value
+            .get("distinct")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         offset: value.get("offset").and_then(Value::as_i64).unwrap_or(0) as i32,
     })
 }

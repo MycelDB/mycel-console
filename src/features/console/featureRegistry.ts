@@ -78,16 +78,6 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     order: 20,
   },
   {
-    id: "access",
-    label: "Access management",
-    route: "/access",
-    navGroup: "administration",
-    requirements: [{ capability: "identity.grant.manage" }],
-    fallback: "hide",
-    description: "Roles, capabilities, and scoped access visibility.",
-    order: 30,
-  },
-  {
     id: "semantic",
     label: "Semantic",
     route: "/semantic",

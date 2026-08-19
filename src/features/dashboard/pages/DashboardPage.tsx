@@ -30,7 +30,7 @@ export function DashboardPage({ session, principalContext }: DashboardPageProps)
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(28rem,1.4fr)]">
-        <ClusterSummaryCard session={session} />
+        <ClusterSummaryCard addr={session.addr} />
         <AlarmList />
       </div>
 

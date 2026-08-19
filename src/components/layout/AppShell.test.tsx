@@ -10,6 +10,8 @@ jest.mock("../../features/dashboard/components/BackupStatusCard", () => ({
 
 jest.mock("../../services/adminService", () => ({
   getBackupStatus: jest.fn().mockResolvedValue({ status: null, quiesce: null }),
+  getClusterRuntimeStatus: jest.fn().mockResolvedValue({ engine: "standalone", localNodeId: 1, raftNodeCount: 1, raftPartitionCount: 0, raftNodeAddrs: ["127.0.0.1:9091"] }),
+  getMyAccess: jest.fn().mockResolvedValue({ principal: { addr: "127.0.0.1:9091", principalId: "prn_operator", username: "operator" }, effectiveRoles: ["system_admin"], effectiveCapabilities: ["*"], roles: [], capabilities: [{ capability: "*", source: "role", role: "system_admin" }], warnings: [], complete: true }),
   getPrincipal: jest.fn().mockResolvedValue({ principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE", loginEnabled: true }),
   getSpace: jest.fn().mockResolvedValue({ spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" }),
   listDomains: jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
@@ -29,8 +31,13 @@ jest.mock("../../services/adminService", () => ({
     ],
     nextPageToken: "",
   }),
+  listModelEndpointCapabilities: jest.fn().mockResolvedValue({ modelEndpointCapabilities: [{ modelEndpointCapabilityId: "cap1", modelEndpointId: "ep1", modelId: "m1", operation: "chat", enabled: true }], nextPageToken: "" }),
   listPrincipalCapabilities: jest.fn().mockResolvedValue({ grants: [], effectiveCapabilities: ["CAPABILITY_IDENTITY_GRANT_MANAGE"] }),
   listPrincipalRoles: jest.fn().mockResolvedValue({ grants: [{ roleGrantId: "role_1", principalId: "usr_alice", role: "system_admin", scope: { type: "ACCESS_SCOPE_TYPE_SYSTEM" } }], effectiveRoles: ["system_admin"] }),
+  grantPrincipalRole: jest.fn().mockResolvedValue({ grant: {}, effectiveCapabilities: [] }),
+  revokePrincipalRole: jest.fn().mockResolvedValue({ effectiveCapabilities: [] }),
+  grantPrincipalCapability: jest.fn().mockResolvedValue({ grant: {}, effectiveCapabilities: [] }),
+  revokePrincipalCapability: jest.fn().mockResolvedValue({ effectiveCapabilities: [] }),
   listPrincipalSessions: jest.fn().mockResolvedValue({ sessions: [], nextPageToken: "" }),
   cancelSemanticMaintenanceWork: jest.fn().mockResolvedValue({}),
   getSemanticMaintenanceStatus: jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 0, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
@@ -67,10 +74,11 @@ function renderShell(path = "/dashboard", onLogout = jest.fn(), props: Partial<C
   return { onLogout };
 }
 
-test("renders dashboard route", () => {
+test("renders dashboard route", async () => {
   renderShell("/dashboard");
 
   expect(screen.getByText(/capability-oriented console for a mycel cluster/i)).toBeInTheDocument();
+  expect(await screen.findByText("Standalone")).toBeInTheDocument();
   expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
 });
 
@@ -94,6 +102,7 @@ test("redirects principals route when principal read capability is missing", asy
 
   expect(screen.queryByRole("heading", { name: "Principal Management" })).not.toBeInTheDocument();
   expect(screen.getByText(/capability-oriented console for a mycel cluster/i)).toBeInTheDocument();
+  expect(await screen.findByText("Standalone")).toBeInTheDocument();
 });
 
 test("renders principals section route", async () => {
@@ -110,18 +119,20 @@ test("renders principal detail route", async () => {
   expect(screen.getByText("prn_alice")).toBeInTheDocument();
 });
 
-test("renders access route", async () => {
+test("redirects access route to principals", async () => {
   renderShell("/access");
 
-  expect(screen.getByRole("heading", { name: /roles & capabilities/i })).toBeInTheDocument();
-  expect(await screen.findAllByText("system_admin")).toHaveLength(2);
+  expect(screen.getByRole("heading", { name: "Principal Management" })).toBeInTheDocument();
+  expect(await screen.findByText("alice")).toBeInTheDocument();
 });
 
-test("renders principal access route", async () => {
-  renderShell("/principals/prn_alice/access");
+test("renders principal detail roles and capabilities tab", async () => {
+  renderShell("/principals/prn_alice?tab=access");
 
-  expect(screen.getByRole("heading", { name: /roles & capabilities/i })).toBeInTheDocument();
-  expect(await screen.findByText("CAPABILITY_IDENTITY_GRANT_MANAGE")).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "alice" })).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: /roles & capabilities/i })).toHaveAttribute("aria-selected", "true");
+  await screen.findByText("Edit selected scope");
+  expect(screen.getAllByText("CAPABILITY_IDENTITY_GRANT_MANAGE").length).toBeGreaterThan(0);
 });
 
 test("renders space detail route", async () => {
@@ -131,11 +142,11 @@ test("renders space detail route", async () => {
   expect(await screen.findByRole("heading", { name: "Main" })).toBeInTheDocument();
 });
 
-test("renders inference packages route", async () => {
+test("renders inference catalog route", async () => {
   renderShell("/inference");
 
-  expect(screen.getByRole("heading", { name: /inference packages/i })).toBeInTheDocument();
-  expect(await screen.findByText("standard-openai-chat")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /inference catalog/i })).toBeInTheDocument();
+  expect(await screen.findByRole("tab", { name: "Endpoints" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("invokes logout from persistent header", async () => {

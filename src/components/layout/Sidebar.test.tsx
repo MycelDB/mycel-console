@@ -15,16 +15,19 @@ test("renders main navigation links", () => {
     "Account",
     "Principals",
     "Spaces",
-    "Backups",
+    "Access",
+    "Automations",
     "Semantic",
+    "Backups",
     "Maintenance",
-    "Inference",
     "Settings",
   ]) {
     expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
   }
+  expect(screen.getByText("Intelligence")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Domains" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Access management" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Inference" })).not.toBeInTheDocument();
 });
 
 test("marks the active route", () => {

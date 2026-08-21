@@ -11,8 +11,7 @@ export type ConsoleNavSection = {
 export const navGroupOrder: ConsoleNavGroup[] = [
   "environment",
   "data",
-  "automation",
-  "inference",
+  "intelligence",
   "administration",
   "operations",
   "settings",
@@ -21,8 +20,7 @@ export const navGroupOrder: ConsoleNavGroup[] = [
 export const navGroupLabels: Record<ConsoleNavGroup, string> = {
   environment: "Environment",
   data: "Data",
-  automation: "Automation",
-  inference: "Inference",
+  intelligence: "Intelligence",
   administration: "Administration",
   operations: "Operations",
   settings: "Settings",

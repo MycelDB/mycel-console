@@ -130,8 +130,8 @@ const inferenceTabs: Array<{ id: InferenceTab; label: string; description: strin
   { id: "credentials", label: "Credentials", description: "Credential records and secret references. Secret values are never displayed." },
   { id: "grants", label: "Grants", description: "Credential grant scopes for spaces and workloads." },
   { id: "policies", label: "Policies", description: "Inference allow/deny/restrict policy records." },
-  { id: "vectorStores", label: "Vector stores", description: "Vector storage and search backends." },
   { id: "profiles", label: "Profiles", description: "Space-scoped inference profiles used by automation and semantic work." },
+  { id: "vectorStores", label: "Vector stores", description: "Vector storage and search backends." },
   { id: "usage", label: "Usage", description: "Neutral inference usage telemetry." },
   { id: "packages", label: "Import history", description: "Install-only package records and import history." },
 ];
@@ -574,10 +574,10 @@ export function InferencePage({
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">Inference</Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Inference Catalog</H2>
+          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">Intelligence</Text>
+          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Intelligence Access</H2>
           <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
-            Review inference capabilities, models, endpoints, and vector stores. Import packages are install-only deployment units; their committed resources appear in the catalog tabs.
+            Configure the model endpoints, models, credentials, grants, policies, and profiles used by graph automations and semantic generation. Import packages are install-only deployment units; their committed resources appear in the access tabs.
           </Text>
         </div>
         <div className="flex gap-2">
@@ -588,7 +588,7 @@ export function InferencePage({
       </div>
 
       <div className="border-b border-slate-200 dark:border-slate-800">
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Inference catalog sections">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Intelligence access sections">
           {inferenceTabs.map((tab) => (
             <button
               key={tab.id}

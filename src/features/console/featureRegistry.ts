@@ -1,7 +1,7 @@
 import type { CapabilityRequirement, FeatureAvailability, FeatureFallback, PrincipalCapabilityState } from "./capabilities";
 import { featureAvailability } from "./capabilities";
 
-export type ConsoleNavGroup = "environment" | "data" | "automation" | "inference" | "administration" | "operations" | "settings";
+export type ConsoleNavGroup = "environment" | "data" | "intelligence" | "administration" | "operations" | "settings";
 
 export type ConsoleFeature = {
   id: string;
@@ -78,14 +78,34 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     order: 20,
   },
   {
+    id: "intelligence-access",
+    label: "Access",
+    route: "/intelligence/access",
+    navGroup: "intelligence",
+    requirements: [{ capability: "inference.catalog.read" }],
+    fallback: "hide",
+    description: "Model endpoints, models, credentials, grants, policies, profiles, vector stores, and usage.",
+    order: 10,
+  },
+  {
+    id: "automations",
+    label: "Automations",
+    route: "/intelligence/automations",
+    navGroup: "intelligence",
+    requirements: [{ capability: "automation.read" }, { capability: "space.read" }, { capability: "domain.read" }],
+    fallback: "hide",
+    description: "Graph automation inventory, run diagnostics, management, and token usage.",
+    order: 20,
+  },
+  {
     id: "semantic",
     label: "Semantic",
-    route: "/semantic",
-    navGroup: "data",
-    requirements: [{ capability: "semantic.search", optional: true }],
-    fallback: "disabled",
-    description: "Placeholder for semantic index/search visibility.",
-    order: 40,
+    route: "/intelligence/semantic",
+    navGroup: "intelligence",
+    requirements: [{ capability: "semantic.search" }, { capability: "space.read" }, { capability: "domain.read" }],
+    fallback: "hide",
+    description: "Semantic generation rules, indexes, maintenance, and token usage.",
+    order: 30,
   },
   {
     id: "maintenance",
@@ -97,16 +117,7 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     description: "Operational maintenance workflows.",
     order: 40,
   },
-  {
-    id: "inference",
-    label: "Inference",
-    route: "/inference",
-    navGroup: "inference",
-    requirements: [{ capability: "inference.catalog.read" }],
-    fallback: "hide",
-    description: "Inference packages, endpoints, models, vector stores, and capabilities.",
-    order: 10,
-  },
+
   {
     id: "settings",
     label: "Settings",

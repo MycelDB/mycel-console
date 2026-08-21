@@ -109,9 +109,11 @@ export function featureAvailability(
 export function capabilityNameSatisfies(grantCapability: string, requiredCapability: string): boolean {
   if (grantCapability === requiredCapability) return true;
   if (grantCapability === "cluster.manage" && requiredCapability === "cluster.read") return true;
+  if (grantCapability === "inference.admin" && requiredCapability.startsWith("inference.")) return true;
   if (grantCapability === "inference.catalog.manage" && requiredCapability === "inference.catalog.read") return true;
   if (grantCapability === "inference.profile.manage" && requiredCapability === "inference.profile.read") return true;
   if (grantCapability === "inference.credential.manage" && requiredCapability === "inference.credential.read") return true;
+  if (grantCapability === "automation.manage" && requiredCapability === "automation.read") return true;
   if (grantCapability === "identity.principal.update" && requiredCapability === "identity.principal.read") return true;
   if (grantCapability === "semantic.manage" && requiredCapability === "semantic.search") return true;
   if (grantCapability === "backup.manage" && requiredCapability === "backup.read") return true;
@@ -198,6 +200,36 @@ export function canonicalCapabilityName(capabilityName: string): string {
     case "CAPABILITY_AUTOMATION_READ":
     case "automation.read":
       return "automation.read";
+    case "CAPABILITY_INFERENCE_ADMIN":
+    case "inference.admin":
+      return "inference.admin";
+    case "CAPABILITY_INFERENCE_CATALOG_READ":
+    case "inference.catalog.read":
+      return "inference.catalog.read";
+    case "CAPABILITY_INFERENCE_CATALOG_MANAGE":
+    case "inference.catalog.manage":
+      return "inference.catalog.manage";
+    case "CAPABILITY_INFERENCE_PROFILE_READ":
+    case "inference.profile.read":
+      return "inference.profile.read";
+    case "CAPABILITY_INFERENCE_PROFILE_MANAGE":
+    case "inference.profile.manage":
+      return "inference.profile.manage";
+    case "CAPABILITY_INFERENCE_CREDENTIAL_READ":
+    case "inference.credential.read":
+      return "inference.credential.read";
+    case "CAPABILITY_INFERENCE_CREDENTIAL_MANAGE":
+    case "inference.credential.manage":
+      return "inference.credential.manage";
+    case "CAPABILITY_INFERENCE_GRANT_MANAGE":
+    case "inference.grant.manage":
+      return "inference.grant.manage";
+    case "CAPABILITY_INFERENCE_POLICY_MANAGE":
+    case "inference.policy.manage":
+      return "inference.policy.manage";
+    case "CAPABILITY_INFERENCE_AUDIT_READ":
+    case "inference.audit.read":
+      return "inference.audit.read";
     case "CAPABILITY_DAEMON_CONFIGURE":
     case "daemon.configure":
       return "daemon.configure";

@@ -527,6 +527,11 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       ) : null}
 
       {activeTab === "semantic" && <div className="space-y-6" role="tabpanel" aria-label="Semantic">
+        <ContextualIntelligenceLink
+          title="Manage semantic generation globally"
+          description="Open Intelligence / Semantic with this space preselected to compare rules, backlog, failures, and token usage across scopes."
+          to={`/intelligence/semantic?spaceId=${encodeURIComponent(spaceId)}`}
+        />
         <SemanticMaintenanceSection
         status={maintenanceStatus}
         workItems={maintenanceWork}
@@ -569,7 +574,14 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
       /></div>}
       {activeTab === "schemas" && <div role="tabpanel" aria-label="Schemas"><SchemaSection domains={domains} schemas={domainSchemas} loading={schemaLoading || domainsLoading} error={schemaError || domainsError} onRefresh={() => void loadSchemas()} /></div>}
 
-      {activeTab === "automations" && <div role="tabpanel" aria-label="Automations"><AutomationSection rows={automationRows} domains={domains} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} canManage={canManageAutomations} onCreate={openCreateAutomation} onEdit={(domainId, automationId) => void openEditAutomation(domainId, automationId)} onDelete={(domainId, automationId) => void deleteAutomationRow(domainId, automationId)} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} /></div>}
+      {activeTab === "automations" && <div className="space-y-6" role="tabpanel" aria-label="Automations">
+        <ContextualIntelligenceLink
+          title="Manage graph automations globally"
+          description="Open Intelligence / Automations with this space preselected to compare automation status, run failures, and token usage across scopes."
+          to={`/intelligence/automations?spaceId=${encodeURIComponent(spaceId)}`}
+        />
+        <AutomationSection rows={automationRows} domains={domains} invocations={automationInvocations} loading={automationLoading || domainsLoading} error={automationError || domainsError} detail={automationDetail} runDetail={automationRunDetail} canManage={canManageAutomations} onCreate={openCreateAutomation} onEdit={(domainId, automationId) => void openEditAutomation(domainId, automationId)} onDelete={(domainId, automationId) => void deleteAutomationRow(domainId, automationId)} onRefresh={() => void loadAutomations()} onToggle={(domainId, automationId, enabled) => void toggleAutomation(domainId, automationId, enabled)} onShow={(domainId, automationId) => void showAutomation(domainId, automationId)} onShowRun={(domainId, runId) => void showAutomationRun(domainId, runId)} />
+      </div>}
 
       {automationEditor && <AutomationEditorDialog editor={automationEditor} domains={domains} profiles={automationProfiles} selectedProfile={automationProfileId} loading={automationSaving} onProfileChange={applyAutomationProfile} onChange={(definitionJson) => setAutomationEditor((current) => current ? { ...current, definitionJson } : current)} onDomainChange={(domainId) => { setAutomationEditor((current) => current ? { ...current, domainId } : current); void loadAutomationProfiles(domainId); }} onClose={() => setAutomationEditor(null)} onSave={() => void saveAutomationEditor()} />}
 
@@ -583,6 +595,18 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         />
       )}
     </section>
+  );
+}
+
+function ContextualIntelligenceLink({ title, description, to }: { title: string; description: string; to: string }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/70 dark:bg-sky-950/30">
+      <div>
+        <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">{title}</Text>
+        <Text intent="muted" size="sm" className="mt-1 max-w-3xl text-slate-700 dark:text-slate-300">{description}</Text>
+      </div>
+      <Link className="rounded-md border border-sky-300 px-3 py-2 text-sm font-medium text-sky-800 transition hover:bg-sky-100 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-900/60" to={to}>Open Intelligence view</Link>
+    </div>
   );
 }
 

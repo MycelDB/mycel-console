@@ -16,6 +16,9 @@ jest.mock("../../services/adminService", () => ({
   getSpace: jest.fn().mockResolvedValue({ spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" }),
   listDomains: jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
   listBackups: jest.fn().mockResolvedValue({ backups: [], nextPageToken: "" }),
+  listModelEndpoints: jest.fn().mockResolvedValue({ modelEndpoints: [{ modelEndpointId: "ep1", key: "openai", name: "OpenAI", connectorType: "openai-compatible", endpointUrl: "https://api.openai.com/v1", networkClass: "external_https", privacyClass: "third_party", authModes: ["api_key"], operations: ["chat"], enabled: true }], nextPageToken: "" }),
+  listModels: jest.fn().mockResolvedValue({ models: [], nextPageToken: "" }),
+  listVectorStores: jest.fn().mockResolvedValue({ vectorStores: [], nextPageToken: "" }),
   listInferencePackages: jest.fn().mockResolvedValue({
     packages: [
       {
@@ -142,10 +145,10 @@ test("renders space detail route", async () => {
   expect(await screen.findByRole("heading", { name: "Main" })).toBeInTheDocument();
 });
 
-test("renders inference catalog route", async () => {
+test("redirects inference route to Intelligence Access", async () => {
   renderShell("/inference");
 
-  expect(screen.getByRole("heading", { name: /inference catalog/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /intelligence access/i })).toBeInTheDocument();
   expect(await screen.findByRole("tab", { name: "Endpoints" })).toHaveAttribute("aria-selected", "true");
 });
 

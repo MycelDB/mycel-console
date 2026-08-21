@@ -37,7 +37,7 @@ test("renders import history as the last tab", async () => {
   expect(await screen.findByText("openai-compatible")).toBeInTheDocument();
   expect(screen.getByRole("tab", { name: "Endpoints" })).toHaveAttribute("aria-selected", "true");
   const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
-  expect(tabs).toEqual(["Endpoints", "Models", "Credentials", "Grants", "Policies", "Vector stores", "Profiles", "Usage", "Import history"]);
+  expect(tabs).toEqual(["Endpoints", "Models", "Credentials", "Grants", "Policies", "Profiles", "Vector stores", "Usage", "Import history"]);
 
   await userEvent.click(screen.getByRole("tab", { name: "Import history" }));
 

@@ -6,7 +6,9 @@ import { AccountPage } from "../../features/account";
 import { BackupsPage } from "../../features/backups";
 import { ClusterPage, NodeDetailPage } from "../../features/cluster";
 import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
-import { InferencePage } from "../../features/inference";
+import { AccessPage } from "../../features/intelligence/access";
+import { AutomationsPage } from "../../features/intelligence/automations";
+import { SemanticPage } from "../../features/intelligence/semantic";
 import { MaintenancePage } from "../../features/maintenance";
 import { ComingSoonPage } from "../../features/placeholder/ComingSoonPage";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
@@ -28,11 +30,6 @@ export type AppShellProps = {
 };
 
 const placeholderRoutes = [
-  {
-    path: "/semantic",
-    title: "Semantic",
-    description: "Inspect semantic indexing, providers, models, and backfill state.",
-  },
   {
     path: "/settings",
     title: "Settings",
@@ -92,7 +89,11 @@ export function AppShell({
             <Route path="/backups" element={<BackupsPage principalContext={principalContext} />} />
             <Route path="/cluster" element={<ClusterPage />} />
             <Route path="/cluster/nodes/:nodeKey" element={<NodeDetailPage />} />
-            <Route path="/inference" element={<InferencePage principalContext={principalContext} />} />
+            <Route path="/inference" element={<Navigate to="/intelligence/access" replace />} />
+            <Route path="/semantic" element={<Navigate to="/intelligence/semantic" replace />} />
+            <Route path="/intelligence/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("inference.catalog.read")]}><AccessPage principalContext={principalContext} /></RequireCapabilities>} />
+            <Route path="/intelligence/automations" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("automation.read"), requirement("space.read"), requirement("domain.read")]}><AutomationsPage principalContext={principalContext} /></RequireCapabilities>} />
+            <Route path="/intelligence/semantic" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("semantic.search"), requirement("space.read"), requirement("domain.read")]}><SemanticPage principalContext={principalContext} /></RequireCapabilities>} />
             <Route path="/maintenance" element={<MaintenancePage />} />
             {placeholderRoutes.map((route) => (
               <Route

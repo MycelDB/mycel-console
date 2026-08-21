@@ -123,11 +123,11 @@ export function roleCapabilities(role: string): string[] {
     case "space.admin":
       return ["space.read", "space.create", "space.update", "space.manage_access", "space.archive", "space.delete", "domain.read", "domain.create", "domain.update", "domain.delete"];
     case "semantic.admin":
-      return ["semantic.search", "semantic.manage", "inference.profile.read", "inference.audit.read"];
+      return ["semantic.search", "semantic.manage", "space.read", "domain.read", "inference.profile.read", "inference.audit.read"];
     case "inference.admin":
       return ["inference.catalog.read", "inference.catalog.manage", "inference.profile.read", "inference.profile.manage", "inference.credential.read", "inference.credential.manage", "inference.grant.manage", "inference.policy.manage", "inference.audit.read"];
     case "automation.admin":
-      return ["automation.read", "automation.manage", "automation.run", "inference.profile.read", "inference.audit.read"];
+      return ["automation.read", "automation.manage", "automation.run", "space.read", "domain.read", "inference.profile.read", "inference.audit.read"];
     case "backup.operator":
       return ["backup.manage"];
     case "cluster.operator":

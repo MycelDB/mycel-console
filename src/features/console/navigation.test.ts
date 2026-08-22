@@ -4,7 +4,6 @@ import { featuresWithAvailability, visibleFeatures } from "./featureRegistry";
 import { buildNavigation } from "./navigation";
 
 const features: ConsoleFeature[] = [
-  { id: "settings", label: "Settings", route: "/settings", navGroup: "settings", requirements: [], order: 90 },
   { id: "spaces", label: "Spaces", route: "/spaces", navGroup: "environment", requirements: [{ capability: "space.read" }], fallback: "readonly", order: 20 },
   { id: "dashboard", label: "Dashboard", route: "/dashboard", navGroup: "environment", requirements: [], order: 10 },
   { id: "cluster", label: "Cluster", route: "/cluster", navGroup: "operations", requirements: [{ capability: "cluster.read" }], fallback: "hide", order: 10 },
@@ -27,7 +26,7 @@ test("visibleFeatures removes hidden features but keeps disabled and readonly fe
 
   const ids = visibleFeatures(features, state).map((feature) => feature.id);
 
-  expect(ids).toEqual(["settings", "spaces", "dashboard", "access"]);
+  expect(ids).toEqual(["spaces", "dashboard", "access"]);
 });
 
 test("buildNavigation orders groups and features deterministically", () => {
@@ -39,7 +38,7 @@ test("buildNavigation orders groups and features deterministically", () => {
 
   const sections = buildNavigation(features, state);
 
-  expect(sections.map((section) => section.group)).toEqual(["environment", "administration", "operations", "settings"]);
+  expect(sections.map((section) => section.group)).toEqual(["environment", "administration", "operations"]);
   expect(sections[0].features.map((feature) => feature.id)).toEqual(["dashboard", "spaces"]);
   expect(sections[1].features.map((feature) => feature.id)).toEqual(["access"]);
 });

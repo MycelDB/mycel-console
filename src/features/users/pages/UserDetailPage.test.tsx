@@ -73,8 +73,7 @@ test("renders principal identity and sessions", async () => {
   expect(screen.getByRole("heading", { name: /owned spaces/i })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Owned Space" })).toHaveAttribute("href", "/spaces/sp_owned");
   expect(screen.queryByText("Other Space")).not.toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: /semantic diagnostics/i })).toBeInTheDocument();
-  expect(screen.getAllByText(/Roles & capabilities tab/).length).toBeGreaterThan(0);
+  expect(screen.queryByRole("heading", { name: /semantic diagnostics/i })).not.toBeInTheDocument();
 });
 
 test("keeps principal detail readable while hiding session revocation without manage capability", async () => {

@@ -40,9 +40,13 @@ use commands::inference::{
     admin_summarize_inference_usage,
 };
 use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
-use commands::semantic::admin_list_semantic_indexes;
+use commands::semantic::{
+    admin_create_semantic_rule, admin_delete_semantic_rule, admin_get_semantic_rule,
+    admin_list_semantic_rules, admin_set_semantic_rule_enabled, admin_update_semantic_rule,
+    admin_validate_semantic_rule, client_semantic_search,
+};
 use commands::semantic_maintenance::{
-    admin_analyze_semantic_dirty_work, admin_backfill_semantic_index,
+    admin_analyze_semantic_dirty_work, admin_backfill_semantic_rule,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,
     admin_list_semantic_maintenance_work, admin_process_semantic_dirty_work,
     admin_retry_semantic_maintenance_work,
@@ -102,14 +106,21 @@ pub fn run() {
             admin_list_automation_invocations,
             admin_get_automation_run,
             admin_list_domains,
-            admin_list_semantic_indexes,
+            admin_list_semantic_rules,
+            admin_get_semantic_rule,
+            admin_validate_semantic_rule,
+            admin_create_semantic_rule,
+            admin_update_semantic_rule,
+            admin_set_semantic_rule_enabled,
+            admin_delete_semantic_rule,
+            client_semantic_search,
             admin_get_semantic_maintenance_status,
             admin_list_semantic_maintenance_work,
             admin_retry_semantic_maintenance_work,
             admin_cancel_semantic_maintenance_work,
             admin_analyze_semantic_dirty_work,
             admin_process_semantic_dirty_work,
-            admin_backfill_semantic_index,
+            admin_backfill_semantic_rule,
             admin_create_principal,
             admin_disable_principal,
             admin_enable_principal,

@@ -6,10 +6,9 @@ const shortcutDefinitions: Record<string, { label?: string; description: string 
   principals: { label: "Manage principals", description: "List, filter, create, disable, and delete human principals." },
   spaces: { label: "View spaces", description: "Inspect spaces and ownership across the cluster." },
   access: { description: "Review principal roles, capabilities, and scoped access." },
-  maintenance: { description: "Run and monitor operational maintenance workflows." },
 };
 
-const shortcutIds = ["principals", "spaces", "access", "maintenance"];
+const shortcutIds = ["principals", "spaces", "access"];
 
 export type ShortcutGridProps = {
   principalContext?: ConsolePrincipalContext | null;

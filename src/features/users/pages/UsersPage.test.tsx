@@ -119,10 +119,11 @@ test("creates a principal and refreshes the list", async () => {
   await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
   const usernameFields = screen.getAllByLabelText(/^username$/i);
   await userEvent.type(usernameFields[usernameFields.length - 1], "new-user");
+  await userEvent.type(screen.getByLabelText(/initial password/i), "secret");
   const createButtons = screen.getAllByRole("button", { name: /^create principal$/i });
   await userEvent.click(createButtons[createButtons.length - 1]);
 
-  await waitFor(() => expect(createPrincipalService).toHaveBeenCalledWith({ username: "new-user", password: undefined, disabled: false }));
+  await waitFor(() => expect(createPrincipalService).toHaveBeenCalledWith({ username: "new-user", password: "secret", disabled: false }));
   await waitFor(() => expect(listPrincipalsService).toHaveBeenCalledTimes(2));
 });
 
@@ -165,6 +166,7 @@ test("shows partial success warning when personal space creation fails", async (
   await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
   const usernameFields = screen.getAllByLabelText(/^username$/i);
   await userEvent.type(usernameFields[usernameFields.length - 1], "new-user");
+  await userEvent.type(screen.getByLabelText(/initial password/i), "secret");
   await userEvent.click(screen.getByLabelText(/create a personal space/i));
   const createButtons = screen.getAllByRole("button", { name: /^create principal$/i });
   await userEvent.click(createButtons[createButtons.length - 1]);

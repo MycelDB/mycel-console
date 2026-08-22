@@ -2,15 +2,15 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, ErrorBox, H2, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
-import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticIndex as defaultBackfillSemanticIndex, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, createAutomation as defaultCreateAutomation, deleteAutomation as defaultDeleteAutomation, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listInferenceProfiles as defaultListInferenceProfiles, listSemanticIndexes as defaultListSemanticIndexes, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork, updateAutomation as defaultUpdateAutomation, validateAutomation as defaultValidateAutomation } from "../../../services/adminService";
+import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticRule as defaultBackfillSemanticRule, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, createAutomation as defaultCreateAutomation, deleteAutomation as defaultDeleteAutomation, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listInferenceProfiles as defaultListInferenceProfiles, listSemanticRules as defaultListSemanticRules, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork, updateAutomation as defaultUpdateAutomation, validateAutomation as defaultValidateAutomation } from "../../../services/adminService";
 import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../../../types/automations";
 import type { PrincipalSession } from "../../../types/auth";
 import type { LookupSpaceRouteInput, LookupSpaceRouteResult } from "../../../types/cluster";
 import type { DomainInfo, ListDomainsInput, ListDomainsResponse } from "../../../types/domains";
 import type { DomainSchemaInfo, GetDomainSchemaInput } from "../../../types/schemas";
 import type { InferenceProfileInfo, ListInferenceProfilesInput, ListInferenceProfilesResponse } from "../../../types/inference";
-import type { ListSemanticIndexesInput, ListSemanticIndexesResponse, SemanticIndexInfo } from "../../../types/semantic";
-import type { AnalyzeSemanticDirtyWorkInput, BackfillSemanticIndexInput, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../../../types/semanticMaintenance";
+import type { ListSemanticRulesInput, ListSemanticRulesResponse, SemanticGenerationRuleSummary } from "../../../types/semantic";
+import type { AnalyzeSemanticDirtyWorkInput, BackfillSemanticRuleInput, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../../../types/semanticMaintenance";
 import type { SpaceInfo } from "../../../types/spaces";
 import { GraphResultCanvas } from "../components/GraphResultCanvas";
 import { aggregateRowsFromQueryResponse, diagnosticsFromQueryResponse, diagnosticsMessage, graphFromQueryResponse, pathGraphsFromQueryResponse } from "../components/graphResultExtraction";
@@ -25,7 +25,7 @@ function errorMessage(err: unknown, fallback: string): string {
 export type SpaceDetailPageProps = {
   getSpaceService?: (spaceId: string) => Promise<SpaceInfo>;
   listDomainsService?: (input: ListDomainsInput) => Promise<ListDomainsResponse>;
-  listSemanticIndexesService?: (input: ListSemanticIndexesInput) => Promise<ListSemanticIndexesResponse>;
+  listSemanticRulesService?: (input: ListSemanticRulesInput) => Promise<ListSemanticRulesResponse>;
   getDomainSchemaService?: (input: GetDomainSchemaInput) => Promise<DomainSchemaInfo>;
   getSemanticMaintenanceStatusService?: (input: GetSemanticMaintenanceStatusInput) => Promise<SemanticMaintenanceStatusInfo>;
   listSemanticMaintenanceWorkService?: (input: ListSemanticMaintenanceWorkInput) => Promise<ListSemanticMaintenanceWorkResponse>;
@@ -33,7 +33,7 @@ export type SpaceDetailPageProps = {
   cancelSemanticMaintenanceWorkService?: (input: SemanticMaintenanceWorkActionInput) => Promise<SemanticMaintenanceWorkItemInfo>;
   analyzeSemanticDirtyWorkService?: (input: AnalyzeSemanticDirtyWorkInput) => Promise<unknown>;
   processSemanticDirtyWorkService?: (input: ProcessSemanticDirtyWorkInput) => Promise<unknown>;
-  backfillSemanticIndexService?: (input: BackfillSemanticIndexInput) => Promise<unknown>;
+  backfillSemanticRuleService?: (input: BackfillSemanticRuleInput) => Promise<unknown>;
   lookupSpaceRouteService?: (input: LookupSpaceRouteInput) => Promise<LookupSpaceRouteResult>;
   listAutomationsService?: (input: DomainAutomationInput) => Promise<ListAutomationsResponseInfo>;
   getAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
@@ -49,7 +49,7 @@ export type SpaceDetailPageProps = {
   principalContext?: ConsolePrincipalContext | null;
 };
 
-export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticIndexesService = defaultListSemanticIndexes, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticIndexService = defaultBackfillSemanticIndex, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, validateAutomationService = defaultValidateAutomation, createAutomationService = defaultCreateAutomation, updateAutomationService = defaultUpdateAutomation, deleteAutomationService = defaultDeleteAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun, listInferenceProfilesService = defaultListInferenceProfiles, principalContext }: SpaceDetailPageProps) {
+export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomainsService = defaultListDomains, listSemanticRulesService = defaultListSemanticRules, getDomainSchemaService = defaultGetDomainSchema, getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus, listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork, retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork, cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork, analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork, processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork, backfillSemanticRuleService = defaultBackfillSemanticRule, lookupSpaceRouteService = defaultLookupSpaceRoute, listAutomationsService = defaultListAutomations, getAutomationService = defaultGetAutomation, enableAutomationService = defaultEnableAutomation, disableAutomationService = defaultDisableAutomation, validateAutomationService = defaultValidateAutomation, createAutomationService = defaultCreateAutomation, updateAutomationService = defaultUpdateAutomation, deleteAutomationService = defaultDeleteAutomation, listAutomationInvocationsService = defaultListAutomationInvocations, getAutomationRunService = defaultGetAutomationRun, listInferenceProfilesService = defaultListInferenceProfiles, principalContext }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
   const [space, setSpace] = useState<SpaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,10 +60,10 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   const [domainsError, setDomainsError] = useState("");
   const [domainsNextPageToken, setDomainsNextPageToken] = useState("");
   const [includeSystemDomains, setIncludeSystemDomains] = useState(false);
-  const [semanticIndexes, setSemanticIndexes] = useState<SemanticIndexInfo[]>([]);
+  const [semanticRules, setSemanticRules] = useState<SemanticGenerationRuleSummary[]>([]);
   const [semanticLoading, setSemanticLoading] = useState(true);
   const [semanticError, setSemanticError] = useState("");
-  const [includeDisabledIndexes, setIncludeDisabledIndexes] = useState(false);
+  const [includeDisabledRules, setIncludeDisabledRules] = useState(false);
   const [maintenanceStatus, setMaintenanceStatus] = useState<SemanticMaintenanceStatusInfo | null>(null);
   const [maintenanceWork, setMaintenanceWork] = useState<SemanticMaintenanceWorkItemInfo[]>([]);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
@@ -341,27 +341,27 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
   useEffect(() => {
     if (!spaceId) return;
     let cancelled = false;
-    async function loadSemanticIndexes() {
+    async function loadSemanticRules() {
       setSemanticLoading(true);
       setSemanticError("");
       try {
-        const response = await listSemanticIndexesService({
+        const response = await listSemanticRulesService({
           spaceId,
           pageSize: 100,
-          includeDisabled: includeDisabledIndexes,
+          includeDisabled: includeDisabledRules,
         });
-        if (!cancelled) setSemanticIndexes(response.indexes);
+        if (!cancelled) setSemanticRules(response.rules);
       } catch (err) {
-        if (!cancelled) setSemanticError(err instanceof Error ? err.message : "Failed to load semantic indexes");
+        if (!cancelled) setSemanticError(err instanceof Error ? err.message : "Failed to load semantic rules");
       } finally {
         if (!cancelled) setSemanticLoading(false);
       }
     }
-    void loadSemanticIndexes();
+    void loadSemanticRules();
     return () => {
       cancelled = true;
     };
-  }, [includeDisabledIndexes, listSemanticIndexesService, spaceId]);
+  }, [includeDisabledRules, listSemanticRulesService, spaceId]);
 
   useEffect(() => {
     if (!spaceId) return;
@@ -412,15 +412,15 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
     }
   }
 
-  async function runBulkMaintenanceAction(kind: "analyze" | "process" | "backfill", semanticIndexId?: string) {
+  async function runBulkMaintenanceAction(kind: "analyze" | "process" | "backfill", semanticRuleId?: string, embeddingBindingKey?: string) {
     if (!spaceId) return;
     setMaintenanceActionLoading(true);
     setMaintenanceError("");
     setMaintenanceResult("");
     try {
-      if (kind === "analyze") await analyzeSemanticDirtyWorkService({ spaceId, semanticIndexId, limit: 100 });
+      if (kind === "analyze") await analyzeSemanticDirtyWorkService({ spaceId, semanticRuleId, limit: 100 });
       if (kind === "process") await processSemanticDirtyWorkService({ spaceId, limit: 100 });
-      if (kind === "backfill" && semanticIndexId) await backfillSemanticIndexService({ spaceId, semanticIndexId, limit: 100, continueOnError: true });
+      if (kind === "backfill" && semanticRuleId && embeddingBindingKey) await backfillSemanticRuleService({ spaceId, semanticRuleId, embeddingBindingKey, limit: 100, continueOnError: true });
       const [status, work] = await Promise.all([getSemanticMaintenanceStatusService({ spaceId }), listSemanticMaintenanceWorkService({ spaceId, status: maintenanceWorkStatus, limit: 100 })]);
       setMaintenanceStatus(status);
       setMaintenanceWork(work.items);
@@ -548,13 +548,13 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         canMutate={canManageSemantic}
         />
 
-        <SemanticIndexesSection
-        indexes={semanticIndexes}
+        <SemanticRulesSection
+        indexes={semanticRules}
         loading={semanticLoading}
         error={semanticError}
-        includeDisabled={includeDisabledIndexes}
-        onIncludeDisabledChange={setIncludeDisabledIndexes}
-        onBackfill={(index) => void runBulkMaintenanceAction("backfill", index.semanticIndexId)}
+        includeDisabled={includeDisabledRules}
+        onIncludeDisabledChange={setIncludeDisabledRules}
+        onBackfill={(rule) => void runBulkMaintenanceAction("backfill", rule.semanticRuleId, rule.bindings[0]?.key)}
         actionLoading={maintenanceActionLoading}
         canMutate={canManageSemantic}
         />
@@ -617,7 +617,7 @@ function ConfirmMaintenanceActionDialog({ kind, item, loading, onCancel, onConfi
       <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
         <Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">{isRetry ? "Retry maintenance work item" : "Cancel maintenance work item"}</Text>
         <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">{isRetry ? "Retry will make this item eligible for processing again." : "Cancel will stop this queued item from being processed."} Review the target before continuing.</Text>
-        <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-950/60"><div><strong>Work item:</strong> {item.workItemId}</div><div><strong>Action:</strong> {item.action || "—"}</div><div><strong>Status:</strong> {item.status || "—"}</div><div><strong>Index:</strong> {item.semanticIndexId || "—"}</div></div>
+        <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-950/60"><div><strong>Work item:</strong> {item.workItemId}</div><div><strong>Action:</strong> {item.action || "—"}</div><div><strong>Status:</strong> {item.status || "—"}</div><div><strong>Rule:</strong> {item.semanticRuleId || "—"} / {item.embeddingBindingKey || "—"}</div></div>
         <div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={onCancel} disabled={loading}>Keep item unchanged</Button><Button onClick={onConfirm} disabled={loading}>{loading ? "Working…" : isRetry ? "Retry item" : "Cancel item"}</Button></div>
       </div>
     </div>
@@ -644,7 +644,7 @@ function SemanticMaintenanceSection({ status, workItems, loading, error, workSta
           <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Action</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Attempts</th><th className="px-4 py-3">Domain</th><th className="px-4 py-3">Index</th><th className="px-4 py-3">Last error</th><th className="px-4 py-3">Safe actions</th></tr></thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{workItems.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={7}>No maintenance work items found.</td></tr> : workItems.map((item) => <tr key={item.workItemId}><td className="px-4 py-3">{item.action || "—"}</td><td className="px-4 py-3">{item.status || "—"}</td><td className="px-4 py-3">{item.attemptCount}</td><td className="px-4 py-3 font-mono text-xs">{item.domainId || "—"}</td><td className="px-4 py-3 font-mono text-xs">{item.semanticIndexId || "—"}</td><td className="px-4 py-3 max-w-md truncate" title={item.lastErrorMessageSanitized}>{item.lastErrorCategory || item.lastErrorMessageSanitized || "—"}</td><td className="px-4 py-3">{canMutate ? <div className="flex gap-2"><Button variant="secondary" onClick={() => onRetry(item)}>Retry</Button><Button variant="secondary" className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40" onClick={() => onCancel(item)}>Cancel</Button></div> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{workItems.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={7}>No maintenance work items found.</td></tr> : workItems.map((item) => <tr key={item.workItemId}><td className="px-4 py-3">{item.action || "—"}</td><td className="px-4 py-3">{item.status || "—"}</td><td className="px-4 py-3">{item.attemptCount}</td><td className="px-4 py-3 font-mono text-xs">{item.domainId || "—"}</td><td className="px-4 py-3 font-mono text-xs">{item.semanticRuleId || "—"}</td><td className="px-4 py-3 max-w-md truncate" title={item.lastErrorMessageSanitized}>{item.lastErrorCategory || item.lastErrorMessageSanitized || "—"}</td><td className="px-4 py-3">{canMutate ? <div className="flex gap-2"><Button variant="secondary" onClick={() => onRetry(item)}>Retry</Button><Button variant="secondary" className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40" onClick={() => onCancel(item)}>Cancel</Button></div> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
             </table>
           </div>
         </>
@@ -658,29 +658,29 @@ function Metric({ label, value, tone = "default" }: { label: string; value: Reac
   return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40"><Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">{label}</Text><Text className={`mt-1 font-semibold ${valueClass}`}>{value}</Text></div>;
 }
 
-function SemanticIndexesSection({ indexes, loading, error, includeDisabled, onIncludeDisabledChange, onBackfill, actionLoading, canMutate }: { indexes: SemanticIndexInfo[]; loading: boolean; error: string; includeDisabled: boolean; onIncludeDisabledChange: (value: boolean) => void; onBackfill: (index: SemanticIndexInfo) => void; actionLoading: boolean; canMutate: boolean }) {
+function SemanticRulesSection({ indexes, loading, error, includeDisabled, onIncludeDisabledChange, onBackfill, actionLoading, canMutate }: { indexes: SemanticGenerationRuleSummary[]; loading: boolean; error: string; includeDisabled: boolean; onIncludeDisabledChange: (value: boolean) => void; onBackfill: (index: SemanticGenerationRuleSummary) => void; actionLoading: boolean; canMutate: boolean }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Semantic indexes</Text>
-          <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Space/domain-scoped semantic search indexes.</Text>
+          <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Semantic rules</Text>
+          <Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Space/domain-scoped semantic generation rules and binding health.</Text>
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600" checked={includeDisabled} onChange={(event) => onIncludeDisabledChange(event.target.checked)} />
-          Include disabled indexes
+          Include disabled rules
         </label>
       </div>
       {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
       {loading ? (
-        <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading semantic indexes…</Text>
+        <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading semantic rules…</Text>
       ) : indexes.length === 0 ? (
-        <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No semantic indexes found for this space.</Text>
+        <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No semantic rules found for this space.</Text>
       ) : (
         <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Key</th><th className="px-4 py-3">Domain ID</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Model</th><th className="px-4 py-3">Vector store</th><th className="px-4 py-3">Index ID</th><th className="px-4 py-3">Safe actions</th></tr></thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{indexes.map((index) => <tr key={index.semanticIndexId}><td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{index.displayName || index.key}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.domainId}</td><td className="px-4 py-3">{index.state}</td><td className="px-4 py-3">{index.modelLabel || "—"}</td><td className="px-4 py-3">{index.vectorStoreLabel || "—"}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.semanticIndexId}</td><td className="px-4 py-3">{canMutate ? <Button variant="secondary" disabled={actionLoading} onClick={() => onBackfill(index)}>Backfill</Button> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
+            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Key</th><th className="px-4 py-3">Domain ID</th><th className="px-4 py-3">State</th><th className="px-4 py-3">Bindings</th><th className="px-4 py-3">Rule ID</th><th className="px-4 py-3">Safe actions</th></tr></thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{indexes.map((index) => <tr key={index.semanticRuleId}><td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{index.displayName || index.key}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.domainId}</td><td className="px-4 py-3">{index.state}</td><td className="px-4 py-3">{index.bindings.map((binding) => `${binding.key} (${binding.intelligenceProfileKey || binding.intelligenceProfileId || "profile?"} / ${binding.vectorStoreKey || binding.vectorStoreId || "store?"})`).join(", ") || "—"}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{index.semanticRuleId}</td><td className="px-4 py-3">{canMutate ? <Button variant="secondary" disabled={actionLoading || index.bindings.length === 0} onClick={() => onBackfill(index)}>Backfill</Button> : <span className="text-slate-500 dark:text-slate-400">Read-only</span>}</td></tr>)}</tbody>
           </table>
         </div>
       )}

@@ -45,7 +45,7 @@ jest.mock("../../services/adminService", () => ({
   cancelSemanticMaintenanceWork: jest.fn().mockResolvedValue({}),
   getSemanticMaintenanceStatus: jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 0, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
   listSemanticMaintenanceWork: jest.fn().mockResolvedValue({ items: [] }),
-  listSemanticIndexes: jest.fn().mockResolvedValue({ indexes: [], nextPageToken: "" }),
+  listSemanticRules: jest.fn().mockResolvedValue({ rules: [], nextPageToken: "" }),
   retrySemanticMaintenanceWork: jest.fn().mockResolvedValue({}),
   listSpaces: jest.fn().mockResolvedValue({ spaces: [], nextPageToken: "" }),
   listPrincipals: jest.fn().mockResolvedValue({
@@ -152,9 +152,9 @@ test("redirects inference route to Intelligence Access", async () => {
   expect(await screen.findByRole("tab", { name: "Endpoints" })).toHaveAttribute("aria-selected", "true");
 });
 
-test("invokes logout from persistent header", async () => {
+test("invokes logout from persistent sidebar", async () => {
   const onLogout = jest.fn();
-  renderShell("/maintenance", onLogout);
+  renderShell("/dashboard", onLogout);
 
   await userEvent.click(screen.getByRole("button", { name: /logout/i }));
 

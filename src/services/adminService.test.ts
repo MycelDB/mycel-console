@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
+  AUTH_EXPIRED_EVENT,
   applyInferencePackage,
   connectionDiagnostics,
   createSpace,
@@ -15,6 +16,7 @@ import {
   getMyAccess,
   getPrincipal,
   getSpace,
+  isAuthExpiredError,
   grantPrincipalCapability,
   grantPrincipalRole,
   listBackups,
@@ -31,8 +33,9 @@ import {
   retrySemanticMaintenanceWork,
   listModels,
   listRaftGroups,
-  listSemanticIndexes,
+  listSemanticRules,
   revokePrincipalCapability,
+  semanticSearch,
   revokePrincipalRole,
   revokePrincipalSession,
   revokePrincipalSessions,
@@ -52,6 +55,24 @@ const invokeMock = jest.mocked(invoke);
 
 beforeEach(() => {
   invokeMock.mockReset();
+});
+
+test("detects expired authorization token errors", () => {
+  expect(isAuthExpiredError("rpc error: code = Unauthenticated desc = authorization token is expired")).toBe(true);
+  expect(isAuthExpiredError(new Error("access token is expired"))).toBe(true);
+  expect(isAuthExpiredError("permission denied")).toBe(false);
+});
+
+test("emits auth expired event for protected command failures", async () => {
+  const listener = jest.fn();
+  window.addEventListener(AUTH_EXPIRED_EVENT, listener);
+  invokeMock.mockRejectedValue("rpc error: code = Unauthenticated desc = authorization token is expired");
+
+  await expect(getClusterStatus()).rejects.toMatch("authorization token is expired");
+
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener.mock.calls[0][0]).toMatchObject({ detail: { message: expect.stringContaining("authorization token is expired") } });
+  window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
 });
 
 const policy: BackupPolicyInfo = {
@@ -457,13 +478,13 @@ test("listSemanticMaintenanceWork sends filter input", async () => {
   });
 });
 
-test("listSemanticIndexes sends space scoped input", async () => {
-  const response = { indexes: [], nextPageToken: "" };
+test("listSemanticRules sends space scoped input", async () => {
+  const response = { rules: [], nextPageToken: "" };
   invokeMock.mockResolvedValue(response);
 
-  await expect(listSemanticIndexes({ spaceId: "sp_main", includeDisabled: true })).resolves.toEqual(response);
+  await expect(listSemanticRules({ spaceId: "sp_main", includeDisabled: true })).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_list_semantic_indexes", {
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_semantic_rules", {
     input: { spaceId: "sp_main", includeDisabled: true },
   });
 });
@@ -510,6 +531,16 @@ test("listVectorStores sends include disabled input", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_list_vector_stores", {
     input: { includeDisabled: true },
   });
+});
+
+test("semanticSearch invokes client semantic search command", async () => {
+  const response = { results: [], warnings: [] };
+  const input = { spaceId: "sp1", domainId: "dom1", query: "graph memory", limit: 10 };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(semanticSearch(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("client_semantic_search", { input });
 });
 
 test("listModelEndpointCapabilities sends filters", async () => {

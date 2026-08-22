@@ -31,6 +31,16 @@ test("hides personal space option by default", () => {
   expect(screen.queryByLabelText(/create a personal space/i)).not.toBeInTheDocument();
 });
 
+test("requires a password for active principals", async () => {
+  const props = renderModal();
+
+  await userEvent.type(screen.getByLabelText(/^username$/i), "new-user");
+  await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Initial password is required");
+  expect(props.onCreate).not.toHaveBeenCalled();
+});
+
 test("creates a principal and reports success", async () => {
   const props = renderModal();
 
@@ -71,6 +81,7 @@ test("reports partial success when personal space creation fails", async () => {
   const props = renderModal({ canCreatePersonalSpace: true, onCreatePersonalSpace });
 
   await userEvent.type(screen.getByLabelText(/^username$/i), "new-user");
+  await userEvent.type(screen.getByLabelText(/initial password/i), "secret");
   await userEvent.click(screen.getByLabelText(/create a personal space/i));
   await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
 
@@ -82,7 +93,18 @@ test("shows backend errors", async () => {
   renderModal({ onCreate: jest.fn().mockRejectedValue(new Error("Already exists")) });
 
   await userEvent.type(screen.getByLabelText(/^username$/i), "new-user");
+  await userEvent.type(screen.getByLabelText(/initial password/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent("Already exists");
+});
+
+test("shows string backend errors from Tauri", async () => {
+  renderModal({ onCreate: jest.fn().mockRejectedValue("status: InvalidArgument, message: password is required") });
+
+  await userEvent.type(screen.getByLabelText(/^username$/i), "new-user");
+  await userEvent.type(screen.getByLabelText(/initial password/i), "secret");
+  await userEvent.click(screen.getByRole("button", { name: /^create principal$/i }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("password is required");
 });

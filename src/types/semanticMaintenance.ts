@@ -16,15 +16,14 @@ export type SemanticMaintenanceStatusInfo = {
   workerRuns: number;
 };
 
-export type GetSemanticMaintenanceStatusInput = {
-  spaceId: string;
-};
+export type GetSemanticMaintenanceStatusInput = { spaceId: string };
 
 export type SemanticMaintenanceWorkItemInfo = {
   workItemId: string;
   spaceId: string;
   domainId: string;
-  semanticIndexId: string;
+  semanticRuleId: string;
+  embeddingBindingKey: string;
   targetNodeId: string;
   action: string;
   status: string;
@@ -37,24 +36,13 @@ export type SemanticMaintenanceWorkItemInfo = {
   updatedAt: string;
 };
 
-export type SemanticMaintenanceWorkActionInput = {
-  spaceId: string;
-  workItemId: string;
-};
-
-export type AnalyzeSemanticDirtyWorkInput = { spaceId: string; semanticIndexId?: string; limit?: number };
+export type SemanticMaintenanceWorkActionInput = { spaceId: string; workItemId: string };
+export type AnalyzeSemanticDirtyWorkInput = { spaceId: string; semanticRuleId?: string; embeddingBindingKey?: string; limit?: number };
 export type AnalyzeSemanticDirtyWorkResponse = { processedEvents: number; enqueuedItems: number };
 export type ProcessSemanticDirtyWorkInput = { spaceId: string; limit?: number };
 export type ProcessSemanticDirtyWorkResponse = { processedItems: number; completedItems: number; failedItems: number };
-export type BackfillSemanticIndexInput = { spaceId: string; semanticIndexId: string; nodeIds?: string[]; force?: boolean; limit?: number; continueOnError?: boolean };
-export type BackfillSemanticIndexResponse = { semanticIndexId: string; selectedCount: number; generatedCount: number; skippedCount: number; failedCount: number };
+export type BackfillSemanticRuleInput = { spaceId: string; semanticRuleId: string; embeddingBindingKey: string; nodeIds?: string[]; force?: boolean; limit?: number; continueOnError?: boolean };
+export type BackfillSemanticRuleResponse = { semanticRuleId: string; embeddingBindingKey: string; selectedCount: number; generatedCount: number; skippedCount: number; failedCount: number };
 
-export type ListSemanticMaintenanceWorkInput = {
-  spaceId: string;
-  status?: string;
-  limit?: number;
-};
-
-export type ListSemanticMaintenanceWorkResponse = {
-  items: SemanticMaintenanceWorkItemInfo[];
-};
+export type ListSemanticMaintenanceWorkInput = { spaceId: string; status?: string; semanticRuleId?: string; embeddingBindingKey?: string; limit?: number };
+export type ListSemanticMaintenanceWorkResponse = { items: SemanticMaintenanceWorkItemInfo[] };

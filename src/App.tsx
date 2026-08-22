@@ -4,7 +4,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { Main, Text } from "./components/typography";
 import { LoginPage } from "./features/auth";
 import { consoleBranding, loadConsolePrincipalContext, type ConsolePrincipalContext } from "./features/console";
-import { logout as logoutService, whoAmI } from "./services/adminService";
+import { AUTH_EXPIRED_EVENT, logout as logoutService, whoAmI } from "./services/adminService";
 import type { PrincipalSession } from "./types/auth";
 import { storedTheme, THEME_STORAGE_KEY, type Theme } from "./types/theme";
 
@@ -12,6 +12,7 @@ export default function App() {
   const [session, setSession] = useState<PrincipalSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const [principalContext, setPrincipalContext] = useState<ConsolePrincipalContext | null>(null);
   const [principalContextLoading, setPrincipalContextLoading] = useState(false);
@@ -25,6 +26,21 @@ export default function App() {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+
+  useEffect(() => {
+    function handleAuthExpired(event: Event) {
+      const detail = event instanceof CustomEvent ? event.detail as { message?: string } | undefined : undefined;
+      setAuthNotice(detail?.message || "Session expired. Sign in again.");
+      setLogoutError("");
+      setLoggingOut(false);
+      setSession(null);
+      setPrincipalContext(null);
+      void logoutService().catch(() => undefined);
+    }
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +91,7 @@ export default function App() {
       await logoutService();
       setSession(null);
       setPrincipalContext(null);
+      setAuthNotice("");
     } catch (err) {
       setLogoutError(err instanceof Error ? err.message : "Logout failed");
     } finally {
@@ -91,7 +108,7 @@ export default function App() {
   }
 
   if (!session) {
-    return <LoginPage onLoginSuccess={setSession} />;
+    return <LoginPage notice={authNotice} onLoginSuccess={(nextSession) => { setAuthNotice(""); setSession(nextSession); }} />;
   }
 
   return (

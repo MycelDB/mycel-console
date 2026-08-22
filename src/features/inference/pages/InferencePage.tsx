@@ -7,6 +7,7 @@ import {
   createInferenceCredentialGrant as defaultCreateInferenceCredentialGrant,
   createInferencePolicy as defaultCreateInferencePolicy,
   createInferenceProfile as defaultCreateInferenceProfile,
+  setInferenceCredentialStatus as defaultSetInferenceCredentialStatus,
   expireInferenceCredentialGrant as defaultExpireInferenceCredentialGrant,
   expireInferencePolicy as defaultExpireInferencePolicy,
   listInferenceCredentialGrants as defaultListInferenceCredentialGrants,
@@ -30,6 +31,7 @@ import type {
   CreateInferencePolicyInput,
   CreateInferenceProfileInput,
   CredentialGrantInfo,
+  CredentialStatusInput,
   InferenceCredentialInfo,
   InferenceModelInfo,
   InferencePackageDocument,
@@ -94,6 +96,16 @@ type PolicyDraft = {
   reason: string;
 };
 
+type ProfileDraft = {
+  key: string;
+  displayName: string;
+  operation: string;
+  purpose: string;
+  modelRefs: string[];
+  endpointRefs: string[];
+  maxOutputTokens: string;
+};
+
 type GrantDraft = {
   spaceId: string;
   domainId: string;
@@ -107,7 +119,7 @@ type GrantDraft = {
   priority: string;
   includeInactive: boolean;
   advancedOpen: boolean;
-  semanticIndexId: string;
+  semanticRuleId: string;
   nodeId: string;
   credentialRef: string;
   endpointRef: string;
@@ -147,6 +159,7 @@ export type InferencePageProps = {
   createInferenceProfileService?: (input: CreateInferenceProfileInput) => Promise<unknown>;
   listInferenceCredentialsService?: (input?: ListCredentialsInput) => Promise<ListCredentialsResponse>;
   createInferenceCredentialService?: (input: CreateCredentialInput) => Promise<unknown>;
+  setInferenceCredentialStatusService?: (input: CredentialStatusInput) => Promise<unknown>;
   listInferenceCredentialGrantsService?: (input: ListCredentialGrantsInput) => Promise<ListCredentialGrantsResponse>;
   createInferenceCredentialGrantService?: (input: CreateCredentialGrantInput) => Promise<unknown>;
   expireInferenceCredentialGrantService?: (input: { spaceId: string; credentialGrantId: string }) => Promise<unknown>;
@@ -171,6 +184,7 @@ export function InferencePage({
   createInferenceProfileService = defaultCreateInferenceProfile,
   listInferenceCredentialsService = defaultListInferenceCredentials,
   createInferenceCredentialService = defaultCreateInferenceCredential,
+  setInferenceCredentialStatusService = defaultSetInferenceCredentialStatus,
   listInferenceCredentialGrantsService = defaultListInferenceCredentialGrants,
   createInferenceCredentialGrantService = defaultCreateInferenceCredentialGrant,
   expireInferenceCredentialGrantService = defaultExpireInferenceCredentialGrant,
@@ -219,9 +233,9 @@ export function InferencePage({
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
   const [setupMessage, setSetupMessage] = useState("");
-  const [profileForm, setProfileForm] = useState({ key: "summarize-page", displayName: "Summarize page", operation: "chat", purpose: "automation", modelRef: "openai/gpt-5.6-mini", endpointRef: "openai", maxOutputTokens: "512" });
+  const [profileForm, setProfileForm] = useState<ProfileDraft>({ key: "summarize-page", displayName: "Summarize page", operation: "chat", purpose: "automation", modelRefs: ["openai/gpt-5.6-mini"], endpointRefs: ["openai"], maxOutputTokens: "512" });
   const [credentialForm, setCredentialForm] = useState<CredentialDraft>({ key: "openai-default", modelEndpointId: "", secretValue: "", isDefault: true });
-  const [grantDraft, setGrantDraft] = useState<GrantDraft>({ spaceId: "", domainId: "", modelId: "", endpointId: "", credentialId: "", operations: [], includeDescendants: true, allowBackgroundUse: true, isDefault: true, priority: "0", includeInactive: false, advancedOpen: false, semanticIndexId: "", nodeId: "", credentialRef: "", endpointRef: "", modelRef: "" });
+  const [grantDraft, setGrantDraft] = useState<GrantDraft>({ spaceId: "", domainId: "", modelId: "", endpointId: "", credentialId: "", operations: [], includeDescendants: true, allowBackgroundUse: true, isDefault: true, priority: "0", includeInactive: false, advancedOpen: false, semanticRuleId: "", nodeId: "", credentialRef: "", endpointRef: "", modelRef: "" });
   const [grantSpaces, setGrantSpaces] = useState<SpaceInfo[]>([]);
   const [grantDomains, setGrantDomains] = useState<DomainInfo[]>([]);
   const [grantLoadError, setGrantLoadError] = useState("");
@@ -300,14 +314,20 @@ export function InferencePage({
     setSetupLoading(true);
     try {
       if (activeTab === "profiles") {
-        const [spacesResponse, profilesResponse] = await Promise.all([
+        const [spacesResponse, profilesResponse, endpointsResponse, modelsResponse, capabilitiesResponse] = await Promise.all([
           listSpacesService({ pageSize: 100 }),
           spaceFilter.trim()
             ? listInferenceProfilesService({ spaceId: spaceFilter, domainId: domainFilter, operation: operationFilter, includeDisabled: includeDisabledCatalog, pageSize: 100 })
             : Promise.resolve({ inferenceProfiles: [], nextPageToken: "" }),
+          listModelEndpointsService({ pageSize: 500, includeDisabled: true }),
+          listModelsService({ pageSize: 500 }),
+          listModelEndpointCapabilitiesService({ pageSize: 500, includeDisabled: true }),
         ]);
         setProfileSpaces(spacesResponse.spaces);
         setProfiles(profilesResponse.inferenceProfiles);
+        setEndpoints(endpointsResponse.modelEndpoints);
+        setModels(modelsResponse.models);
+        setCapabilities(capabilitiesResponse.modelEndpointCapabilities);
       } else if (activeTab === "credentials") {
         const [credentialsResponse, endpointsResponse] = await Promise.all([
           listInferenceCredentialsService({ pageSize: 100, includeInactive: includeDisabledCatalog }),
@@ -460,15 +480,11 @@ export function InferencePage({
     return () => { cancelled = true; };
   }, [activeTab, policyDraft.spaceId, listDomainsService]);
 
-  function splitCsv(value: string): string[] {
-    return value.split(",").map((item) => item.trim()).filter(Boolean);
-  }
-
   async function handleCreateProfile() {
     if (!spaceFilter.trim()) { setSetupError("Space ID is required"); return; }
     setSetupLoading(true); setSetupError(""); setSetupMessage("");
     try {
-      await createInferenceProfileService({ spaceId: spaceFilter, key: profileForm.key, displayName: profileForm.displayName, operation: profileForm.operation, purpose: profileForm.purpose, domainIds: domainFilter ? [domainFilter] : [], endpointRefs: splitCsv(profileForm.endpointRef), modelRefs: splitCsv(profileForm.modelRef), defaultParameters: { maxOutputTokens: Number(profileForm.maxOutputTokens) || 0, responseFormat: "text" }, enabled: true });
+      await createInferenceProfileService({ spaceId: spaceFilter, key: profileForm.key, displayName: profileForm.displayName, operation: profileForm.operation, purpose: profileForm.purpose, domainIds: domainFilter ? [domainFilter] : [], endpointRefs: profileForm.endpointRefs, modelRefs: profileForm.modelRefs, defaultParameters: { maxOutputTokens: Number(profileForm.maxOutputTokens) || 0, responseFormat: "text" }, enabled: true });
       setSetupMessage("Inference profile created.");
       await loadSetupTab();
     } catch (err) { setSetupError(errorMessage(err, "Failed to create inference profile")); }
@@ -489,6 +505,18 @@ export function InferencePage({
     finally { setSetupLoading(false); }
   }
 
+  async function handleRevokeCredential(credential: InferenceCredentialInfo) {
+    const label = credential.key || credential.credentialId;
+    if (typeof window !== "undefined" && !window.confirm(`Revoke credential ${label}? Existing grants will no longer be able to use it.`)) return;
+    setSetupLoading(true); setSetupError(""); setSetupMessage("");
+    try {
+      await setInferenceCredentialStatusService({ credentialId: credential.credentialId, status: "revoked" });
+      setSetupMessage(`Credential ${label} revoked.`);
+      await loadSetupTab();
+    } catch (err) { setSetupError(errorMessage(err, "Failed to revoke credential")); }
+    finally { setSetupLoading(false); }
+  }
+
   async function handleCreateGrant() {
     const selectedSpaceId = grantDraft.spaceId || spaceFilter;
     if (!selectedSpaceId.trim()) { setSetupError("Space is required"); return; }
@@ -502,7 +530,7 @@ export function InferencePage({
         spaceId: selectedSpaceId,
         credentialId: grantDraft.credentialId,
         credential: grantDraft.credentialRef,
-        scope: { spaceId: selectedSpaceId, domainId: grantDraft.domainId || domainFilter, includeDescendants: grantDraft.includeDescendants, semanticIndexId: grantDraft.semanticIndexId, nodeId: grantDraft.nodeId },
+        scope: { spaceId: selectedSpaceId, domainId: grantDraft.domainId || domainFilter, includeDescendants: grantDraft.includeDescendants, semanticRuleId: grantDraft.semanticRuleId, nodeId: grantDraft.nodeId },
         operations: grantDraft.operations,
         modelEndpointId: grantDraft.endpointId,
         modelEndpoint: grantDraft.endpointRef,
@@ -709,6 +737,7 @@ export function InferencePage({
           canManagePolicies={canManagePolicies}
           onCreateProfile={() => void handleCreateProfile()}
           onCreateCredential={() => void handleCreateCredential()}
+          onRevokeCredential={(credential) => void handleRevokeCredential(credential)}
           onStartCreateGrant={() => {
             setGrantDraft((current) => ({ ...current, spaceId: grantFilter.spaceId || current.spaceId, domainId: grantFilter.domainId || current.domainId }));
             setGrantCreateOpen(true);
@@ -760,14 +789,22 @@ function Field({ label, value, onChange, placeholder, type = "text" }: { label: 
   return <label className="block text-sm font-medium text-slate-900 dark:text-slate-100">{label}<input type={type} className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>;
 }
 
-function InferenceSetupSection({ activeTab, loading, error, message, spaceId, profileForm, setProfileForm, credentialForm, setCredentialForm, grantDraft, setGrantDraft, grantSpaces, grantDomains, grantLoadError, grantCreateOpen, endpoints, models, capabilities, policyDraft, setPolicyDraft, policySpaces, policyDomains, policyLoadError, policyCreateOpen, profiles, credentials, grants, policies, usageEvents, usageSummaries, canManageProfiles, canManageCredentials, canManageGrants, canManagePolicies, onCreateProfile, onCreateCredential, onStartCreateGrant, onCancelCreateGrant, onCreateGrant, onStartCreatePolicy, onCancelCreatePolicy, onCreatePolicy, onExpireGrant, onExpirePolicy, onViewDetails }: {
+function MultiSelectChecklist({ label, values, options, emptyText, onToggle }: { label: string; values: string[]; options: Array<{ value: string; label: string; hint?: string }>; emptyText: string; onToggle: (value: string, checked: boolean) => void }) {
+  return <fieldset className="rounded-md border border-slate-200 p-3 dark:border-slate-800"><legend className="px-1 text-sm font-medium text-slate-900 dark:text-slate-100">{label}</legend>{options.length === 0 ? <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">{emptyText}</Text> : <div className="mt-2 max-h-40 space-y-2 overflow-auto">{options.map((option) => <label key={option.value} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" className="mt-0.5" checked={values.includes(option.value)} onChange={(event) => onToggle(option.value, event.target.checked)} aria-label={`${label}: ${option.label}`} /><span><span className="font-medium text-slate-900 dark:text-slate-100">{option.label}</span>{option.hint && <span className="block text-xs text-slate-500 dark:text-slate-400">{option.hint}</span>}</span></label>)}</div>}</fieldset>;
+}
+
+function uniqueOptions(options: Array<{ value: string; label: string; hint?: string }>) {
+  return Array.from(new Map(options.map((option) => [option.value, option])).values());
+}
+
+function InferenceSetupSection({ activeTab, loading, error, message, spaceId, profileForm, setProfileForm, credentialForm, setCredentialForm, grantDraft, setGrantDraft, grantSpaces, grantDomains, grantLoadError, grantCreateOpen, endpoints, models, capabilities, policyDraft, setPolicyDraft, policySpaces, policyDomains, policyLoadError, policyCreateOpen, profiles, credentials, grants, policies, usageEvents, usageSummaries, canManageProfiles, canManageCredentials, canManageGrants, canManagePolicies, onCreateProfile, onCreateCredential, onRevokeCredential, onStartCreateGrant, onCancelCreateGrant, onCreateGrant, onStartCreatePolicy, onCancelCreatePolicy, onCreatePolicy, onExpireGrant, onExpirePolicy, onViewDetails }: {
   activeTab: InferenceTab;
   loading: boolean;
   error: string;
   message: string;
   spaceId: string;
-  profileForm: { key: string; displayName: string; operation: string; purpose: string; modelRef: string; endpointRef: string; maxOutputTokens: string };
-  setProfileForm: (value: typeof profileForm | ((current: typeof profileForm) => typeof profileForm)) => void;
+  profileForm: ProfileDraft;
+  setProfileForm: (value: ProfileDraft | ((current: ProfileDraft) => ProfileDraft)) => void;
   credentialForm: CredentialDraft;
   setCredentialForm: (value: CredentialDraft | ((current: CredentialDraft) => CredentialDraft)) => void;
   grantDraft: GrantDraft;
@@ -797,6 +834,7 @@ function InferenceSetupSection({ activeTab, loading, error, message, spaceId, pr
   canManagePolicies: boolean;
   onCreateProfile: () => void;
   onCreateCredential: () => void;
+  onRevokeCredential: (credential: InferenceCredentialInfo) => void;
   onStartCreateGrant: () => void;
   onCancelCreateGrant: () => void;
   onCreateGrant: () => void;
@@ -807,14 +845,28 @@ function InferenceSetupSection({ activeTab, loading, error, message, spaceId, pr
   onExpirePolicy: (policyId: string) => void;
   onViewDetails: (title: string, data: unknown) => void;
 }) {
+  const profileOperation = profileForm.operation.trim().toLowerCase();
+  const profileModelOptionsFromModels = models
+    .filter((model) => !profileOperation || model.operation.toLowerCase() === profileOperation)
+    .map((model) => ({ value: model.key || model.modelId, label: model.key || model.modelName || model.modelId, hint: [model.operation, model.dimensions ? `${model.dimensions} dims` : ""].filter(Boolean).join(" · ") }));
+  const profileModelOptions = profileModelOptionsFromModels.length > 0 ? profileModelOptionsFromModels : uniqueOptions(capabilities
+    .filter((capability) => capability.enabled && (!profileOperation || capability.operation.toLowerCase() === profileOperation) && (capability.modelKey || capability.modelId))
+    .map((capability) => ({ value: capability.modelKey || capability.modelId, label: capability.modelKey || capability.modelId, hint: capability.operation }))
+  );
+  const selectedProfileModelIds = new Set(models.filter((model) => profileForm.modelRefs.includes(model.key || model.modelId)).map((model) => model.modelId));
+  const capableEndpointIds = new Set(capabilities.filter((capability) => capability.enabled && (!profileOperation || capability.operation.toLowerCase() === profileOperation) && (selectedProfileModelIds.size === 0 || selectedProfileModelIds.has(capability.modelId))).map((capability) => capability.modelEndpointId));
+  const profileEndpointOptions = endpoints
+    .filter((endpoint) => endpoint.enabled && (!profileOperation || endpoint.operations.some((operation) => operation.toLowerCase() === profileOperation)) && (capabilities.length === 0 || capableEndpointIds.has(endpoint.modelEndpointId)))
+    .map((endpoint) => ({ value: endpoint.key || endpoint.modelEndpointId, label: endpoint.key || endpoint.name || endpoint.modelEndpointId, hint: [endpoint.name, endpoint.privacyClass].filter(Boolean).join(" · ") }));
+  const toggleProfileRef = (field: "endpointRefs" | "modelRefs", value: string, checked: boolean) => setProfileForm((current) => ({ ...current, [field]: checked ? Array.from(new Set([...current[field], value])) : current[field].filter((item) => item !== value) }));
   return <div className="space-y-4">
     {error && <ErrorBox>{error}</ErrorBox>}
     {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">{message}</div>}
-    {(activeTab === "profiles" && canManageProfiles) && <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70"><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Create profile</Text><div className="mt-3 grid gap-3 md:grid-cols-3"><Field label="Key" value={profileForm.key} onChange={(key) => setProfileForm((current) => ({ ...current, key }))} /><Field label="Display name" value={profileForm.displayName} onChange={(displayName) => setProfileForm((current) => ({ ...current, displayName }))} /><SelectField label="Operation" value={profileForm.operation} onChange={(operation) => setProfileForm((current) => ({ ...current, operation }))} options={inferenceOperationOptions} placeholder="Choose an operation" /><Field label="Purpose" value={profileForm.purpose} onChange={(purpose) => setProfileForm((current) => ({ ...current, purpose }))} /><Field label="Endpoint refs" value={profileForm.endpointRef} onChange={(endpointRef) => setProfileForm((current) => ({ ...current, endpointRef }))} /><Field label="Model refs" value={profileForm.modelRef} onChange={(modelRef) => setProfileForm((current) => ({ ...current, modelRef }))} /><Field label="Max output tokens" value={profileForm.maxOutputTokens} onChange={(maxOutputTokens) => setProfileForm((current) => ({ ...current, maxOutputTokens }))} /></div><Button className="mt-3" onClick={onCreateProfile} disabled={loading || !spaceId}>Create profile</Button></div>}
+    {(activeTab === "profiles" && canManageProfiles) && <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70"><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Create profile</Text><div className="mt-3 grid gap-3 md:grid-cols-3"><Field label="Key" value={profileForm.key} onChange={(key) => setProfileForm((current) => ({ ...current, key }))} /><Field label="Display name" value={profileForm.displayName} onChange={(displayName) => setProfileForm((current) => ({ ...current, displayName }))} /><SelectField label="Operation" value={profileForm.operation} onChange={(operation) => setProfileForm((current) => ({ ...current, operation, endpointRefs: [], modelRefs: [] }))} options={inferenceOperationOptions} placeholder="Choose an operation" /><Field label="Purpose" value={profileForm.purpose} onChange={(purpose) => setProfileForm((current) => ({ ...current, purpose }))} /><MultiSelectChecklist label="Endpoint refs" values={profileForm.endpointRefs} options={profileEndpointOptions} emptyText="No matching enabled endpoints." onToggle={(value, checked) => toggleProfileRef("endpointRefs", value, checked)} /><MultiSelectChecklist label="Model refs" values={profileForm.modelRefs} options={profileModelOptions} emptyText="No matching models for the selected operation." onToggle={(value, checked) => toggleProfileRef("modelRefs", value, checked)} /><Field label="Max output tokens" value={profileForm.maxOutputTokens} onChange={(maxOutputTokens) => setProfileForm((current) => ({ ...current, maxOutputTokens }))} /></div><Button className="mt-3" onClick={onCreateProfile} disabled={loading || !spaceId}>Create profile</Button></div>}
     {(activeTab === "credentials" && canManageCredentials) && <CredentialCreatePanel draft={credentialForm} setDraft={setCredentialForm} endpoints={endpoints} loading={loading} onCreateCredential={onCreateCredential} />}
     {(activeTab === "grants" && canManageGrants && grantCreateOpen) && <GrantCreatePanel draft={grantDraft} setDraft={setGrantDraft} spaces={grantSpaces} domains={grantDomains} domainError={grantLoadError} models={models} endpoints={endpoints} capabilities={capabilities} credentials={credentials} loading={loading} onCreateGrant={onCreateGrant} onCancel={onCancelCreateGrant} />}
     {(activeTab === "policies" && canManagePolicies && policyCreateOpen) && <PolicyCreatePanel draft={policyDraft} setDraft={setPolicyDraft} spaces={policySpaces} domains={policyDomains} domainError={policyLoadError} loading={loading} onCreatePolicy={onCreatePolicy} onCancel={onCancelCreatePolicy} />}
-    {!((activeTab === "grants" && grantCreateOpen) || (activeTab === "policies" && policyCreateOpen)) && <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/70">{activeTab === "grants" && canManageGrants && <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Credential grants</Text><Text intent="muted" size="sm" className="mt-1">Filter existing grants, or create a new credential grant on a dedicated form.</Text></div><Button onClick={onStartCreateGrant}>Create grant</Button></div>}{activeTab === "policies" && canManagePolicies && <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Inference policies</Text><Text intent="muted" size="sm" className="mt-1">Filter existing policies, or create a new inference policy on a dedicated form.</Text></div><Button onClick={onStartCreatePolicy}>Create policy</Button></div>}{loading ? <Text intent="muted" className="p-6">Loading inference setup resources…</Text> : activeTab === "profiles" ? <SimpleTable rows={profiles} columns={["key", "operation", "purpose", "enabled"]} idKey="inferenceProfileId" onView={onViewDetails} /> : activeTab === "credentials" ? <SimpleTable rows={credentials} columns={["key", "modelEndpointKey", "ownerType", "authType", "status", "secretSuffix"]} idKey="credentialId" onView={onViewDetails} /> : activeTab === "grants" ? <SimpleTable rows={grants} columns={["credentialId", "operations", "modelEndpointKey", "modelKey", "state"]} idKey="credentialGrantId" onView={onViewDetails} onExpire={canManageGrants ? onExpireGrant : undefined} /> : activeTab === "policies" ? <SimpleTable rows={policies} columns={["effect", "operations", "action", "state", "reason"]} idKey="inferencePolicyId" onView={onViewDetails} onExpire={canManagePolicies ? onExpirePolicy : undefined} /> : <><SimpleTable rows={usageSummaries} columns={["group", "requestCount", "succeededCount", "failedCount", "deniedCount", "totalTokens"]} idKey="requestCount" onView={onViewDetails} /><SimpleTable rows={usageEvents} columns={["operation", "usageMode", "status", "modelEndpointKey", "modelKey", "totalTokens", "latencyMillis", "errorCode"]} idKey="usageEventId" onView={onViewDetails} /></>}</div>}
+    {!((activeTab === "grants" && grantCreateOpen) || (activeTab === "policies" && policyCreateOpen)) && <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/70">{activeTab === "grants" && canManageGrants && <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Credential grants</Text><Text intent="muted" size="sm" className="mt-1">Filter existing grants, or create a new credential grant on a dedicated form.</Text></div><Button onClick={onStartCreateGrant}>Create grant</Button></div>}{activeTab === "policies" && canManagePolicies && <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Inference policies</Text><Text intent="muted" size="sm" className="mt-1">Filter existing policies, or create a new inference policy on a dedicated form.</Text></div><Button onClick={onStartCreatePolicy}>Create policy</Button></div>}{loading ? <Text intent="muted" className="p-6">Loading inference setup resources…</Text> : activeTab === "profiles" ? <SimpleTable rows={profiles} columns={["key", "operation", "purpose", "enabled"]} idKey="inferenceProfileId" onView={onViewDetails} /> : activeTab === "credentials" ? <SimpleTable rows={credentials} columns={["key", "modelEndpointKey", "ownerType", "authType", "status", "secretSuffix"]} idKey="credentialId" onView={onViewDetails} onRevokeCredential={canManageCredentials ? onRevokeCredential : undefined} /> : activeTab === "grants" ? <SimpleTable rows={grants} columns={["credentialId", "operations", "modelEndpointKey", "modelKey", "state"]} idKey="credentialGrantId" onView={onViewDetails} onExpire={canManageGrants ? onExpireGrant : undefined} /> : activeTab === "policies" ? <SimpleTable rows={policies} columns={["effect", "operations", "action", "state", "reason"]} idKey="inferencePolicyId" onView={onViewDetails} onExpire={canManagePolicies ? onExpirePolicy : undefined} /> : <><SimpleTable rows={usageSummaries} columns={["group", "requestCount", "succeededCount", "failedCount", "deniedCount", "totalTokens"]} idKey="requestCount" onView={onViewDetails} /><SimpleTable rows={usageEvents} columns={["operation", "usageMode", "status", "modelEndpointKey", "modelKey", "totalTokens", "latencyMillis", "errorCode"]} idKey="usageEventId" onView={onViewDetails} /></>}</div>}
   </div>;
 }
 
@@ -877,7 +929,7 @@ function GrantCreatePanel({ draft, setDraft, spaces, domains, domainError, model
       <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">Credential</Text><SelectField label="Credential" value={draft.credentialId} onChange={(credentialId) => update({ credentialId })} options={filteredCredentials.map((credential) => ({ value: credential.credentialId, label: credential.key || credential.displayName || credential.credentialId, hint: [credential.displayName, credential.ownerType, credential.status, credential.isDefault ? "default" : ""].filter(Boolean).join(" · ") }))} placeholder={draft.endpointId ? "Choose a credential" : "Select an endpoint first"} disabled={!draft.endpointId} /><label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" checked={draft.includeInactive} onChange={(event) => update({ includeInactive: event.target.checked })} />Include inactive credentials</label>{draft.endpointId && filteredCredentials.length === 0 && <Text intent="muted" size="sm" className="text-amber-700 dark:text-amber-300">No credential is available for this endpoint. Create a credential first, then return to Grants.</Text>}</div>
       <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">Grant options</Text><label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" checked={draft.allowBackgroundUse} onChange={(event) => update({ allowBackgroundUse: event.target.checked })} />Allow automation/background use</label><label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" checked={draft.isDefault} onChange={(event) => update({ isDefault: event.target.checked })} />Default grant</label><Field label="Priority" value={draft.priority} type="number" onChange={(priority) => update({ priority })} /></div>
     </div>
-    <details className="mt-4 rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700" open={draft.advancedOpen} onToggle={(event) => update({ advancedOpen: event.currentTarget.open })}><summary className="cursor-pointer text-sm font-medium text-slate-700 dark:text-slate-300">Advanced IDs/refs</summary><div className="mt-3 grid gap-3 md:grid-cols-3"><Field label="Credential ref" value={draft.credentialRef} onChange={(credentialRef) => update({ credentialRef })} /><Field label="Endpoint ref" value={draft.endpointRef} onChange={(endpointRef) => update({ endpointRef })} /><Field label="Model ref" value={draft.modelRef} onChange={(modelRef) => update({ modelRef })} /><Field label="Semantic index ID" value={draft.semanticIndexId} onChange={(semanticIndexId) => update({ semanticIndexId })} /><Field label="Node ID" value={draft.nodeId} onChange={(nodeId) => update({ nodeId })} /></div></details>
+    <details className="mt-4 rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700" open={draft.advancedOpen} onToggle={(event) => update({ advancedOpen: event.currentTarget.open })}><summary className="cursor-pointer text-sm font-medium text-slate-700 dark:text-slate-300">Advanced IDs/refs</summary><div className="mt-3 grid gap-3 md:grid-cols-3"><Field label="Credential ref" value={draft.credentialRef} onChange={(credentialRef) => update({ credentialRef })} /><Field label="Endpoint ref" value={draft.endpointRef} onChange={(endpointRef) => update({ endpointRef })} /><Field label="Model ref" value={draft.modelRef} onChange={(modelRef) => update({ modelRef })} /><Field label="Semantic rule ID" value={draft.semanticRuleId} onChange={(semanticRuleId) => update({ semanticRuleId })} /><Field label="Node ID" value={draft.nodeId} onChange={(nodeId) => update({ nodeId })} /></div></details>
     <GrantReviewSummary space={selectedSpace} domain={selectedDomain} model={selectedModel} endpoint={selectedEndpoint} credential={selectedCredential} operations={draft.operations} allowBackgroundUse={draft.allowBackgroundUse} />
     <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={onCancel} disabled={loading}>Cancel</Button><Button onClick={onCreateGrant} disabled={loading || !draft.spaceId || (!draft.credentialId && !draft.credentialRef) || (!draft.endpointId && !draft.endpointRef) || (!draft.modelId && !draft.modelRef) || draft.operations.length === 0}>Create grant</Button></div>
   </div>;
@@ -896,9 +948,9 @@ function GrantReviewSummary({ space, domain, model, endpoint, credential, operat
   return <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-950 dark:text-slate-300"><strong>Review:</strong> Grant credential <span className="font-medium">{credential?.key || "—"}</span> for space <span className="font-medium">{space?.name || space?.spaceId || "—"}</span>{domain ? <> / domain <span className="font-medium">{domain.name || domain.key}</span></> : null}. Endpoint <span className="font-medium">{endpoint?.key || "—"}</span>, model <span className="font-medium">{model?.key || "—"}</span>, operations <span className="font-medium">{operations.join(", ") || "—"}</span>. {allowBackgroundUse ? "Background/automation use allowed." : "Background/automation use not allowed."}</div>;
 }
 
-function SimpleTable({ rows, columns, idKey, onView, onExpire }: { rows: any[]; columns: string[]; idKey: string; onView: (title: string, data: unknown) => void; onExpire?: (id: string) => void }) {
+function SimpleTable({ rows, columns, idKey, onView, onExpire, onRevokeCredential }: { rows: any[]; columns: string[]; idKey: string; onView: (title: string, data: unknown) => void; onExpire?: (id: string) => void; onRevokeCredential?: (credential: InferenceCredentialInfo) => void }) {
   if (rows.length === 0) return <Text intent="muted" className="p-6">No resources found.</Text>;
-  return <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800"><thead className="bg-slate-50 dark:bg-slate-950"><tr>{columns.map((column) => <th key={column} className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-400">{displayColumn(column)}</th>)}<th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-400">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row, index) => { const id = String(row[idKey] ?? index); return <tr key={`${id}-${index}`}>{columns.map((column) => <td key={column} className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatCell(row, column)}</td>)}<td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onView(id, row)}>View</Button>{onExpire && <Button variant="secondary" onClick={() => onExpire(id)}>Expire</Button>}</div></td></tr>; })}</tbody></table>;
+  return <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800"><thead className="bg-slate-50 dark:bg-slate-950"><tr>{columns.map((column) => <th key={column} className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-400">{displayColumn(column)}</th>)}<th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-400">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row, index) => { const id = String(row[idKey] ?? index); const status = String(row.status ?? "").toLowerCase(); return <tr key={`${id}-${index}`}>{columns.map((column) => <td key={column} className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatCell(row, column)}</td>)}<td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => onView(id, row)}>View</Button>{onExpire && <Button variant="secondary" onClick={() => onExpire(id)}>Expire</Button>}{onRevokeCredential && status !== "revoked" && <Button variant="secondary" className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40" onClick={() => onRevokeCredential(row as InferenceCredentialInfo)}>Revoke</Button>}</div></td></tr>; })}</tbody></table>;
 }
 
 function formatCell(row: Record<string, unknown>, column: string): string {

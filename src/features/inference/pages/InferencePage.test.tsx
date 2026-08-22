@@ -116,6 +116,25 @@ test("creates credentials from pasted API keys", async () => {
   expect(screen.getByLabelText(/^API key$/i)).toHaveValue("");
 });
 
+test("revokes credentials from the credentials table", async () => {
+  const setInferenceCredentialStatusService = jest.fn().mockResolvedValue({});
+  const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
+  renderPage({
+    listInferenceCredentialsService: jest.fn().mockResolvedValue({ credentials: [{ credentialId: "cred1", key: "wrong-key", displayName: "Wrong key", modelEndpointId: "ep1", modelEndpointKey: "openai", ownerType: "system", ownerId: "system", authType: "api_key", secretId: "sec1", status: "active", isDefault: false, createTime: "", updateTime: "", lastUsedTime: "", secretVersion: "", secretSuffix: "bad1", rotatedAt: "" }], nextPageToken: "" }),
+    setInferenceCredentialStatusService,
+  });
+
+  await screen.findByText("openai-compatible");
+  await userEvent.click(screen.getByRole("tab", { name: "Credentials" }));
+  expect(await screen.findByText("wrong-key")).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Revoke" }));
+
+  await waitFor(() => expect(setInferenceCredentialStatusService).toHaveBeenCalledWith({ credentialId: "cred1", status: "revoked" }));
+  expect(await screen.findByText("Credential wrong-key revoked.")).toBeInTheDocument();
+  confirmSpy.mockRestore();
+});
+
 test("prompts for package import when no credential endpoints are available", async () => {
   renderPage({
     listModelEndpointsService: jest.fn().mockResolvedValue({ modelEndpoints: [], nextPageToken: "" }),
@@ -207,6 +226,8 @@ test("creates profiles with dynamic scope and operation selectors", async () => 
   await waitFor(() => expect(services.listDomainsService).toHaveBeenCalledWith({ spaceId: "sp1", pageSize: 100, includeSystem: false }));
   await userEvent.selectOptions(await screen.findByLabelText(/^Filter domain$/i), "dom1");
   await userEvent.selectOptions(screen.getByLabelText(/^Operation$/i), "embeddings");
+  await userEvent.click(await screen.findByLabelText("Endpoint refs: openai"));
+  await userEvent.click(await screen.findByLabelText("Model refs: openai/text-embedding-3-small"));
 
   await userEvent.click(screen.getByRole("button", { name: /^Create profile$/i }));
 
@@ -214,7 +235,34 @@ test("creates profiles with dynamic scope and operation selectors", async () => 
     spaceId: "sp1",
     operation: "embeddings",
     domainIds: ["dom1"],
+    endpointRefs: ["openai"],
+    modelRefs: ["openai/text-embedding-3-small"],
   })));
+});
+
+test("uses multi-select endpoint and model refs for profile creation", async () => {
+  const listModelsService = jest.fn().mockResolvedValue({ models: [
+      { modelId: "m-chat", key: "openai/gpt-5.6-mini", operation: "chat", modelName: "gpt-5.6-mini", connectorTypes: ["openai-compatible"], dimensions: 0, modality: "text", vectorSpaceKey: "" },
+      { modelId: "m-embed", key: "openai/text-embedding-3-small", operation: "embeddings", modelName: "text-embedding-3-small", connectorTypes: ["openai-compatible"], dimensions: 1536, modality: "text", vectorSpaceKey: "openai/text-embedding-3-small" },
+    ], nextPageToken: "" });
+  renderPage({
+    listSpacesService: jest.fn().mockResolvedValue({ spaces: [], nextPageToken: "" }),
+    listInferenceProfilesService: jest.fn().mockResolvedValue({ inferenceProfiles: [], nextPageToken: "" }),
+    listModelsService,
+    listModelEndpointCapabilitiesService: jest.fn().mockResolvedValue({ modelEndpointCapabilities: [
+      { modelEndpointCapabilityId: "cap-chat", modelEndpointId: "ep1", modelEndpointKey: "openai", modelId: "m-chat", modelKey: "openai/gpt-5.6-mini", operation: "chat", enabled: true },
+      { modelEndpointCapabilityId: "cap-embed", modelEndpointId: "ep1", modelEndpointKey: "openai", modelId: "m-embed", modelKey: "openai/text-embedding-3-small", operation: "embeddings", enabled: true },
+    ], nextPageToken: "" }),
+  });
+
+  await screen.findByText("openai-compatible");
+  await userEvent.click(screen.getByRole("tab", { name: "Profiles" }));
+  await waitFor(() => expect(listModelsService).toHaveBeenCalledWith({ pageSize: 500 }));
+  await userEvent.selectOptions(await screen.findByLabelText(/^Operation$/i), "embeddings");
+
+  expect(screen.queryByText("openai/gpt-5.6-mini")).not.toBeInTheDocument();
+  expect(await screen.findByText("openai/text-embedding-3-small")).toBeInTheDocument();
+  expect(screen.getByText("openai")).toBeInTheDocument();
 });
 
 test("filters policies with dynamic scope dropdowns", async () => {

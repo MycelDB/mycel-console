@@ -7,7 +7,7 @@ import type { ConsolePrincipalContext } from "../../console";
 function renderDetail(
   getSpaceService = jest.fn().mockResolvedValue({ spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" }),
   listDomainsService = jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
-  listSemanticIndexesService = jest.fn().mockResolvedValue({ indexes: [], nextPageToken: "" }),
+  listSemanticRulesService = jest.fn().mockResolvedValue({ rules: [], nextPageToken: "" }),
   getDomainSchemaService = jest.fn().mockResolvedValue({ domainId: "dom_default", gwl: "schema \"PKM\" version \"v1\" mode warn" }),
   getSemanticMaintenanceStatusService = jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 0, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
   listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [] }),
@@ -17,11 +17,11 @@ function renderDetail(
   render(
     <MemoryRouter initialEntries={["/spaces/sp_main"]}>
       <Routes>
-        <Route path="/spaces/:spaceId" element={<SpaceDetailPage getSpaceService={getSpaceService} listDomainsService={listDomainsService} listSemanticIndexesService={listSemanticIndexesService} getDomainSchemaService={getDomainSchemaService} getSemanticMaintenanceStatusService={getSemanticMaintenanceStatusService} listSemanticMaintenanceWorkService={listSemanticMaintenanceWorkService} lookupSpaceRouteService={lookupSpaceRouteService} principalContext={principalContext} />} />
+        <Route path="/spaces/:spaceId" element={<SpaceDetailPage getSpaceService={getSpaceService} listDomainsService={listDomainsService} listSemanticRulesService={listSemanticRulesService} getDomainSchemaService={getDomainSchemaService} getSemanticMaintenanceStatusService={getSemanticMaintenanceStatusService} listSemanticMaintenanceWorkService={listSemanticMaintenanceWorkService} lookupSpaceRouteService={lookupSpaceRouteService} principalContext={principalContext} />} />
       </Routes>
     </MemoryRouter>,
   );
-  return { getSpaceService, listDomainsService, listSemanticIndexesService, getDomainSchemaService, getSemanticMaintenanceStatusService, listSemanticMaintenanceWorkService, lookupSpaceRouteService };
+  return { getSpaceService, listDomainsService, listSemanticRulesService, getDomainSchemaService, getSemanticMaintenanceStatusService, listSemanticMaintenanceWorkService, lookupSpaceRouteService };
 }
 
 test("loads and renders selected space properties", async () => {
@@ -51,24 +51,24 @@ test("loads and renders selected space properties", async () => {
     nextPageToken: "",
   });
 
-  const listSemanticIndexesService = jest.fn().mockResolvedValue({
-    indexes: [{ semanticIndexId: "idx_notes", key: "notes", displayName: "Notes", description: "", spaceId: "sp_main", domainId: "dom_default", modelLabel: "text-embedding-3-small", vectorStoreLabel: "mycel-file", state: "SEMANTIC_INDEX_STATE_ACTIVE" }],
+  const listSemanticRulesService = jest.fn().mockResolvedValue({
+    rules: [{ semanticRuleId: "rule_notes", key: "notes", displayName: "Notes", description: "", spaceId: "sp_main", domainId: "dom_default", enabled: true, state: "SEMANTIC_RULE_STATE_ACTIVE", bindings: [{ key: "search", purpose: "search", intelligenceProfileId: "", intelligenceProfileKey: "text-embedding-3-small", vectorStoreId: "", vectorStoreKey: "mycel-file", enabled: true }] }],
     nextPageToken: "",
   });
 
   const getSemanticMaintenanceStatusService = jest.fn().mockResolvedValue({ enabled: true, degraded: true, degradedReason: "worker paused", queueDepthPending: 2, queueDepthRunning: 1, queueDepthFailedRetryable: 1, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 30, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "normal", analyzerRuns: 3, workerRuns: 4 });
-  const listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [{ workItemId: "work_1", spaceId: "sp_main", domainId: "dom_default", semanticIndexId: "idx_notes", targetNodeId: "node_1", action: "embed", status: "failed_retryable", attemptCount: 2, notBefore: "", claimedUntil: "", lastErrorCategory: "provider", lastErrorMessageSanitized: "rate limited", createdAt: "", updatedAt: "" }] });
+  const listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [{ workItemId: "work_1", spaceId: "sp_main", domainId: "dom_default", semanticRuleId: "rule_notes", embeddingBindingKey: "search", targetNodeId: "node_1", action: "embed", status: "failed_retryable", attemptCount: 2, notBefore: "", claimedUntil: "", lastErrorCategory: "provider", lastErrorMessageSanitized: "rate limited", createdAt: "", updatedAt: "" }] });
 
   const getDomainSchemaService = jest.fn().mockResolvedValue({ domainId: "dom_default", gwl: "schema \"PKM\" version \"v1\" mode warn" });
 
-  renderDetail(getSpaceService, listDomainsService, listSemanticIndexesService, getDomainSchemaService, getSemanticMaintenanceStatusService, listSemanticMaintenanceWorkService);
+  renderDetail(getSpaceService, listDomainsService, listSemanticRulesService, getDomainSchemaService, getSemanticMaintenanceStatusService, listSemanticMaintenanceWorkService);
 
   expect(screen.getByRole("link", { name: /back to spaces/i })).toHaveAttribute("href", "/spaces");
   expect(screen.getByText(/loading space/i)).toBeInTheDocument();
   expect(await screen.findByRole("heading", { name: "Main" })).toBeInTheDocument();
   expect(getSpaceService).toHaveBeenCalledWith("sp_main");
   expect(listDomainsService).toHaveBeenCalledWith({ spaceId: "sp_main", pageSize: 100, pageToken: "", includeSystem: false });
-  expect(listSemanticIndexesService).toHaveBeenCalledWith({ spaceId: "sp_main", pageSize: 100, includeDisabled: false });
+  expect(listSemanticRulesService).toHaveBeenCalledWith({ spaceId: "sp_main", pageSize: 100, includeDisabled: false });
   expect(screen.getByText("sp_main")).toBeInTheDocument();
   expect(screen.getByText("PRINCIPAL_TYPE_USER")).toBeInTheDocument();
   expect(screen.getByText("Ada")).toBeInTheDocument();
@@ -83,9 +83,9 @@ test("loads and renders selected space properties", async () => {
   expect(screen.getByRole("heading", { name: "Semantic maintenance" })).toBeInTheDocument();
   expect(screen.getByText("worker paused")).toBeInTheDocument();
   expect(screen.getByText("provider")).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Semantic indexes" })).toBeInTheDocument();
-  expect(screen.getAllByText("idx_notes").length).toBeGreaterThan(0);
-  expect(screen.getByText("text-embedding-3-small")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Semantic rules" })).toBeInTheDocument();
+  expect(screen.getAllByText("rule_notes").length).toBeGreaterThan(0);
+  expect(screen.getByText(/text-embedding-3-small/)).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("tab", { name: "Domains" }));
   expect(screen.getByRole("heading", { name: "Domains" })).toBeInTheDocument();
@@ -95,13 +95,13 @@ test("loads and renders selected space properties", async () => {
   expect(screen.getByRole("heading", { name: "Domain schemas" })).toBeInTheDocument();});
 
 test("keeps semantic panels readable while hiding maintenance mutations without semantic manage capability", async () => {
-  const listSemanticIndexesService = jest.fn().mockResolvedValue({
-    indexes: [{ semanticIndexId: "idx_notes", key: "notes", displayName: "Notes", description: "", spaceId: "sp_main", domainId: "dom_default", modelLabel: "text-embedding-3-small", vectorStoreLabel: "mycel-file", state: "SEMANTIC_INDEX_STATE_ACTIVE" }],
+  const listSemanticRulesService = jest.fn().mockResolvedValue({
+    rules: [{ semanticRuleId: "rule_notes", key: "notes", displayName: "Notes", description: "", spaceId: "sp_main", domainId: "dom_default", enabled: true, state: "SEMANTIC_RULE_STATE_ACTIVE", bindings: [{ key: "search", purpose: "search", intelligenceProfileId: "", intelligenceProfileKey: "text-embedding-3-small", vectorStoreId: "", vectorStoreKey: "mycel-file", enabled: true }] }],
     nextPageToken: "",
   });
-  const listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [{ workItemId: "work_1", spaceId: "sp_main", domainId: "dom_default", semanticIndexId: "idx_notes", targetNodeId: "node_1", action: "embed", status: "failed_retryable", attemptCount: 2, notBefore: "", claimedUntil: "", lastErrorCategory: "provider", lastErrorMessageSanitized: "rate limited", createdAt: "", updatedAt: "" }] });
+  const listSemanticMaintenanceWorkService = jest.fn().mockResolvedValue({ items: [{ workItemId: "work_1", spaceId: "sp_main", domainId: "dom_default", semanticRuleId: "rule_notes", embeddingBindingKey: "search", targetNodeId: "node_1", action: "embed", status: "failed_retryable", attemptCount: 2, notBefore: "", claimedUntil: "", lastErrorCategory: "provider", lastErrorMessageSanitized: "rate limited", createdAt: "", updatedAt: "" }] });
 
-  renderDetail(undefined, undefined, listSemanticIndexesService, undefined, undefined, listSemanticMaintenanceWorkService, undefined, {
+  renderDetail(undefined, undefined, listSemanticRulesService, undefined, undefined, listSemanticMaintenanceWorkService, undefined, {
     session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
     roles: [],
     capabilities: ["CAPABILITY_SEMANTIC_SEARCH"],

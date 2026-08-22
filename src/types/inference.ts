@@ -182,7 +182,7 @@ export type TimestampInput = { seconds: number; nanos?: number };
 export type ProcessingScopeInput = {
   spaceId?: string;
   domainId?: string;
-  semanticIndexId?: string;
+  semanticRuleId?: string;
   nodeId?: string;
   includeDescendants?: boolean;
 };
@@ -360,7 +360,7 @@ export type InferenceUsageEventInfo = {
   nodeId: string;
   automationId: string;
   automationRunId: string;
-  semanticIndexId: string;
+  semanticRuleId: string;
   actorPrincipalId: string;
   onBehalfOfPrincipalId: string;
   inferenceProfileId: string;
@@ -385,7 +385,7 @@ export type InferenceUsageEventInfo = {
 };
 
 export type InferenceUsageSummaryInfo = { group: Record<string, string>; requestCount: number; succeededCount: number; failedCount: number; deniedCount: number; inputTokens: number; outputTokens: number; totalTokens: number; totalLatencyMillis: number };
-export type ListUsageEventsInput = { spaceId: string; scope?: ProcessingScopeInput; operation?: string; usageMode?: string; status?: string; inferenceProfileId?: string; modelEndpointId?: string; modelId?: string; credentialGrantId?: string; automationId?: string; automationRunId?: string; semanticIndexId?: string; actorPrincipalId?: string; onBehalfOfPrincipalId?: string; since?: TimestampInput; until?: TimestampInput; pageSize?: number; pageToken?: string };
+export type ListUsageEventsInput = { spaceId: string; scope?: ProcessingScopeInput; operation?: string; usageMode?: string; status?: string; inferenceProfileId?: string; modelEndpointId?: string; modelId?: string; credentialGrantId?: string; automationId?: string; automationRunId?: string; semanticRuleId?: string; actorPrincipalId?: string; onBehalfOfPrincipalId?: string; since?: TimestampInput; until?: TimestampInput; pageSize?: number; pageToken?: string };
 export type ListUsageEventsResponse = { usageEvents: InferenceUsageEventInfo[]; nextPageToken: string };
 export type SummarizeUsageInput = { spaceId: string; scope?: ProcessingScopeInput; since?: TimestampInput; until?: TimestampInput; groupBy?: string[] };
 export type SummarizeUsageResponse = { summaries: InferenceUsageSummaryInfo[] };

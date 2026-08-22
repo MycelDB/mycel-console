@@ -11,31 +11,32 @@ use mycel_sdk::proto::admin::v1::{
 };
 
 use mycel_sdk::proto::admin::v1::{
-    AdminInferenceCredentialServiceCreateCredentialRequest,
-    AdminInferenceCredentialServiceDeleteCredentialRequest,
-    AdminInferenceCredentialServiceListCredentialsRequest,
-    AdminInferenceCredentialServiceRotateCredentialRequest,
-    AdminInferenceCredentialServiceSetCredentialStatusRequest,
-    AdminInferenceGrantServiceCreateCredentialGrantRequest,
-    AdminInferenceGrantServiceDeleteCredentialGrantRequest,
-    AdminInferenceGrantServiceExpireCredentialGrantRequest,
-    AdminInferenceGrantServiceListCredentialGrantsRequest,
-    AdminInferencePolicyServiceCreateInferencePolicyRequest,
-    AdminInferencePolicyServiceDeleteInferencePolicyRequest,
-    AdminInferencePolicyServiceExpireInferencePolicyRequest,
-    AdminInferencePolicyServiceListInferencePoliciesRequest,
-    AdminInferenceProfileServiceCreateInferenceProfileRequest,
-    AdminInferenceProfileServiceDeleteInferenceProfileRequest,
-    AdminInferenceProfileServiceListInferenceProfilesRequest,
-    AdminInferenceProfileServiceSetInferenceProfileEnabledRequest,
-    AdminInferenceUsageServiceListUsageEventsRequest,
-    AdminInferenceUsageServiceSummarizeUsageRequest, CredentialGrant, InferenceCredential,
-    InferencePolicy, InferenceProfile, InferenceUsageEvent, InferenceUsageSummary, ProcessingScope,
+    AdminIntelligenceAccessCredentialServiceCreateCredentialRequest,
+    AdminIntelligenceAccessCredentialServiceDeleteCredentialRequest,
+    AdminIntelligenceAccessCredentialServiceListCredentialsRequest,
+    AdminIntelligenceAccessCredentialServiceRotateCredentialRequest,
+    AdminIntelligenceAccessCredentialServiceSetCredentialStatusRequest,
+    AdminIntelligenceAccessGrantServiceCreateCredentialGrantRequest,
+    AdminIntelligenceAccessGrantServiceDeleteCredentialGrantRequest,
+    AdminIntelligenceAccessGrantServiceExpireCredentialGrantRequest,
+    AdminIntelligenceAccessGrantServiceListCredentialGrantsRequest,
+    AdminIntelligenceAccessPolicyServiceCreateAccessPolicyRequest,
+    AdminIntelligenceAccessPolicyServiceDeleteAccessPolicyRequest,
+    AdminIntelligenceAccessPolicyServiceExpireAccessPolicyRequest,
+    AdminIntelligenceAccessPolicyServiceListAccessPoliciesRequest,
+    AdminIntelligenceAccessProfileServiceCreateIntelligenceProfileRequest,
+    AdminIntelligenceAccessProfileServiceDeleteIntelligenceProfileRequest,
+    AdminIntelligenceAccessProfileServiceListIntelligenceProfilesRequest,
+    AdminIntelligenceAccessProfileServiceSetIntelligenceProfileEnabledRequest,
+    AdminIntelligenceAccessUsageServiceListUsageEventsRequest,
+    AdminIntelligenceAccessUsageServiceSummarizeUsageRequest, IntelligenceAccessPolicy,
+    IntelligenceAccessUsageEvent, IntelligenceAccessUsageSummary, IntelligenceCredential,
+    IntelligenceCredentialGrant, IntelligenceProfile,
 };
 use mycel_sdk::proto::common::v1::{
-    InferenceGrantState, InferenceOperation, InferenceParameters, InferencePolicyAction,
-    InferencePolicyState, InferencePrivacyClass, InferencePrivacyRequirement, InferenceScope,
-    InferenceUsageMode, InferenceUsageStatus,
+    InferenceOperation, InferenceParameters, InferencePrivacyClass, InferencePrivacyRequirement,
+    IntelligenceAccessGrantState, IntelligenceAccessPolicyAction, IntelligenceAccessPolicyState,
+    IntelligenceAccessScope, IntelligenceAccessUsageMode, IntelligenceAccessUsageStatus,
 };
 
 use prost_types::{value::Kind, ListValue, Struct, Timestamp, Value};
@@ -581,13 +582,15 @@ pub struct TimestampInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProcessingScopeInput {
+pub struct IntelligenceAccessScopeInput {
     #[serde(default)]
     pub space_id: String,
     #[serde(default)]
     pub domain_id: String,
     #[serde(default)]
-    pub semantic_index_id: String,
+    pub semantic_rule_id: String,
+    #[serde(default)]
+    pub embedding_binding_key: String,
     #[serde(default)]
     pub node_id: String,
     #[serde(default)]
@@ -596,10 +599,11 @@ pub struct ProcessingScopeInput {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProcessingScopeInfo {
+pub struct IntelligenceAccessScopeInfo {
     pub space_id: String,
     pub domain_id: String,
-    pub semantic_index_id: String,
+    pub semantic_rule_id: String,
+    pub embedding_binding_key: String,
     pub node_id: String,
     pub include_descendants: bool,
 }
@@ -632,7 +636,7 @@ pub struct InferencePrivacyRequirementInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListInferenceProfilesInput {
+pub struct ListIntelligenceProfilesInput {
     #[serde(default)]
     pub space_id: String,
     #[serde(default)]
@@ -651,7 +655,7 @@ pub struct ListInferenceProfilesInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateInferenceProfileInput {
+pub struct CreateIntelligenceProfileInput {
     pub space_id: String,
     pub key: String,
     #[serde(default)]
@@ -684,7 +688,7 @@ pub struct CreateInferenceProfileInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceProfileActionInput {
+pub struct IntelligenceProfileActionInput {
     pub space_id: String,
     #[serde(default)]
     pub inference_profile: String,
@@ -696,7 +700,7 @@ pub struct InferenceProfileActionInput {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceProfileInfo {
+pub struct IntelligenceProfileInfo {
     pub inference_profile_id: String,
     pub space_id: String,
     pub key: String,
@@ -718,15 +722,15 @@ pub struct InferenceProfileInfo {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListInferenceProfilesResponse {
-    pub inference_profiles: Vec<InferenceProfileInfo>,
+pub struct ListIntelligenceProfilesResponse {
+    pub inference_profiles: Vec<IntelligenceProfileInfo>,
     pub next_page_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceProfileResponse {
-    pub inference_profile: Option<InferenceProfileInfo>,
+pub struct IntelligenceProfileResponse {
+    pub inference_profile: Option<IntelligenceProfileInfo>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -806,7 +810,7 @@ pub struct DeleteCredentialInput {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceCredentialInfo {
+pub struct IntelligenceCredentialInfo {
     pub credential_id: String,
     pub key: String,
     pub display_name: String,
@@ -829,14 +833,14 @@ pub struct InferenceCredentialInfo {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListCredentialsResponse {
-    pub credentials: Vec<InferenceCredentialInfo>,
+    pub credentials: Vec<IntelligenceCredentialInfo>,
     pub next_page_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialResponse {
-    pub credential: Option<InferenceCredentialInfo>,
+    pub credential: Option<IntelligenceCredentialInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -849,7 +853,7 @@ pub struct DeleteCredentialResponseInfo {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListCredentialGrantsInput {
+pub struct ListIntelligenceCredentialGrantsInput {
     pub space_id: String,
     #[serde(default)]
     pub page_size: Option<i32>,
@@ -863,14 +867,14 @@ pub struct ListCredentialGrantsInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateCredentialGrantInput {
+pub struct CreateIntelligenceCredentialGrantInput {
     pub space_id: String,
     #[serde(default)]
     pub credential: String,
     #[serde(default)]
     pub credential_id: String,
     #[serde(default)]
-    pub scope: Option<ProcessingScopeInput>,
+    pub scope: Option<IntelligenceAccessScopeInput>,
     #[serde(default)]
     pub operations: Vec<String>,
     #[serde(default)]
@@ -897,17 +901,17 @@ pub struct CreateCredentialGrantInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CredentialGrantActionInput {
+pub struct IntelligenceCredentialGrantActionInput {
     pub space_id: String,
     pub credential_grant_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CredentialGrantInfo {
+pub struct IntelligenceCredentialGrantInfo {
     pub credential_grant_id: String,
     pub credential_id: String,
-    pub scope: Option<ProcessingScopeInfo>,
+    pub scope: Option<IntelligenceAccessScopeInfo>,
     pub operations: Vec<String>,
     pub model_endpoint_id: String,
     pub model_endpoint_key: String,
@@ -931,20 +935,20 @@ pub struct CredentialGrantInfo {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListCredentialGrantsResponse {
-    pub credential_grants: Vec<CredentialGrantInfo>,
+pub struct ListIntelligenceCredentialGrantsResponse {
+    pub credential_grants: Vec<IntelligenceCredentialGrantInfo>,
     pub next_page_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CredentialGrantResponse {
-    pub credential_grant: Option<CredentialGrantInfo>,
+pub struct IntelligenceCredentialGrantResponse {
+    pub credential_grant: Option<IntelligenceCredentialGrantInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DeleteCredentialGrantResponseInfo {
+pub struct DeleteIntelligenceCredentialGrantResponseInfo {
     pub credential_grant_id: String,
 }
 
@@ -964,10 +968,10 @@ pub struct ListInferencePoliciesInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateInferencePolicyInput {
+pub struct CreateIntelligenceAccessPolicyInput {
     pub space_id: String,
     #[serde(default)]
-    pub scope: Option<ProcessingScopeInput>,
+    pub scope: Option<IntelligenceAccessScopeInput>,
     #[serde(default)]
     pub effect: String,
     #[serde(default)]
@@ -988,16 +992,16 @@ pub struct CreateInferencePolicyInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferencePolicyActionInput {
+pub struct IntelligenceAccessPolicyActionInput {
     pub space_id: String,
     pub inference_policy_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferencePolicyInfo {
+pub struct IntelligenceAccessPolicyInfo {
     pub inference_policy_id: String,
-    pub scope: Option<ProcessingScopeInfo>,
+    pub scope: Option<IntelligenceAccessScopeInfo>,
     pub effect: String,
     pub operations: Vec<String>,
     pub no_inference: bool,
@@ -1023,19 +1027,19 @@ pub struct InferencePolicyInfo {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListInferencePoliciesResponse {
-    pub inference_policies: Vec<InferencePolicyInfo>,
+    pub inference_policies: Vec<IntelligenceAccessPolicyInfo>,
     pub next_page_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferencePolicyResponse {
-    pub inference_policy: Option<InferencePolicyInfo>,
+pub struct IntelligenceAccessPolicyResponse {
+    pub inference_policy: Option<IntelligenceAccessPolicyInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DeleteInferencePolicyResponseInfo {
+pub struct DeleteIntelligenceAccessPolicyResponseInfo {
     pub inference_policy_id: String,
 }
 
@@ -1044,7 +1048,7 @@ pub struct DeleteInferencePolicyResponseInfo {
 pub struct ListUsageEventsInput {
     pub space_id: String,
     #[serde(default)]
-    pub scope: Option<ProcessingScopeInput>,
+    pub scope: Option<IntelligenceAccessScopeInput>,
     #[serde(default)]
     pub operation: String,
     #[serde(default)]
@@ -1064,7 +1068,7 @@ pub struct ListUsageEventsInput {
     #[serde(default)]
     pub automation_run_id: String,
     #[serde(default)]
-    pub semantic_index_id: String,
+    pub semantic_rule_id: String,
     #[serde(default)]
     pub actor_principal_id: String,
     #[serde(default)]
@@ -1084,7 +1088,7 @@ pub struct ListUsageEventsInput {
 pub struct SummarizeUsageInput {
     pub space_id: String,
     #[serde(default)]
-    pub scope: Option<ProcessingScopeInput>,
+    pub scope: Option<IntelligenceAccessScopeInput>,
     #[serde(default)]
     pub since: Option<TimestampInput>,
     #[serde(default)]
@@ -1095,7 +1099,7 @@ pub struct SummarizeUsageInput {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceUsageEventInfo {
+pub struct IntelligenceAccessUsageEventInfo {
     pub usage_event_id: String,
     pub request_id: String,
     pub operation: String,
@@ -1106,7 +1110,7 @@ pub struct InferenceUsageEventInfo {
     pub node_id: String,
     pub automation_id: String,
     pub automation_run_id: String,
-    pub semantic_index_id: String,
+    pub semantic_rule_id: String,
     pub actor_principal_id: String,
     pub on_behalf_of_principal_id: String,
     pub inference_profile_id: String,
@@ -1132,7 +1136,7 @@ pub struct InferenceUsageEventInfo {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceUsageSummaryInfo {
+pub struct IntelligenceAccessUsageSummaryInfo {
     pub group: HashMap<String, String>,
     pub request_count: i64,
     pub succeeded_count: i64,
@@ -1147,21 +1151,21 @@ pub struct InferenceUsageSummaryInfo {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListUsageEventsResponse {
-    pub usage_events: Vec<InferenceUsageEventInfo>,
+    pub usage_events: Vec<IntelligenceAccessUsageEventInfo>,
     pub next_page_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SummarizeUsageResponse {
-    pub summaries: Vec<InferenceUsageSummaryInfo>,
+    pub summaries: Vec<IntelligenceAccessUsageSummaryInfo>,
 }
 
 #[tauri::command]
 pub async fn admin_list_inference_profiles(
-    input: ListInferenceProfilesInput,
+    input: ListIntelligenceProfilesInput,
     state: State<'_, AppState>,
-) -> Result<ListInferenceProfilesResponse, String> {
+) -> Result<ListIntelligenceProfilesResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1169,8 +1173,8 @@ pub async fn admin_list_inference_profiles(
     let response = session
         ._client
         .inference_profiles
-        .list_inference_profiles(tonic::Request::new(
-            AdminInferenceProfileServiceListInferenceProfilesRequest {
+        .list_intelligence_profiles(tonic::Request::new(
+            AdminIntelligenceAccessProfileServiceListIntelligenceProfilesRequest {
                 space_id: input.space_id,
                 domain_id: input.domain_id,
                 operation: inference_operation_value(&input.operation),
@@ -1183,9 +1187,9 @@ pub async fn admin_list_inference_profiles(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(ListInferenceProfilesResponse {
+    Ok(ListIntelligenceProfilesResponse {
         inference_profiles: response
-            .inference_profiles
+            .intelligence_profiles
             .into_iter()
             .map(inference_profile_info)
             .collect(),
@@ -1195,9 +1199,9 @@ pub async fn admin_list_inference_profiles(
 
 #[tauri::command]
 pub async fn admin_create_inference_profile(
-    input: CreateInferenceProfileInput,
+    input: CreateIntelligenceProfileInput,
     state: State<'_, AppState>,
-) -> Result<InferenceProfileResponse, String> {
+) -> Result<IntelligenceProfileResponse, String> {
     if input.space_id.trim().is_empty() {
         return Err("Space ID is required".to_string());
     }
@@ -1211,8 +1215,8 @@ pub async fn admin_create_inference_profile(
     let response = session
         ._client
         .inference_profiles
-        .create_inference_profile(tonic::Request::new(
-            AdminInferenceProfileServiceCreateInferenceProfileRequest {
+        .create_intelligence_profile(tonic::Request::new(
+            AdminIntelligenceAccessProfileServiceCreateIntelligenceProfileRequest {
                 space_id: input.space_id,
                 key: input.key,
                 display_name: input.display_name,
@@ -1233,16 +1237,16 @@ pub async fn admin_create_inference_profile(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(InferenceProfileResponse {
-        inference_profile: response.inference_profile.map(inference_profile_info),
+    Ok(IntelligenceProfileResponse {
+        inference_profile: response.intelligence_profile.map(inference_profile_info),
     })
 }
 
 #[tauri::command]
 pub async fn admin_set_inference_profile_enabled(
-    input: InferenceProfileActionInput,
+    input: IntelligenceProfileActionInput,
     state: State<'_, AppState>,
-) -> Result<InferenceProfileResponse, String> {
+) -> Result<IntelligenceProfileResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1250,25 +1254,25 @@ pub async fn admin_set_inference_profile_enabled(
     let response = session
         ._client
         .inference_profiles
-        .set_inference_profile_enabled(tonic::Request::new(
-            AdminInferenceProfileServiceSetInferenceProfileEnabledRequest {
+        .set_intelligence_profile_enabled(tonic::Request::new(
+            AdminIntelligenceAccessProfileServiceSetIntelligenceProfileEnabledRequest {
                 space_id: input.space_id,
-                inference_profile: input.inference_profile,
-                inference_profile_id: input.inference_profile_id,
+                intelligence_profile: input.inference_profile,
+                intelligence_profile_id: input.inference_profile_id,
                 enabled: input.enabled,
             },
         ))
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(InferenceProfileResponse {
-        inference_profile: response.inference_profile.map(inference_profile_info),
+    Ok(IntelligenceProfileResponse {
+        inference_profile: response.intelligence_profile.map(inference_profile_info),
     })
 }
 
 #[tauri::command]
 pub async fn admin_delete_inference_profile(
-    input: InferenceProfileActionInput,
+    input: IntelligenceProfileActionInput,
     state: State<'_, AppState>,
 ) -> Result<HashMap<String, String>, String> {
     let mut guard = state.admin.write().await;
@@ -1278,11 +1282,11 @@ pub async fn admin_delete_inference_profile(
     let response = session
         ._client
         .inference_profiles
-        .delete_inference_profile(tonic::Request::new(
-            AdminInferenceProfileServiceDeleteInferenceProfileRequest {
+        .delete_intelligence_profile(tonic::Request::new(
+            AdminIntelligenceAccessProfileServiceDeleteIntelligenceProfileRequest {
                 space_id: input.space_id,
-                inference_profile: input.inference_profile,
-                inference_profile_id: input.inference_profile_id,
+                intelligence_profile: input.inference_profile,
+                intelligence_profile_id: input.inference_profile_id,
             },
         ))
         .await
@@ -1290,7 +1294,7 @@ pub async fn admin_delete_inference_profile(
         .into_inner();
     Ok(HashMap::from([(
         "inferenceProfileId".to_string(),
-        response.inference_profile_id,
+        response.intelligence_profile_id,
     )]))
 }
 
@@ -1307,7 +1311,7 @@ pub async fn admin_list_inference_credentials(
         ._client
         .inference_credentials
         .list_credentials(tonic::Request::new(
-            AdminInferenceCredentialServiceListCredentialsRequest {
+            AdminIntelligenceAccessCredentialServiceListCredentialsRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
                 owner_type: input.owner_type,
@@ -1362,7 +1366,7 @@ pub async fn admin_create_inference_credential(
         ._client
         .inference_credentials
         .create_credential(tonic::Request::new(
-            AdminInferenceCredentialServiceCreateCredentialRequest {
+            AdminIntelligenceAccessCredentialServiceCreateCredentialRequest {
                 key: input.key,
                 display_name: input.display_name,
                 model_endpoint: input.model_endpoint,
@@ -1395,7 +1399,7 @@ pub async fn admin_set_inference_credential_status(
         ._client
         .inference_credentials
         .set_credential_status(tonic::Request::new(
-            AdminInferenceCredentialServiceSetCredentialStatusRequest {
+            AdminIntelligenceAccessCredentialServiceSetCredentialStatusRequest {
                 credential: input.credential,
                 credential_id: input.credential_id,
                 status: input.status,
@@ -1423,7 +1427,7 @@ pub async fn admin_rotate_inference_credential(
         ._client
         .inference_credentials
         .rotate_credential(tonic::Request::new(
-            AdminInferenceCredentialServiceRotateCredentialRequest {
+            AdminIntelligenceAccessCredentialServiceRotateCredentialRequest {
                 credential: input.credential,
                 credential_id: input.credential_id,
                 secret_value,
@@ -1451,7 +1455,7 @@ pub async fn admin_delete_inference_credential(
         ._client
         .inference_credentials
         .delete_credential(tonic::Request::new(
-            AdminInferenceCredentialServiceDeleteCredentialRequest {
+            AdminIntelligenceAccessCredentialServiceDeleteCredentialRequest {
                 credential: input.credential,
                 credential_id: input.credential_id,
                 delete_grants: input.delete_grants,
@@ -1470,9 +1474,9 @@ pub async fn admin_delete_inference_credential(
 
 #[tauri::command]
 pub async fn admin_list_inference_credential_grants(
-    input: ListCredentialGrantsInput,
+    input: ListIntelligenceCredentialGrantsInput,
     state: State<'_, AppState>,
-) -> Result<ListCredentialGrantsResponse, String> {
+) -> Result<ListIntelligenceCredentialGrantsResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1481,7 +1485,7 @@ pub async fn admin_list_inference_credential_grants(
         ._client
         .inference_grants
         .list_credential_grants(tonic::Request::new(
-            AdminInferenceGrantServiceListCredentialGrantsRequest {
+            AdminIntelligenceAccessGrantServiceListCredentialGrantsRequest {
                 space_id: input.space_id,
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
@@ -1524,7 +1528,7 @@ pub async fn admin_list_inference_credential_grants(
             .into_inner()
             .models,
     );
-    Ok(ListCredentialGrantsResponse {
+    Ok(ListIntelligenceCredentialGrantsResponse {
         credential_grants: response
             .credential_grants
             .into_iter()
@@ -1536,9 +1540,9 @@ pub async fn admin_list_inference_credential_grants(
 
 #[tauri::command]
 pub async fn admin_create_inference_credential_grant(
-    input: CreateCredentialGrantInput,
+    input: CreateIntelligenceCredentialGrantInput,
     state: State<'_, AppState>,
-) -> Result<CredentialGrantResponse, String> {
+) -> Result<IntelligenceCredentialGrantResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1547,7 +1551,7 @@ pub async fn admin_create_inference_credential_grant(
         ._client
         .inference_grants
         .create_credential_grant(tonic::Request::new(
-            AdminInferenceGrantServiceCreateCredentialGrantRequest {
+            AdminIntelligenceAccessGrantServiceCreateCredentialGrantRequest {
                 space_id: input.space_id,
                 credential: input.credential,
                 credential_id: input.credential_id,
@@ -1568,16 +1572,16 @@ pub async fn admin_create_inference_credential_grant(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(CredentialGrantResponse {
+    Ok(IntelligenceCredentialGrantResponse {
         credential_grant: response.credential_grant.map(credential_grant_info),
     })
 }
 
 #[tauri::command]
 pub async fn admin_expire_inference_credential_grant(
-    input: CredentialGrantActionInput,
+    input: IntelligenceCredentialGrantActionInput,
     state: State<'_, AppState>,
-) -> Result<CredentialGrantResponse, String> {
+) -> Result<IntelligenceCredentialGrantResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1586,7 +1590,7 @@ pub async fn admin_expire_inference_credential_grant(
         ._client
         .inference_grants
         .expire_credential_grant(tonic::Request::new(
-            AdminInferenceGrantServiceExpireCredentialGrantRequest {
+            AdminIntelligenceAccessGrantServiceExpireCredentialGrantRequest {
                 space_id: input.space_id,
                 credential_grant_id: input.credential_grant_id,
             },
@@ -1594,16 +1598,16 @@ pub async fn admin_expire_inference_credential_grant(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(CredentialGrantResponse {
+    Ok(IntelligenceCredentialGrantResponse {
         credential_grant: response.credential_grant.map(credential_grant_info),
     })
 }
 
 #[tauri::command]
 pub async fn admin_delete_inference_credential_grant(
-    input: CredentialGrantActionInput,
+    input: IntelligenceCredentialGrantActionInput,
     state: State<'_, AppState>,
-) -> Result<DeleteCredentialGrantResponseInfo, String> {
+) -> Result<DeleteIntelligenceCredentialGrantResponseInfo, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1612,7 +1616,7 @@ pub async fn admin_delete_inference_credential_grant(
         ._client
         .inference_grants
         .delete_credential_grant(tonic::Request::new(
-            AdminInferenceGrantServiceDeleteCredentialGrantRequest {
+            AdminIntelligenceAccessGrantServiceDeleteCredentialGrantRequest {
                 space_id: input.space_id,
                 credential_grant_id: input.credential_grant_id,
             },
@@ -1620,7 +1624,7 @@ pub async fn admin_delete_inference_credential_grant(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(DeleteCredentialGrantResponseInfo {
+    Ok(DeleteIntelligenceCredentialGrantResponseInfo {
         credential_grant_id: response.credential_grant_id,
     })
 }
@@ -1637,8 +1641,8 @@ pub async fn admin_list_inference_policies(
     let response = session
         ._client
         .inference_policies
-        .list_inference_policies(tonic::Request::new(
-            AdminInferencePolicyServiceListInferencePoliciesRequest {
+        .list_access_policies(tonic::Request::new(
+            AdminIntelligenceAccessPolicyServiceListAccessPoliciesRequest {
                 space_id: input.space_id,
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
@@ -1651,7 +1655,7 @@ pub async fn admin_list_inference_policies(
         .into_inner();
     Ok(ListInferencePoliciesResponse {
         inference_policies: response
-            .inference_policies
+            .access_policies
             .into_iter()
             .map(inference_policy_info)
             .collect(),
@@ -1661,9 +1665,9 @@ pub async fn admin_list_inference_policies(
 
 #[tauri::command]
 pub async fn admin_create_inference_policy(
-    input: CreateInferencePolicyInput,
+    input: CreateIntelligenceAccessPolicyInput,
     state: State<'_, AppState>,
-) -> Result<InferencePolicyResponse, String> {
+) -> Result<IntelligenceAccessPolicyResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1671,13 +1675,13 @@ pub async fn admin_create_inference_policy(
     let response = session
         ._client
         .inference_policies
-        .create_inference_policy(tonic::Request::new(
-            AdminInferencePolicyServiceCreateInferencePolicyRequest {
+        .create_access_policy(tonic::Request::new(
+            AdminIntelligenceAccessPolicyServiceCreateAccessPolicyRequest {
                 space_id: input.space_id,
                 scope: input.scope.map(processing_scope),
                 effect: input.effect,
                 operations: input.operations,
-                no_inference: input.no_inference,
+                no_intelligence: input.no_inference,
                 allowed_privacy_classes: input.allowed_privacy_classes,
                 disallow_third_party: input.disallow_third_party,
                 require_local_endpoint: input.require_local_endpoint,
@@ -1688,16 +1692,16 @@ pub async fn admin_create_inference_policy(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(InferencePolicyResponse {
-        inference_policy: response.inference_policy.map(inference_policy_info),
+    Ok(IntelligenceAccessPolicyResponse {
+        inference_policy: response.access_policy.map(inference_policy_info),
     })
 }
 
 #[tauri::command]
 pub async fn admin_expire_inference_policy(
-    input: InferencePolicyActionInput,
+    input: IntelligenceAccessPolicyActionInput,
     state: State<'_, AppState>,
-) -> Result<InferencePolicyResponse, String> {
+) -> Result<IntelligenceAccessPolicyResponse, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1705,25 +1709,25 @@ pub async fn admin_expire_inference_policy(
     let response = session
         ._client
         .inference_policies
-        .expire_inference_policy(tonic::Request::new(
-            AdminInferencePolicyServiceExpireInferencePolicyRequest {
+        .expire_access_policy(tonic::Request::new(
+            AdminIntelligenceAccessPolicyServiceExpireAccessPolicyRequest {
                 space_id: input.space_id,
-                inference_policy_id: input.inference_policy_id,
+                access_policy_id: input.inference_policy_id,
             },
         ))
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(InferencePolicyResponse {
-        inference_policy: response.inference_policy.map(inference_policy_info),
+    Ok(IntelligenceAccessPolicyResponse {
+        inference_policy: response.access_policy.map(inference_policy_info),
     })
 }
 
 #[tauri::command]
 pub async fn admin_delete_inference_policy(
-    input: InferencePolicyActionInput,
+    input: IntelligenceAccessPolicyActionInput,
     state: State<'_, AppState>,
-) -> Result<DeleteInferencePolicyResponseInfo, String> {
+) -> Result<DeleteIntelligenceAccessPolicyResponseInfo, String> {
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
@@ -1731,17 +1735,17 @@ pub async fn admin_delete_inference_policy(
     let response = session
         ._client
         .inference_policies
-        .delete_inference_policy(tonic::Request::new(
-            AdminInferencePolicyServiceDeleteInferencePolicyRequest {
+        .delete_access_policy(tonic::Request::new(
+            AdminIntelligenceAccessPolicyServiceDeleteAccessPolicyRequest {
                 space_id: input.space_id,
-                inference_policy_id: input.inference_policy_id,
+                access_policy_id: input.inference_policy_id,
             },
         ))
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(DeleteInferencePolicyResponseInfo {
-        inference_policy_id: response.inference_policy_id,
+    Ok(DeleteIntelligenceAccessPolicyResponseInfo {
+        inference_policy_id: response.access_policy_id,
     })
 }
 
@@ -1758,19 +1762,20 @@ pub async fn admin_list_inference_usage_events(
         ._client
         .inference_usage
         .list_usage_events(tonic::Request::new(
-            AdminInferenceUsageServiceListUsageEventsRequest {
+            AdminIntelligenceAccessUsageServiceListUsageEventsRequest {
                 space_id: input.space_id,
                 scope: input.scope.map(inference_scope),
                 operation: inference_operation_value(&input.operation),
                 usage_mode: inference_usage_mode_value(&input.usage_mode),
                 status: inference_usage_status_value(&input.status),
-                inference_profile_id: input.inference_profile_id,
+                intelligence_profile_id: input.inference_profile_id,
                 model_endpoint_id: input.model_endpoint_id,
                 model_id: input.model_id,
                 credential_grant_id: input.credential_grant_id,
                 automation_id: input.automation_id,
                 automation_run_id: input.automation_run_id,
-                semantic_index_id: input.semantic_index_id,
+                semantic_rule_id: input.semantic_rule_id,
+                embedding_binding_key: String::new(),
                 actor_principal_id: input.actor_principal_id,
                 on_behalf_of_principal_id: input.on_behalf_of_principal_id,
                 since: input.since.map(timestamp_from_input),
@@ -1837,7 +1842,7 @@ pub async fn admin_summarize_inference_usage(
         ._client
         .inference_usage
         .summarize_usage(tonic::Request::new(
-            AdminInferenceUsageServiceSummarizeUsageRequest {
+            AdminIntelligenceAccessUsageServiceSummarizeUsageRequest {
                 space_id: input.space_id,
                 scope: input.scope.map(inference_scope),
                 since: input.since.map(timestamp_from_input),
@@ -1874,20 +1879,20 @@ fn inference_operation_value(value: &str) -> i32 {
 
 fn inference_usage_mode_value(value: &str) -> i32 {
     match value.trim().to_ascii_lowercase().as_str() {
-        "interactive" => InferenceUsageMode::Interactive as i32,
-        "automation" => InferenceUsageMode::Automation as i32,
-        "background" => InferenceUsageMode::Background as i32,
-        "semantic" => InferenceUsageMode::Semantic as i32,
-        _ => InferenceUsageMode::Unspecified as i32,
+        "interactive" => IntelligenceAccessUsageMode::Interactive as i32,
+        "automation" => IntelligenceAccessUsageMode::Automation as i32,
+        "background" => IntelligenceAccessUsageMode::Background as i32,
+        "semantic" => IntelligenceAccessUsageMode::Semantic as i32,
+        _ => IntelligenceAccessUsageMode::Unspecified as i32,
     }
 }
 
 fn inference_usage_status_value(value: &str) -> i32 {
     match value.trim().to_ascii_lowercase().as_str() {
-        "succeeded" | "success" => InferenceUsageStatus::Succeeded as i32,
-        "failed" | "failure" => InferenceUsageStatus::Failed as i32,
-        "denied" => InferenceUsageStatus::Denied as i32,
-        _ => InferenceUsageStatus::Unspecified as i32,
+        "succeeded" | "success" => IntelligenceAccessUsageStatus::Succeeded as i32,
+        "failed" | "failure" => IntelligenceAccessUsageStatus::Failed as i32,
+        "denied" => IntelligenceAccessUsageStatus::Denied as i32,
+        _ => IntelligenceAccessUsageStatus::Unspecified as i32,
     }
 }
 
@@ -1910,27 +1915,27 @@ fn operation_label(value: i32) -> String {
         .unwrap_or_default()
 }
 fn usage_mode_label(value: i32) -> String {
-    InferenceUsageMode::try_from(value)
+    IntelligenceAccessUsageMode::try_from(value)
         .map(|v| enum_label(v.as_str_name(), "INFERENCE_USAGE_MODE_"))
         .unwrap_or_default()
 }
 fn usage_status_label(value: i32) -> String {
-    InferenceUsageStatus::try_from(value)
+    IntelligenceAccessUsageStatus::try_from(value)
         .map(|v| enum_label(v.as_str_name(), "INFERENCE_USAGE_STATUS_"))
         .unwrap_or_default()
 }
 fn grant_state_label(value: i32) -> String {
-    InferenceGrantState::try_from(value)
+    IntelligenceAccessGrantState::try_from(value)
         .map(|v| enum_label(v.as_str_name(), "INFERENCE_GRANT_STATE_"))
         .unwrap_or_default()
 }
 fn policy_action_label(value: i32) -> String {
-    InferencePolicyAction::try_from(value)
+    IntelligenceAccessPolicyAction::try_from(value)
         .map(|v| enum_label(v.as_str_name(), "INFERENCE_POLICY_ACTION_"))
         .unwrap_or_default()
 }
 fn policy_state_label(value: i32) -> String {
-    InferencePolicyState::try_from(value)
+    IntelligenceAccessPolicyState::try_from(value)
         .map(|v| enum_label(v.as_str_name(), "INFERENCE_POLICY_STATE_"))
         .unwrap_or_default()
 }
@@ -1942,31 +1947,34 @@ fn timestamp_from_input(input: TimestampInput) -> Timestamp {
     }
 }
 
-fn processing_scope(input: ProcessingScopeInput) -> ProcessingScope {
-    ProcessingScope {
+fn processing_scope(input: IntelligenceAccessScopeInput) -> IntelligenceAccessScope {
+    IntelligenceAccessScope {
         space_id: input.space_id,
         domain_id: input.domain_id,
-        semantic_index_id: input.semantic_index_id,
+        semantic_rule_id: input.semantic_rule_id,
+        embedding_binding_key: input.embedding_binding_key,
         node_id: input.node_id,
         include_descendants: input.include_descendants,
     }
 }
 
-fn inference_scope(input: ProcessingScopeInput) -> InferenceScope {
-    InferenceScope {
+fn inference_scope(input: IntelligenceAccessScopeInput) -> IntelligenceAccessScope {
+    IntelligenceAccessScope {
         space_id: input.space_id,
         domain_id: input.domain_id,
-        semantic_index_id: input.semantic_index_id,
+        semantic_rule_id: input.semantic_rule_id,
+        embedding_binding_key: input.embedding_binding_key,
         node_id: input.node_id,
         include_descendants: input.include_descendants,
     }
 }
 
-fn processing_scope_info(scope: ProcessingScope) -> ProcessingScopeInfo {
-    ProcessingScopeInfo {
+fn processing_scope_info(scope: IntelligenceAccessScope) -> IntelligenceAccessScopeInfo {
+    IntelligenceAccessScopeInfo {
         space_id: scope.space_id,
         domain_id: scope.domain_id,
-        semantic_index_id: scope.semantic_index_id,
+        semantic_rule_id: scope.semantic_rule_id,
+        embedding_binding_key: scope.embedding_binding_key,
         node_id: scope.node_id,
         include_descendants: scope.include_descendants,
     }
@@ -2001,9 +2009,9 @@ fn credential_secret_value(secret_value: String) -> Result<String, String> {
     Err("API key is required".to_string())
 }
 
-fn inference_profile_info(profile: InferenceProfile) -> InferenceProfileInfo {
-    InferenceProfileInfo {
-        inference_profile_id: profile.inference_profile_id,
+fn inference_profile_info(profile: IntelligenceProfile) -> IntelligenceProfileInfo {
+    IntelligenceProfileInfo {
+        inference_profile_id: profile.intelligence_profile_id,
         space_id: profile.space_id,
         key: profile.key,
         display_name: profile.display_name,
@@ -2037,19 +2045,19 @@ fn model_key_map(models: Vec<InferenceModel>) -> HashMap<String, String> {
         .collect()
 }
 
-fn credential_info(credential: InferenceCredential) -> InferenceCredentialInfo {
+fn credential_info(credential: IntelligenceCredential) -> IntelligenceCredentialInfo {
     credential_info_with_keys(credential, &HashMap::new())
 }
 
 fn credential_info_with_keys(
-    credential: InferenceCredential,
+    credential: IntelligenceCredential,
     endpoint_keys: &HashMap<String, String>,
-) -> InferenceCredentialInfo {
+) -> IntelligenceCredentialInfo {
     let model_endpoint_key = endpoint_keys
         .get(&credential.model_endpoint_id)
         .cloned()
         .unwrap_or_default();
-    InferenceCredentialInfo {
+    IntelligenceCredentialInfo {
         credential_id: credential.credential_id,
         key: credential.key,
         display_name: credential.display_name,
@@ -2070,21 +2078,21 @@ fn credential_info_with_keys(
     }
 }
 
-fn credential_grant_info(grant: CredentialGrant) -> CredentialGrantInfo {
+fn credential_grant_info(grant: IntelligenceCredentialGrant) -> IntelligenceCredentialGrantInfo {
     credential_grant_info_with_keys(grant, &HashMap::new(), &HashMap::new())
 }
 
 fn credential_grant_info_with_keys(
-    grant: CredentialGrant,
+    grant: IntelligenceCredentialGrant,
     endpoint_keys: &HashMap<String, String>,
     model_keys: &HashMap<String, String>,
-) -> CredentialGrantInfo {
+) -> IntelligenceCredentialGrantInfo {
     let model_endpoint_key = endpoint_keys
         .get(&grant.model_endpoint_id)
         .cloned()
         .unwrap_or_default();
     let model_key = model_keys.get(&grant.model_id).cloned().unwrap_or_default();
-    CredentialGrantInfo {
+    IntelligenceCredentialGrantInfo {
         credential_grant_id: grant.credential_grant_id,
         credential_id: grant.credential_id,
         scope: grant.scope.map(processing_scope_info),
@@ -2099,7 +2107,7 @@ fn credential_grant_info_with_keys(
         granted_by: grant.granted_by,
         create_time: timestamp_string(grant.create_time),
         expire_time: timestamp_string(grant.expire_time),
-        inference_profile_ids: grant.inference_profile_ids,
+        inference_profile_ids: grant.intelligence_profile_ids,
         model_endpoint_capability_ids: grant.model_endpoint_capability_ids,
         grantee_principal_ids: grant.grantee_principal_ids,
         allow_on_behalf_of_principal_ids: grant.allow_on_behalf_of_principal_ids,
@@ -2110,13 +2118,13 @@ fn credential_grant_info_with_keys(
     }
 }
 
-fn inference_policy_info(policy: InferencePolicy) -> InferencePolicyInfo {
-    InferencePolicyInfo {
-        inference_policy_id: policy.inference_policy_id,
+fn inference_policy_info(policy: IntelligenceAccessPolicy) -> IntelligenceAccessPolicyInfo {
+    IntelligenceAccessPolicyInfo {
+        inference_policy_id: policy.access_policy_id,
         scope: policy.scope.map(processing_scope_info),
         effect: policy.effect,
         operations: policy.operations,
-        no_inference: policy.no_inference,
+        no_inference: policy.no_intelligence,
         allowed_privacy_classes: policy.allowed_privacy_classes,
         disallow_third_party: policy.disallow_third_party,
         require_local_endpoint: policy.require_local_endpoint,
@@ -2125,7 +2133,7 @@ fn inference_policy_info(policy: InferencePolicy) -> InferencePolicyInfo {
         create_time: timestamp_string(policy.create_time),
         expire_time: timestamp_string(policy.expire_time),
         action: policy_action_label(policy.action),
-        inference_profile_ids: policy.inference_profile_ids,
+        inference_profile_ids: policy.intelligence_profile_ids,
         max_input_tokens: policy.max_input_tokens,
         max_output_tokens: policy.max_output_tokens,
         max_requests_per_run: policy.max_requests_per_run,
@@ -2138,16 +2146,16 @@ fn inference_policy_info(policy: InferencePolicy) -> InferencePolicyInfo {
 }
 
 fn usage_event_info_with_keys(
-    event: InferenceUsageEvent,
+    event: IntelligenceAccessUsageEvent,
     endpoint_keys: &HashMap<String, String>,
     model_keys: &HashMap<String, String>,
-) -> InferenceUsageEventInfo {
+) -> IntelligenceAccessUsageEventInfo {
     let model_endpoint_key = endpoint_keys
         .get(&event.model_endpoint_id)
         .cloned()
         .unwrap_or_default();
     let model_key = model_keys.get(&event.model_id).cloned().unwrap_or_default();
-    InferenceUsageEventInfo {
+    IntelligenceAccessUsageEventInfo {
         usage_event_id: event.usage_event_id,
         request_id: event.request_id,
         operation: operation_label(event.operation),
@@ -2158,10 +2166,10 @@ fn usage_event_info_with_keys(
         node_id: event.node_id,
         automation_id: event.automation_id,
         automation_run_id: event.automation_run_id,
-        semantic_index_id: event.semantic_index_id,
+        semantic_rule_id: event.semantic_rule_id,
         actor_principal_id: event.actor_principal_id,
         on_behalf_of_principal_id: event.on_behalf_of_principal_id,
-        inference_profile_id: event.inference_profile_id,
+        inference_profile_id: event.intelligence_profile_id,
         model_endpoint_id: event.model_endpoint_id,
         model_endpoint_key,
         model_id: event.model_id,
@@ -2183,8 +2191,10 @@ fn usage_event_info_with_keys(
     }
 }
 
-fn usage_summary_info(summary: InferenceUsageSummary) -> InferenceUsageSummaryInfo {
-    InferenceUsageSummaryInfo {
+fn usage_summary_info(
+    summary: IntelligenceAccessUsageSummary,
+) -> IntelligenceAccessUsageSummaryInfo {
+    IntelligenceAccessUsageSummaryInfo {
         group: summary.group,
         request_count: summary.request_count,
         succeeded_count: summary.succeeded_count,

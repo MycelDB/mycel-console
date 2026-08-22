@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../types/automations";
 import type {
   BackupPolicyInfo,
@@ -58,8 +58,8 @@ import type {
   SummarizeUsageResponse,
 } from "../types/inference";
 import type { DeleteDomainSchemaInput, GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
-import type { ListSemanticIndexesInput, ListSemanticIndexesResponse } from "../types/semantic";
-import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticIndexInput, BackfillSemanticIndexResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
+import type { CreateSemanticRuleInput, CreateSemanticRuleResponse, DeleteSemanticRuleInput, DeleteSemanticRuleResponse, GetSemanticRuleInput, GetSemanticRuleResponse, ListSemanticRulesInput, ListSemanticRulesResponse, SemanticSearchInput, SemanticSearchResponse, SetSemanticRuleEnabledInput, SetSemanticRuleEnabledResponse, UpdateSemanticRuleInput, UpdateSemanticRuleResponse, ValidateSemanticRuleInput, ValidateSemanticRuleResponse } from "../types/semantic";
+import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticRuleInput, BackfillSemanticRuleResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
 import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
 import type {
   CreatePrincipalInput,
@@ -74,6 +74,41 @@ import type {
   RevokePrincipalSessionsResponse,
   SetPrincipalPasswordInput,
 } from "../types/users";
+
+export const AUTH_EXPIRED_EVENT = "mycel-console:auth-expired";
+
+type InvokeArgs = Record<string, unknown>;
+
+async function invoke<T>(command: string, args?: InvokeArgs): Promise<T> {
+  try {
+    return args === undefined ? await tauriInvoke<T>(command) : await tauriInvoke<T>(command, args);
+  } catch (err) {
+    if (shouldEmitAuthExpired(command, err) && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT, { detail: { message: errorMessage(err) } }));
+    }
+    throw err;
+  }
+}
+
+function shouldEmitAuthExpired(command: string, err: unknown): boolean {
+  if (["admin_login", "admin_connection_diagnostics", "admin_whoami", "admin_logout"].includes(command)) return false;
+  return isAuthExpiredError(err);
+}
+
+export function isAuthExpiredError(err: unknown): boolean {
+  const lower = errorMessage(err).toLowerCase();
+  return lower.includes("authorization token is expired") || lower.includes("access token is expired") || lower.includes("token is expired") || (lower.includes("unauthenticated") && lower.includes("expired"));
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
 
 export async function login(input: LoginInput): Promise<PrincipalSession> {
   return invoke<PrincipalSession>("admin_login", { input });
@@ -262,8 +297,36 @@ export async function getAutomationRun(input: GetAutomationRunInput): Promise<Au
   return invoke<AutomationRunInfo>("admin_get_automation_run", { input });
 }
 
-export async function listSemanticIndexes(input: ListSemanticIndexesInput): Promise<ListSemanticIndexesResponse> {
-  return invoke<ListSemanticIndexesResponse>("admin_list_semantic_indexes", { input });
+export async function listSemanticRules(input: ListSemanticRulesInput): Promise<ListSemanticRulesResponse> {
+  return invoke<ListSemanticRulesResponse>("admin_list_semantic_rules", { input });
+}
+
+export async function getSemanticRule(input: GetSemanticRuleInput): Promise<GetSemanticRuleResponse> {
+  return invoke<GetSemanticRuleResponse>("admin_get_semantic_rule", { input });
+}
+
+export async function validateSemanticRule(input: ValidateSemanticRuleInput): Promise<ValidateSemanticRuleResponse> {
+  return invoke<ValidateSemanticRuleResponse>("admin_validate_semantic_rule", { input });
+}
+
+export async function createSemanticRule(input: CreateSemanticRuleInput): Promise<CreateSemanticRuleResponse> {
+  return invoke<CreateSemanticRuleResponse>("admin_create_semantic_rule", { input });
+}
+
+export async function updateSemanticRule(input: UpdateSemanticRuleInput): Promise<UpdateSemanticRuleResponse> {
+  return invoke<UpdateSemanticRuleResponse>("admin_update_semantic_rule", { input });
+}
+
+export async function setSemanticRuleEnabled(input: SetSemanticRuleEnabledInput): Promise<SetSemanticRuleEnabledResponse> {
+  return invoke<SetSemanticRuleEnabledResponse>("admin_set_semantic_rule_enabled", { input });
+}
+
+export async function deleteSemanticRule(input: DeleteSemanticRuleInput): Promise<DeleteSemanticRuleResponse> {
+  return invoke<DeleteSemanticRuleResponse>("admin_delete_semantic_rule", { input });
+}
+
+export async function semanticSearch(input: SemanticSearchInput): Promise<SemanticSearchResponse> {
+  return invoke<SemanticSearchResponse>("client_semantic_search", { input });
 }
 
 export async function getSemanticMaintenanceStatus(input: GetSemanticMaintenanceStatusInput): Promise<SemanticMaintenanceStatusInfo> {
@@ -282,8 +345,8 @@ export async function processSemanticDirtyWork(input: ProcessSemanticDirtyWorkIn
   return invoke<ProcessSemanticDirtyWorkResponse>("admin_process_semantic_dirty_work", { input });
 }
 
-export async function backfillSemanticIndex(input: BackfillSemanticIndexInput): Promise<BackfillSemanticIndexResponse> {
-  return invoke<BackfillSemanticIndexResponse>("admin_backfill_semantic_index", { input });
+export async function backfillSemanticRule(input: BackfillSemanticRuleInput): Promise<BackfillSemanticRuleResponse> {
+  return invoke<BackfillSemanticRuleResponse>("admin_backfill_semantic_rule", { input });
 }
 
 export async function retrySemanticMaintenanceWork(input: SemanticMaintenanceWorkActionInput): Promise<SemanticMaintenanceWorkItemInfo> {

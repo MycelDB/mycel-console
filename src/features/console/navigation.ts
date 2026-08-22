@@ -14,7 +14,6 @@ export const navGroupOrder: ConsoleNavGroup[] = [
   "intelligence",
   "administration",
   "operations",
-  "settings",
 ];
 
 export const navGroupLabels: Record<ConsoleNavGroup, string> = {
@@ -23,7 +22,6 @@ export const navGroupLabels: Record<ConsoleNavGroup, string> = {
   intelligence: "Intelligence",
   administration: "Administration",
   operations: "Operations",
-  settings: "Settings",
 };
 
 export function buildNavigation(features: ConsoleFeature[], state: PrincipalCapabilityState): ConsoleNavSection[] {

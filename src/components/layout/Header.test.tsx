@@ -12,20 +12,21 @@ const session = {
 function renderHeader(props: Partial<HeaderProps> = {}) {
   render(
     <MemoryRouter>
-      <Header session={session} loggingOut={false} onLogout={jest.fn()} {...props} />
+      <Header session={session} loggingOut={false} theme="dark" onToggleTheme={jest.fn()} onLogout={jest.fn()} {...props} />
     </MemoryRouter>,
   );
 }
 
-test("renders cluster and principal session details", () => {
+test("renders session strip details", () => {
   renderHeader();
 
   expect(screen.getByText("127.0.0.1:9091")).toBeInTheDocument();
+  expect(screen.getByText(/signed in as/i)).toBeInTheDocument();
   expect(screen.getByText("operator")).toBeInTheDocument();
   expect(screen.queryByText(/access context/i)).not.toBeInTheDocument();
   expect(screen.queryByText(/role/i)).not.toBeInTheDocument();
   expect(screen.queryByText(/capabilit/i)).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/me");
+  expect(screen.queryByRole("link", { name: /account/i })).not.toBeInTheDocument();
 });
 
 
@@ -42,6 +43,15 @@ test("does not render role and capability counts", () => {
 
   expect(screen.getByText("operator")).toBeInTheDocument();
   expect(screen.queryByText(/1 role · 2 capabilities/i)).not.toBeInTheDocument();
+});
+
+test("invokes theme toggle callback", async () => {
+  const onToggleTheme = jest.fn();
+  renderHeader({ onToggleTheme });
+
+  await userEvent.click(screen.getByRole("button", { name: /switch to light theme/i }));
+
+  expect(onToggleTheme).toHaveBeenCalledTimes(1);
 });
 
 test("invokes logout callback", async () => {

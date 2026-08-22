@@ -1,10 +1,10 @@
 use mycel_sdk::proto::admin::v1::{
-    AnalyzeSemanticDirtyWorkRequest, AnalyzeSemanticDirtyWorkResponse,
-    BackfillSemanticIndexRequest, BackfillSemanticIndexResponse,
-    CancelSemanticMaintenanceWorkRequest, GetSemanticMaintenanceStatusRequest,
-    GetSemanticMaintenanceStatusResponse, ListSemanticMaintenanceWorkRequest,
-    ProcessSemanticDirtyWorkRequest, ProcessSemanticDirtyWorkResponse,
-    RetrySemanticMaintenanceWorkRequest, SemanticMaintenanceWorkItem,
+    AnalyzeSemanticDirtyWorkRequest, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticRuleRequest,
+    BackfillSemanticRuleResponse, CancelSemanticMaintenanceWorkRequest,
+    GetSemanticMaintenanceStatusRequest, GetSemanticMaintenanceStatusResponse,
+    ListSemanticMaintenanceWorkRequest, ProcessSemanticDirtyWorkRequest,
+    ProcessSemanticDirtyWorkResponse, RetrySemanticMaintenanceWorkRequest,
+    SemanticMaintenanceWorkItem,
 };
 use tauri::State;
 
@@ -28,7 +28,9 @@ pub struct SemanticMaintenanceWorkActionInput {
 pub struct AnalyzeSemanticDirtyWorkInput {
     pub space_id: String,
     #[serde(default)]
-    pub semantic_index_id: Option<String>,
+    pub semantic_rule_id: Option<String>,
+    #[serde(default)]
+    pub embedding_binding_key: Option<String>,
     #[serde(default)]
     pub limit: Option<i32>,
 }
@@ -43,9 +45,10 @@ pub struct ProcessSemanticDirtyWorkInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BackfillSemanticIndexInput {
+pub struct BackfillSemanticRuleInput {
     pub space_id: String,
-    pub semantic_index_id: String,
+    pub semantic_rule_id: String,
+    pub embedding_binding_key: String,
     #[serde(default)]
     pub node_ids: Vec<String>,
     #[serde(default)]
@@ -62,6 +65,10 @@ pub struct ListSemanticMaintenanceWorkInput {
     pub space_id: String,
     #[serde(default)]
     pub status: Option<String>,
+    #[serde(default)]
+    pub semantic_rule_id: Option<String>,
+    #[serde(default)]
+    pub embedding_binding_key: Option<String>,
     #[serde(default)]
     pub limit: Option<i32>,
 }
@@ -92,7 +99,8 @@ pub struct SemanticMaintenanceWorkItemInfo {
     pub work_item_id: String,
     pub space_id: String,
     pub domain_id: String,
-    pub semantic_index_id: String,
+    pub semantic_rule_id: String,
+    pub embedding_binding_key: String,
     pub target_node_id: String,
     pub action: String,
     pub status: String,
@@ -128,8 +136,9 @@ pub struct ProcessSemanticDirtyWorkResponseInfo {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BackfillSemanticIndexResponseInfo {
-    pub semantic_index_id: String,
+pub struct BackfillSemanticRuleResponseInfo {
+    pub semantic_rule_id: String,
+    pub embedding_binding_key: String,
     pub selected_count: i32,
     pub generated_count: i32,
     pub skipped_count: i32,
@@ -154,7 +163,8 @@ pub async fn admin_analyze_semantic_dirty_work(
         .semantic_maintenance
         .analyze_semantic_dirty_work(tonic::Request::new(AnalyzeSemanticDirtyWorkRequest {
             space_id,
-            semantic_index_id: input.semantic_index_id.unwrap_or_default(),
+            semantic_rule_id: input.semantic_rule_id.unwrap_or_default(),
+            embedding_binding_key: input.embedding_binding_key.unwrap_or_default(),
             limit: input.limit.unwrap_or(100),
         }))
         .await
@@ -197,25 +207,29 @@ pub async fn admin_process_semantic_dirty_work(
 }
 
 #[tauri::command]
-pub async fn admin_backfill_semantic_index(
-    input: BackfillSemanticIndexInput,
+pub async fn admin_backfill_semantic_rule(
+    input: BackfillSemanticRuleInput,
     state: State<'_, AppState>,
-) -> Result<BackfillSemanticIndexResponseInfo, String> {
+) -> Result<BackfillSemanticRuleResponseInfo, String> {
     let space_id = input.space_id.trim().to_string();
-    let semantic_index_id = input.semantic_index_id.trim().to_string();
-    if space_id.is_empty() || semantic_index_id.is_empty() {
-        return Err("Space ID and semantic index ID are required".to_string());
+    let semantic_rule_id = input.semantic_rule_id.trim().to_string();
+    let embedding_binding_key = input.embedding_binding_key.trim().to_string();
+    if space_id.is_empty() || semantic_rule_id.is_empty() || embedding_binding_key.is_empty() {
+        return Err(
+            "Space ID, semantic rule ID, and embedding binding key are required".to_string(),
+        );
     }
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response: BackfillSemanticIndexResponse = session
+    let response: BackfillSemanticRuleResponse = session
         ._client
         .semantic_maintenance
-        .backfill_semantic_index(tonic::Request::new(BackfillSemanticIndexRequest {
+        .backfill_semantic_rule(tonic::Request::new(BackfillSemanticRuleRequest {
             space_id,
-            semantic_index_id,
+            semantic_rule_id,
+            embedding_binding_key,
             node_ids: input.node_ids,
             force: input.force,
             limit: input.limit.unwrap_or(100),
@@ -224,8 +238,9 @@ pub async fn admin_backfill_semantic_index(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
-    Ok(BackfillSemanticIndexResponseInfo {
-        semantic_index_id: response.semantic_index_id,
+    Ok(BackfillSemanticRuleResponseInfo {
+        semantic_rule_id: response.semantic_rule_id,
+        embedding_binding_key: response.embedding_binding_key,
         selected_count: response.selected_count,
         generated_count: response.generated_count,
         skipped_count: response.skipped_count,
@@ -342,6 +357,8 @@ pub async fn admin_list_semantic_maintenance_work(
         .list_semantic_maintenance_work(tonic::Request::new(ListSemanticMaintenanceWorkRequest {
             space_id,
             status: input.status.unwrap_or_default(),
+            semantic_rule_id: input.semantic_rule_id.unwrap_or_default(),
+            embedding_binding_key: input.embedding_binding_key.unwrap_or_default(),
             limit: input.limit.unwrap_or(100),
         }))
         .await
@@ -378,7 +395,8 @@ fn work_item_info(item: SemanticMaintenanceWorkItem) -> SemanticMaintenanceWorkI
         work_item_id: item.work_item_id,
         space_id: item.space_id,
         domain_id: item.domain_id,
-        semantic_index_id: item.semantic_index_id,
+        semantic_rule_id: item.semantic_rule_id,
+        embedding_binding_key: item.embedding_binding_key,
         target_node_id: item.target_node_id,
         action: item.action,
         status: item.status,

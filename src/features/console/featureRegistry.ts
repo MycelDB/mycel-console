@@ -1,7 +1,7 @@
 import type { CapabilityRequirement, FeatureAvailability, FeatureFallback, PrincipalCapabilityState } from "./capabilities";
 import { featureAvailability } from "./capabilities";
 
-export type ConsoleNavGroup = "environment" | "data" | "intelligence" | "administration" | "operations" | "settings";
+export type ConsoleNavGroup = "environment" | "data" | "intelligence" | "administration" | "operations";
 
 export type ConsoleFeature = {
   id: string;
@@ -107,26 +107,7 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     description: "Semantic generation rules, indexes, maintenance, and token usage.",
     order: 30,
   },
-  {
-    id: "maintenance",
-    label: "Maintenance",
-    route: "/maintenance",
-    navGroup: "operations",
-    requirements: [{ capability: "semantic.manage" }],
-    fallback: "hide",
-    description: "Operational maintenance workflows.",
-    order: 40,
-  },
 
-  {
-    id: "settings",
-    label: "Settings",
-    route: "/settings",
-    navGroup: "settings",
-    requirements: [],
-    description: "Local console preferences and connection settings.",
-    order: 90,
-  },
 ];
 
 export function featuresWithAvailability(

@@ -60,6 +60,10 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
       setError("Personal space name is required");
       return;
     }
+    if (!disabled && !password) {
+      setError("Initial password is required for an active principal. Create the principal disabled if you do not want to set a password yet.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -78,7 +82,7 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
             defaultDomainName: trimmedDomainName,
           });
         } catch (spaceErr) {
-          onCreated(principal, `Principal created, but personal space creation failed: ${spaceErr instanceof Error ? spaceErr.message : "Create space failed"}`);
+          onCreated(principal, `Principal created, but personal space creation failed: ${errorMessage(spaceErr, "Create space failed")}`);
           reset();
           onClose();
           return;
@@ -88,7 +92,7 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create principal failed");
+      setError(errorMessage(err, "Create principal failed"));
     } finally {
       setLoading(false);
     }
@@ -197,4 +201,10 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
       </Form>
     </div>
   );
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err.trim()) return err;
+  return fallback;
 }

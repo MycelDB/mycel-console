@@ -8,6 +8,7 @@ export type LoginPageProps = {
   onLoginSuccess: (session: PrincipalSession) => void;
   loginService?: (input: LoginInput) => Promise<PrincipalSession>;
   diagnosticsService?: (input: LoginInput) => Promise<ConnectionDiagnosticsResponse>;
+  notice?: string;
 };
 
 function errorMessage(err: unknown, fallback: string) {
@@ -16,7 +17,7 @@ function errorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
-export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnosticsService = defaultConnectionDiagnostics }: LoginPageProps) {
+export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnosticsService = defaultConnectionDiagnostics, notice = "" }: LoginPageProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
@@ -55,7 +56,7 @@ export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnos
       <LoginForm
         loading={loading}
         diagnosticsLoading={diagnosticsLoading}
-        error={error}
+        error={error || notice}
         diagnostics={diagnostics}
         onSubmit={handleSubmit}
         onRunDiagnostics={handleDiagnostics}

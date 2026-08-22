@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
-import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { AccountPage } from "../../features/account";
 import { BackupsPage } from "../../features/backups";
@@ -9,8 +8,6 @@ import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
 import { AccessPage } from "../../features/intelligence/access";
 import { AutomationsPage } from "../../features/intelligence/automations";
 import { SemanticPage } from "../../features/intelligence/semantic";
-import { MaintenancePage } from "../../features/maintenance";
-import { ComingSoonPage } from "../../features/placeholder/ComingSoonPage";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
 import { UserDetailPage, UsersPage } from "../../features/users";
 import { Text } from "../typography";
@@ -28,14 +25,6 @@ export type AppShellProps = {
   onToggleTheme: () => void;
   onLogout: () => void;
 };
-
-const placeholderRoutes = [
-  {
-    path: "/settings",
-    title: "Settings",
-    description: "Configure local console preferences and cluster connection options.",
-  },
-];
 
 function RequireCapabilities({ principalContext, requirements, children }: { principalContext?: ConsolePrincipalContext | null; requirements: CapabilityRequirement[]; children: ReactNode }) {
   const state = navigationCapabilityState(principalContext);
@@ -62,9 +51,8 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <Sidebar theme={theme} principalContext={principalContext} onToggleTheme={onToggleTheme} />
+      <Sidebar session={session} theme={theme} loggingOut={loggingOut} principalContext={principalContext} onToggleTheme={onToggleTheme} onLogout={onLogout} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header session={session} principalContext={principalContext} principalContextLoading={principalContextLoading} loggingOut={loggingOut} onLogout={onLogout} />
         {logoutError && (
           <Text
             intent="danger"
@@ -94,14 +82,6 @@ export function AppShell({
             <Route path="/intelligence/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("inference.catalog.read")]}><AccessPage principalContext={principalContext} /></RequireCapabilities>} />
             <Route path="/intelligence/automations" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("automation.read"), requirement("space.read"), requirement("domain.read")]}><AutomationsPage principalContext={principalContext} /></RequireCapabilities>} />
             <Route path="/intelligence/semantic" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("semantic.search"), requirement("space.read"), requirement("domain.read")]}><SemanticPage principalContext={principalContext} /></RequireCapabilities>} />
-            <Route path="/maintenance" element={<MaintenancePage />} />
-            {placeholderRoutes.map((route) => (
-              <Route
-                key={route.path}
-                path={route.path}
-                element={<ComingSoonPage title={route.title} description={route.description} />}
-              />
-            ))}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>

@@ -12,7 +12,7 @@ function renderPage(overrides: Partial<Parameters<typeof SemanticPage>[0]> = {})
     getSemanticRuleService: jest.fn().mockResolvedValue({ rule: null, summary: null }),
     validateSemanticRuleService: jest.fn().mockResolvedValue({ valid: true, diagnostics: [] }),
     getSemanticMaintenanceStatusService: jest.fn().mockResolvedValue({ enabled: true, degraded: false, degradedReason: "", queueDepthPending: 1, queueDepthRunning: 0, queueDepthFailedRetryable: 0, queueDepthFailedPermanent: 0, oldestPendingAgeSeconds: 0, lastDirtyEventAt: "", lastAnalyzedAt: "", lastWorkerSuccessAt: "", lastWorkerErrorAt: "", throttleState: "", analyzerRuns: 0, workerRuns: 0 }),
-    listSemanticMaintenanceWorkService: jest.fn().mockResolvedValue({ items: [] }),
+    listSemanticMaintenanceWorkService: jest.fn().mockResolvedValue({ items: [{ workItemId: "work1", spaceId: "sp1", domainId: "dom1", semanticRuleId: "rule1", embeddingBindingKey: "search", targetNodeId: "node1", action: "embed", status: "completed", attemptCount: 1, notBefore: "", claimedUntil: "", lastErrorCategory: "", lastErrorMessageSanitized: "", createdAt: "2026-08-24T12:00:00Z", updatedAt: "2026-08-24T12:00:02Z" }] }),
     summarizeInferenceUsageService: jest.fn().mockResolvedValue({ summaries: [{ group: { semantic_rule_id: "rule1", domain_id: "dom1" }, requestCount: 3, succeededCount: 3, failedCount: 0, deniedCount: 0, inputTokens: 15, outputTokens: 30, totalTokens: 45, totalLatencyMillis: 100 }] }),
     semanticSearchService: jest.fn().mockResolvedValue({ results: [{ semanticRuleId: "rule1", embeddingBindingKey: "search", recordId: "rec1", nodeId: "node1", score: 0.91, node: { nodeId: "node1", properties: { title: "Semantic troubleshooting" } }, matchedChunkIds: [], snippet: "stale search indexes" }], warnings: [] }),
     ...overrides,
@@ -36,6 +36,18 @@ test("renders global semantic rule inventory, maintenance, and usage", async () 
   expect(screen.getByText(/45 tokens/i)).toBeInTheDocument();
   expect(screen.getAllByText(/Pending 1/i).length).toBeGreaterThan(0);
   expect(listInferenceProfilesService).toHaveBeenCalledWith({ spaceId: "sp1", domainId: undefined, operation: "embeddings", includeDisabled: false, pageSize: 100 });
+});
+
+test("shows embedding generation activity", async () => {
+  renderPage();
+
+  await screen.findByText("Page summary");
+  await userEvent.click(screen.getByRole("tab", { name: "Activity" }));
+
+  expect(screen.getByRole("heading", { name: /embedding generation activity/i })).toBeInTheDocument();
+  expect(screen.getByText("work1")).toBeInTheDocument();
+  expect(screen.getByText("node1")).toBeInTheDocument();
+  expect(screen.getByText("completed")).toBeInTheDocument();
 });
 
 test("uses an Intelligence profile dropdown in the rule editor", async () => {

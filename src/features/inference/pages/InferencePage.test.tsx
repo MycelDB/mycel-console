@@ -22,7 +22,7 @@ function renderPage(overrides: Partial<Parameters<typeof InferencePage>[0]> = {}
     listInferencePackagesService: jest.fn<Promise<ListInferencePackagesResponse>, [ListInferencePackagesInput | undefined]>().mockResolvedValue(packagesResponse),
     applyInferencePackageService: jest.fn<Promise<ApplyInferencePackageResponse>, any>().mockResolvedValue({ package: packagesResponse.packages[0], modelEndpointCount: 1, modelCount: 2, vectorStoreCount: 1, capabilityCount: 2 }),
     listModelEndpointsService: jest.fn().mockResolvedValue({ modelEndpoints: [{ modelEndpointId: "ep1", key: "openai", name: "OpenAI", connectorType: "openai-compatible", endpointUrl: "https://api.openai.com/v1", networkClass: "external_https", privacyClass: "third_party", authModes: ["api_key"], operations: ["embeddings"], enabled: true }], nextPageToken: "" }),
-    listModelsService: jest.fn().mockResolvedValue({ models: [{ modelId: "m1", key: "openai/text-embedding-3-small", operation: "embeddings", modelName: "text-embedding-3-small", connectorTypes: ["openai-compatible"], dimensions: 1536, modality: "text", vectorSpaceKey: "openai/text-embedding-3-small" }], nextPageToken: "" }),
+    listModelsService: jest.fn().mockResolvedValue({ models: [{ modelId: "m1", key: "openai/text-embedding-3-small", kind: "embedding", modelName: "text-embedding-3-small", connectorTypes: ["openai-compatible"], dimensions: 1536, inputModalities: ["text"], outputModalities: ["embedding"], vectorSpaceKey: "openai/text-embedding-3-small" }], nextPageToken: "" }),
     listVectorStoresService: jest.fn().mockResolvedValue({ vectorStores: [{ vectorStoreId: "vs1", key: "mycel-file", name: "Mycel File", type: "mycel-file", privacyClass: "local_only", enabled: true }], nextPageToken: "" }),
     listModelEndpointCapabilitiesService: jest.fn().mockResolvedValue({ modelEndpointCapabilities: [{ modelEndpointCapabilityId: "cap1", modelEndpointId: "ep1", modelEndpointKey: "openai", modelId: "m1", modelKey: "openai/text-embedding-3-small", operation: "embeddings", enabled: true }], nextPageToken: "" }),
     ...overrides,
@@ -65,7 +65,7 @@ test("sends catalog filter inputs", async () => {
 
   await userEvent.click(screen.getByRole("tab", { name: "Models" }));
   await userEvent.selectOptions(screen.getByLabelText(/operation/i), "embeddings");
-  await waitFor(() => expect(services.listModelsService).toHaveBeenLastCalledWith({ pageSize: 100, operation: "embeddings" }));
+  await waitFor(() => expect(services.listModelsService).toHaveBeenLastCalledWith({ pageSize: 100 }));
   expect(services.listModelEndpointCapabilitiesService).toHaveBeenLastCalledWith({ pageSize: 500, operation: "embeddings", includeDisabled: true });
 });
 
@@ -76,7 +76,7 @@ test("loads models with capability chips and vector stores", async () => {
   await userEvent.click(screen.getByRole("tab", { name: "Models" }));
   expect(await screen.findByText("1536")).toBeInTheDocument();
   expect(screen.getByText("embeddings · openai")).toBeInTheDocument();
-  expect(services.listModelsService).toHaveBeenCalledWith({ pageSize: 100, operation: "" });
+  expect(services.listModelsService).toHaveBeenCalledWith({ pageSize: 100 });
   expect(services.listModelEndpointCapabilitiesService).toHaveBeenCalledWith({ pageSize: 500, operation: "", includeDisabled: false });
 
   await userEvent.click(screen.getByRole("tab", { name: "Vector stores" }));
@@ -242,8 +242,8 @@ test("creates profiles with dynamic scope and operation selectors", async () => 
 
 test("uses multi-select endpoint and model refs for profile creation", async () => {
   const listModelsService = jest.fn().mockResolvedValue({ models: [
-      { modelId: "m-chat", key: "openai/gpt-5.6-mini", operation: "chat", modelName: "gpt-5.6-mini", connectorTypes: ["openai-compatible"], dimensions: 0, modality: "text", vectorSpaceKey: "" },
-      { modelId: "m-embed", key: "openai/text-embedding-3-small", operation: "embeddings", modelName: "text-embedding-3-small", connectorTypes: ["openai-compatible"], dimensions: 1536, modality: "text", vectorSpaceKey: "openai/text-embedding-3-small" },
+      { modelId: "m-chat", key: "openai/gpt-5.6-mini", kind: "generative", modelName: "gpt-5.6-mini", connectorTypes: ["openai-compatible"], dimensions: 0, inputModalities: ["text"], outputModalities: ["embedding"], vectorSpaceKey: "" },
+      { modelId: "m-embed", key: "openai/text-embedding-3-small", kind: "embedding", modelName: "text-embedding-3-small", connectorTypes: ["openai-compatible"], dimensions: 1536, inputModalities: ["text"], outputModalities: ["embedding"], vectorSpaceKey: "openai/text-embedding-3-small" },
     ], nextPageToken: "" });
   renderPage({
     listSpacesService: jest.fn().mockResolvedValue({ spaces: [], nextPageToken: "" }),

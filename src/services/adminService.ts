@@ -1,5 +1,5 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../types/automations";
+import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo, UpdateAutomationInput, ValidateAutomationInfo, GraphProcedureActionInput, GraphProcedureInfo, ListGraphProceduresResponseInfo, GraphAutomationBindingActionInput, GraphAutomationBindingInfo, ListGraphAutomationBindingsResponseInfo } from "../types/automations";
 import type {
   BackupPolicyInfo,
   BackupStatusResponse,
@@ -295,6 +295,30 @@ export async function listAutomationInvocations(input: ListAutomationInvocations
 
 export async function getAutomationRun(input: GetAutomationRunInput): Promise<AutomationRunInfo> {
   return invoke<AutomationRunInfo>("admin_get_automation_run", { input });
+}
+
+export async function listGraphProcedures(input: DomainAutomationInput): Promise<ListGraphProceduresResponseInfo> {
+  return invoke<ListGraphProceduresResponseInfo>("admin_list_graph_procedures", { input });
+}
+
+export async function getGraphProcedure(input: GraphProcedureActionInput): Promise<GraphProcedureInfo> {
+  return invoke<GraphProcedureInfo>("admin_get_graph_procedure", { input });
+}
+
+export async function listGraphAutomationBindings(input: DomainAutomationInput): Promise<ListGraphAutomationBindingsResponseInfo> {
+  return invoke<ListGraphAutomationBindingsResponseInfo>("admin_list_graph_automation_bindings", { input });
+}
+
+export async function getGraphAutomationBinding(input: GraphAutomationBindingActionInput): Promise<GraphAutomationBindingInfo> {
+  return invoke<GraphAutomationBindingInfo>("admin_get_graph_automation_binding", { input });
+}
+
+export async function enableGraphAutomationBinding(input: GraphAutomationBindingActionInput): Promise<GraphAutomationBindingInfo> {
+  return invoke<GraphAutomationBindingInfo>("admin_enable_graph_automation_binding", { input });
+}
+
+export async function disableGraphAutomationBinding(input: GraphAutomationBindingActionInput): Promise<GraphAutomationBindingInfo> {
+  return invoke<GraphAutomationBindingInfo>("admin_disable_graph_automation_binding", { input });
 }
 
 export async function listSemanticRules(input: ListSemanticRulesInput): Promise<ListSemanticRulesResponse> {

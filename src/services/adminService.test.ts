@@ -511,14 +511,14 @@ test("listModelEndpoints sends include disabled input", async () => {
   });
 });
 
-test("listModels sends operation filter", async () => {
+test("listModels sends kind filter", async () => {
   const response = { models: [], nextPageToken: "" };
   invokeMock.mockResolvedValue(response);
 
-  await expect(listModels({ operation: "embeddings" })).resolves.toEqual(response);
+  await expect(listModels({ kind: "embedding" })).resolves.toEqual(response);
 
   expect(invokeMock).toHaveBeenCalledWith("admin_list_models", {
-    input: { operation: "embeddings" },
+    input: { kind: "embedding" },
   });
 });
 
@@ -560,7 +560,7 @@ test("applyInferencePackage sends package document", async () => {
     version: "2026-06",
     source: "standard-openai-chat.json",
     model_endpoints: [{ key: "openai", enabled: true }],
-    models: [{ key: "openai/gpt-4o", operation: "chat" }],
+    models: [{ key: "openai/gpt-4o", kind: "generative" }],
     vector_stores: [{ key: "mycel-file", enabled: true }],
     model_endpoint_capabilities: [{ model_endpoint: "openai", model: "openai/gpt-4o", operation: "chat" }],
   };

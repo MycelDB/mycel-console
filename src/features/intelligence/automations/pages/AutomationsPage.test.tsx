@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { AutomationsPage } from "./AutomationsPage";
 
@@ -22,6 +23,8 @@ test("renders global graph automation inventory and usage", async () => {
   expect(screen.getByRole("heading", { name: /graph automations/i })).toBeInTheDocument();
   expect(await screen.findByText("Summarize pages")).toBeInTheDocument();
   expect(screen.getByText(/30 tokens/i)).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Runs" }));
   expect(screen.getByText("run1")).toBeInTheDocument();
 });
 

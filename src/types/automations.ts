@@ -75,3 +75,60 @@ export interface ValidateAutomationInfo {
   error: string;
   normalizedDefinitionJson: string;
 }
+
+export interface GraphProcedureSummaryInfo {
+  id: string;
+  name: string;
+  version: number;
+  status: string;
+  updatedAt: string;
+  operation: string;
+  inferenceProfile: string;
+  inferenceProfileId: string;
+}
+
+export interface ListGraphProceduresResponseInfo {
+  procedures: GraphProcedureSummaryInfo[];
+}
+
+export interface GraphProcedureActionInput {
+  domainId: string;
+  procedureId: string;
+}
+
+export interface GraphProcedureInfo {
+  procedureJson: string;
+}
+
+export interface GraphAutomationBindingSummaryInfo {
+  id: string;
+  name: string;
+  version: number;
+  status: string;
+  procedureId: string;
+  procedureVersion: number;
+  triggerType: string;
+  events: string[];
+  labels: string[];
+  actorPrincipalId: string;
+  ownerPrincipalId: string;
+  onBehalfOfPrincipalId: string;
+  inferenceProfile: string;
+  inferenceProfileId: string;
+  scopeSpaceId: string;
+  scopeDomainId: string;
+  updatedAt: string;
+}
+
+export interface ListGraphAutomationBindingsResponseInfo {
+  bindings: GraphAutomationBindingSummaryInfo[];
+}
+
+export interface GraphAutomationBindingActionInput {
+  domainId: string;
+  bindingId: string;
+}
+
+export interface GraphAutomationBindingInfo {
+  bindingJson: string;
+}

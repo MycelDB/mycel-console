@@ -38,11 +38,12 @@ export type ModelEndpointInfo = {
 export type InferenceModelInfo = {
   modelId: string;
   key: string;
-  operation: string;
+  kind: string;
   modelName: string;
   connectorTypes: string[];
   dimensions: number;
-  modality: string;
+  inputModalities: string[];
+  outputModalities: string[];
   vectorSpaceKey: string;
   metadata?: JsonObject | null;
 };
@@ -77,7 +78,7 @@ export type ListModelEndpointsInput = {
 export type ListModelsInput = {
   pageSize?: number;
   pageToken?: string;
-  operation?: string;
+  kind?: string;
 };
 
 export type ListVectorStoresInput = {
@@ -130,11 +131,12 @@ export type ModelEndpointInput = {
 
 export type InferenceModelInput = {
   key: string;
-  operation?: string;
+  kind?: string;
   model_name?: string;
   connector_types?: string[];
   dimensions?: number;
-  modality?: string;
+  input_modalities?: string[];
+  output_modalities?: string[];
   vector_space_key?: string;
   metadata?: JsonObject;
 };

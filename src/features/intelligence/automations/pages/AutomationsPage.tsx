@@ -6,11 +6,17 @@ import {
   createAutomation as defaultCreateAutomation,
   deleteAutomation as defaultDeleteAutomation,
   disableAutomation as defaultDisableAutomation,
+  disableGraphAutomationBinding as defaultDisableGraphAutomationBinding,
   enableAutomation as defaultEnableAutomation,
+  enableGraphAutomationBinding as defaultEnableGraphAutomationBinding,
   getAutomation as defaultGetAutomation,
   getAutomationRun as defaultGetAutomationRun,
+  getGraphAutomationBinding as defaultGetGraphAutomationBinding,
+  getGraphProcedure as defaultGetGraphProcedure,
   listAutomationInvocations as defaultListAutomationInvocations,
   listAutomations as defaultListAutomations,
+  listGraphAutomationBindings as defaultListGraphAutomationBindings,
+  listGraphProcedures as defaultListGraphProcedures,
   listDomains as defaultListDomains,
   listInferenceProfiles as defaultListInferenceProfiles,
   listSpaces as defaultListSpaces,
@@ -27,9 +33,17 @@ import type {
   AutomationRunInfo,
   DomainAutomationInput,
   GetAutomationRunInput,
+  GraphAutomationBindingActionInput,
+  GraphAutomationBindingInfo,
+  GraphAutomationBindingSummaryInfo,
+  GraphProcedureActionInput,
+  GraphProcedureInfo,
+  GraphProcedureSummaryInfo,
   ListAutomationInvocationsInput,
   ListAutomationInvocationsResponseInfo,
   ListAutomationsResponseInfo,
+  ListGraphAutomationBindingsResponseInfo,
+  ListGraphProceduresResponseInfo,
   UpdateAutomationInput,
   ValidateAutomationInfo,
 } from "../../../../types/automations";
@@ -46,6 +60,11 @@ type AutomationRow = {
 
 type UsageByAutomation = Record<string, { requestCount: number; failedCount: number; deniedCount: number; inputTokens: number; outputTokens: number; totalTokens: number }>;
 
+type ProcedureRow = { space: SpaceInfo; domain: DomainInfo; procedure: GraphProcedureSummaryInfo };
+type BindingRow = { space: SpaceInfo; domain: DomainInfo; binding: GraphAutomationBindingSummaryInfo };
+type RunRow = { space: SpaceInfo; domain: DomainInfo; automation: AutomationDefinitionSummaryInfo; invocation: AutomationInvocationSummaryInfo };
+type AutomationTab = "procedures" | "automations" | "runs";
+
 type AutomationEditorState = {
   mode: "create" | "edit";
   spaceId: string;
@@ -61,6 +80,12 @@ export type AutomationsPageProps = {
   listDomainsService?: (input: ListDomainsInput) => Promise<ListDomainsResponse>;
   listAutomationsService?: (input: DomainAutomationInput) => Promise<ListAutomationsResponseInfo>;
   listAutomationInvocationsService?: (input: ListAutomationInvocationsInput) => Promise<ListAutomationInvocationsResponseInfo>;
+  listGraphProceduresService?: (input: DomainAutomationInput) => Promise<ListGraphProceduresResponseInfo>;
+  getGraphProcedureService?: (input: GraphProcedureActionInput) => Promise<GraphProcedureInfo>;
+  listGraphAutomationBindingsService?: (input: DomainAutomationInput) => Promise<ListGraphAutomationBindingsResponseInfo>;
+  getGraphAutomationBindingService?: (input: GraphAutomationBindingActionInput) => Promise<GraphAutomationBindingInfo>;
+  enableGraphAutomationBindingService?: (input: GraphAutomationBindingActionInput) => Promise<GraphAutomationBindingInfo>;
+  disableGraphAutomationBindingService?: (input: GraphAutomationBindingActionInput) => Promise<GraphAutomationBindingInfo>;
   getAutomationService?: (input: AutomationActionInput) => Promise<AutomationDefinitionInfo>;
   getAutomationRunService?: (input: GetAutomationRunInput) => Promise<AutomationRunInfo>;
   validateAutomationService?: (input: AutomationDefinitionInput) => Promise<ValidateAutomationInfo>;
@@ -85,6 +110,12 @@ export function AutomationsPage({
   listDomainsService = defaultListDomains,
   listAutomationsService = defaultListAutomations,
   listAutomationInvocationsService = defaultListAutomationInvocations,
+  listGraphProceduresService = defaultListGraphProcedures,
+  getGraphProcedureService = defaultGetGraphProcedure,
+  listGraphAutomationBindingsService = defaultListGraphAutomationBindings,
+  getGraphAutomationBindingService = defaultGetGraphAutomationBinding,
+  enableGraphAutomationBindingService = defaultEnableGraphAutomationBinding,
+  disableGraphAutomationBindingService = defaultDisableGraphAutomationBinding,
   getAutomationService = defaultGetAutomation,
   getAutomationRunService = defaultGetAutomationRun,
   validateAutomationService = defaultValidateAutomation,
@@ -101,6 +132,8 @@ export function AutomationsPage({
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [domains, setDomains] = useState<DomainInfo[]>([]);
   const [rows, setRows] = useState<AutomationRow[]>([]);
+  const [procedureRows, setProcedureRows] = useState<ProcedureRow[]>([]);
+  const [bindingRows, setBindingRows] = useState<BindingRow[]>([]);
   const [usageByAutomation, setUsageByAutomation] = useState<UsageByAutomation>({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -113,7 +146,15 @@ export function AutomationsPage({
   const selectedSpaceId = searchParams.get("spaceId") || "";
   const selectedDomainId = searchParams.get("domainId") || "";
   const statusFilter = searchParams.get("status") || "";
+  const activeTab = automationTab(searchParams.get("tab"));
   const canManage = canUseCapability(principalContext, "automation.manage");
+
+  const setTab = useCallback((tab: AutomationTab) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tab);
+    next.delete("status");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const setFilter = useCallback((key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -160,6 +201,20 @@ export function AutomationsPage({
       }));
       setRows(automationRows.flat().sort(compareAutomationRows));
 
+      const procedureAndBindingRows = await Promise.all(domainCandidates.map(async (domain) => {
+        const space = spaceById.get(domain.spaceId) ?? { spaceId: domain.spaceId, name: domain.spaceId };
+        const [procedures, bindings] = await Promise.all([
+          listGraphProceduresService({ domainId: domain.domainId }).catch(() => ({ procedures: [] as GraphProcedureSummaryInfo[] })),
+          listGraphAutomationBindingsService({ domainId: domain.domainId }).catch(() => ({ bindings: [] as GraphAutomationBindingSummaryInfo[] })),
+        ]);
+        return {
+          procedures: procedures.procedures.map((procedure) => ({ space, domain, procedure })),
+          bindings: bindings.bindings.map((binding) => ({ space, domain, binding })),
+        };
+      }));
+      setProcedureRows(procedureAndBindingRows.flatMap((item) => item.procedures).sort((a, b) => a.procedure.id.localeCompare(b.procedure.id)));
+      setBindingRows(procedureAndBindingRows.flatMap((item) => item.bindings).sort((a, b) => a.binding.id.localeCompare(b.binding.id)));
+
       const usage: UsageByAutomation = {};
       const usageSpaces = selectedSpaceId ? spaceResponse.spaces.filter((space) => space.spaceId === selectedSpaceId) : spaceResponse.spaces;
       await Promise.all(usageSpaces.map(async (space) => {
@@ -190,7 +245,7 @@ export function AutomationsPage({
     } finally {
       setLoading(false);
     }
-  }, [listAutomationInvocationsService, listAutomationsService, listDomainsService, listSpacesService, selectedDomainId, selectedSpaceId, summarizeInferenceUsageService]);
+  }, [listAutomationInvocationsService, listAutomationsService, listDomainsService, listGraphAutomationBindingsService, listGraphProceduresService, listSpacesService, selectedDomainId, selectedSpaceId, summarizeInferenceUsageService]);
 
   useEffect(() => {
     void load();
@@ -198,15 +253,22 @@ export function AutomationsPage({
 
   const filteredDomains = useMemo(() => domains.filter((domain) => !selectedSpaceId || domain.spaceId === selectedSpaceId), [domains, selectedSpaceId]);
   const filteredRows = useMemo(() => rows.filter((row) => !statusFilter || row.automation.status === statusFilter), [rows, statusFilter]);
+  const filteredProcedureRows = useMemo(() => procedureRows.filter((row) => !statusFilter || row.procedure.status === statusFilter), [procedureRows, statusFilter]);
+  const filteredBindingRows = useMemo(() => bindingRows.filter((row) => !statusFilter || row.binding.status === statusFilter), [bindingRows, statusFilter]);
+  const runRows = useMemo(() => rows.flatMap((row) => row.invocations.map((invocation) => ({ space: row.space, domain: row.domain, automation: row.automation, invocation }))), [rows]);
+  const filteredRunRows = useMemo(() => runRows.filter((row) => !statusFilter || row.invocation.status === statusFilter), [runRows, statusFilter]);
+  const statusOptions = activeTab === "runs"
+    ? [{ value: "pending", label: "Pending" }, { value: "succeeded", label: "Succeeded" }, { value: "skipped", label: "Skipped" }, { value: "failed", label: "Failed" }, { value: "error", label: "Error" }]
+    : [{ value: "enabled", label: "Enabled" }, { value: "disabled", label: "Disabled" }];
   const totals = useMemo(() => {
-    const usage = filteredRows.reduce((sum, row) => sum + (usageByAutomation[automationUsageKey(row.domain.domainId, row.automation.id)]?.totalTokens ?? 0), 0);
+    const usage = rows.reduce((sum, row) => sum + (usageByAutomation[automationUsageKey(row.domain.domainId, row.automation.id)]?.totalTokens ?? 0), 0);
     return {
-      automations: filteredRows.length,
-      enabled: filteredRows.filter((row) => row.automation.status === "enabled").length,
-      failedRuns: filteredRows.reduce((sum, row) => sum + row.invocations.filter((invocation) => invocation.status === "failed" || invocation.status === "error").length, 0),
+      procedures: filteredProcedureRows.length,
+      automations: filteredBindingRows.length || filteredRows.length,
+      runs: filteredRunRows.length,
       totalTokens: usage,
     };
-  }, [filteredRows, usageByAutomation]);
+  }, [filteredBindingRows.length, filteredProcedureRows.length, filteredRows.length, filteredRunRows.length, rows, usageByAutomation]);
 
   async function showAutomation(domainId: string, automationId: string) {
     setError("");
@@ -225,6 +287,26 @@ export function AutomationsPage({
       setDetail({ title: `Run ${runId}`, json: response.runJson });
     } catch (err) {
       setError(errorMessage(err, "Failed to load run"));
+    }
+  }
+
+  async function showProcedure(domainId: string, procedureId: string) {
+    setError("");
+    try {
+      const response = await getGraphProcedureService({ domainId, procedureId });
+      setDetail({ title: `Procedure ${procedureId}`, json: response.procedureJson });
+    } catch (err) {
+      setError(errorMessage(err, "Failed to load procedure"));
+    }
+  }
+
+  async function showBinding(domainId: string, bindingId: string) {
+    setError("");
+    try {
+      const response = await getGraphAutomationBindingService({ domainId, bindingId });
+      setDetail({ title: `Binding ${bindingId}`, json: response.bindingJson });
+    } catch (err) {
+      setError(errorMessage(err, "Failed to load binding"));
     }
   }
 
@@ -322,6 +404,21 @@ export function AutomationsPage({
     }
   }
 
+  async function toggleBinding(row: BindingRow) {
+    setActionLoading(true);
+    setError("");
+    try {
+      const input = { domainId: row.domain.domainId, bindingId: row.binding.id };
+      if (row.binding.status === "enabled") await disableGraphAutomationBindingService(input);
+      else await enableGraphAutomationBindingService(input);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Failed to update automation binding"));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function deleteAutomation(row: AutomationRow) {
     if (!window.confirm(`Delete automation ${row.automation.id}?`)) return;
     setActionLoading(true);
@@ -356,37 +453,83 @@ export function AutomationsPage({
       {usageError && <ErrorBox>{usageError}</ErrorBox>}
 
       <div className="grid gap-4 md:grid-cols-4">
+        <SummaryCard label="Procedures" value={totals.procedures} />
         <SummaryCard label="Automations" value={totals.automations} />
-        <SummaryCard label="Enabled" value={totals.enabled} />
-        <SummaryCard label="Recent failed runs" value={totals.failedRuns} />
+        <SummaryCard label="Recent runs" value={totals.runs} />
         <SummaryCard label="Usage tokens" value={totals.totalTokens} />
       </div>
 
       <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70 md:grid-cols-3">
         <Select label="Space" value={selectedSpaceId} onChange={(value) => setFilter("spaceId", value)} options={spaces.map((space) => ({ value: space.spaceId, label: space.name || space.spaceId }))} placeholder="All spaces" disabled={loading} />
         <Select label="Domain" value={selectedDomainId} onChange={(value) => setFilter("domainId", value)} options={filteredDomains.map((domain) => ({ value: domain.domainId, label: `${domain.name || domain.key} (${domain.spaceId})` }))} placeholder="All domains" disabled={loading || filteredDomains.length === 0} />
-        <Select label="Status" value={statusFilter} onChange={(value) => setFilter("status", value)} options={[{ value: "enabled", label: "Enabled" }, { value: "disabled", label: "Disabled" }]} placeholder="All statuses" disabled={loading} />
+        <Select label="Status" value={statusFilter} onChange={(value) => setFilter("status", value)} options={statusOptions} placeholder="All statuses" disabled={loading} />
       </div>
 
+
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/70">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-          <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400">
-            <tr><th className="px-4 py-3">Scope</th><th className="px-4 py-3">Automation</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Recent runs</th><th className="px-4 py-3">Usage</th><th className="px-4 py-3">Actions</th></tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-            {loading ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={6}>Loading automations…</td></tr> : filteredRows.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={6}>No graph automations found.</td></tr> : filteredRows.map((row) => {
-              const usage = usageByAutomation[automationUsageKey(row.domain.domainId, row.automation.id)];
-              return <tr key={`${row.domain.domainId}:${row.automation.id}`} className="align-top hover:bg-slate-100 dark:hover:bg-slate-800/40">
-                <td className="px-4 py-3"><Link className="font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={`/spaces/${encodeURIComponent(row.space.spaceId)}`}>{row.space.name || row.space.spaceId}</Link><div className="mt-1 text-slate-600 dark:text-slate-400">{row.domain.name || row.domain.key}</div><div className="mt-1 font-mono text-xs text-slate-500">{row.domain.domainId}</div></td>
-                <td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{row.automation.name || row.automation.id}</div><div className="font-mono text-xs text-slate-500">{row.automation.id} · v{row.automation.version}</div><div className="mt-2 text-xs text-slate-600 dark:text-slate-400">{row.automation.events.join(", ") || "No event filter"}</div></td>
-                <td className="px-4 py-3"><StatusPill value={row.automation.status} /></td>
-                <td className="px-4 py-3"><RecentInvocations domainId={row.domain.domainId} invocations={row.invocations} onShowRun={showRun} /></td>
-                <td className="px-4 py-3">{usage ? <div><div className="font-medium">{usage.totalTokens.toLocaleString()} tokens</div><div className="text-xs text-slate-500">{usage.requestCount} requests · {usage.failedCount + usage.deniedCount} failed/denied</div></div> : <span className="text-slate-500 dark:text-slate-400">No usage reported</span>}</td>
-                <td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => void showAutomation(row.domain.domainId, row.automation.id)}>View JSON</Button>{canManage ? <><Button variant="secondary" onClick={() => void openEdit(row)}>Edit</Button><Button variant="secondary" disabled={actionLoading} onClick={() => void toggleAutomation(row)}>{row.automation.status === "enabled" ? "Disable" : "Enable"}</Button><Button variant="secondary" disabled={actionLoading} onClick={() => void deleteAutomation(row)}>Delete</Button></> : <span className="self-center text-slate-500 dark:text-slate-400">Read-only</span>}</div></td>
-              </tr>;
-            })}
-          </tbody>
-        </table>
+        <div className="flex flex-wrap gap-2 border-b border-slate-200 p-3 dark:border-slate-800" role="tablist" aria-label="Graph automation sections">
+          <TabButton active={activeTab === "procedures"} onClick={() => setTab("procedures")}>Procedures</TabButton>
+          <TabButton active={activeTab === "automations"} onClick={() => setTab("automations")}>Automations</TabButton>
+          <TabButton active={activeTab === "runs"} onClick={() => setTab("runs")}>Runs</TabButton>
+        </div>
+
+        {activeTab === "procedures" && <div>
+          <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">Procedures</Text>
+            <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Reusable graph work: context assembly, inference defaults, output actions, and safety ceilings.</Text>
+          </div>
+          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Procedure</th><th className="px-4 py-3">Scope</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Inference</th><th className="px-4 py-3">Actions</th></tr></thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {loading ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={5}>Loading procedures…</td></tr> : filteredProcedureRows.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={5}>No graph procedures found.</td></tr> : filteredProcedureRows.map((row) => <tr key={`${row.domain.domainId}:${row.procedure.id}`}>
+                <td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{row.procedure.name || row.procedure.id}</div><div className="font-mono text-xs text-slate-500">{row.procedure.id} · v{row.procedure.version}</div></td>
+                <td className="px-4 py-3"><Link className="font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={`/spaces/${encodeURIComponent(row.space.spaceId)}`}>{row.space.name || row.space.spaceId}</Link><div className="text-xs text-slate-500">{row.domain.name || row.domain.key}</div></td>
+                <td className="px-4 py-3"><StatusPill value={row.procedure.status} /></td>
+                <td className="px-4 py-3"><div>{row.procedure.operation || "—"}</div><div className="font-mono text-xs text-slate-500">{row.procedure.inferenceProfile || row.procedure.inferenceProfileId || "No default profile"}</div></td>
+                <td className="px-4 py-3"><Button variant="secondary" onClick={() => void showProcedure(row.domain.domainId, row.procedure.id)}>View JSON</Button></td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>}
+
+        {activeTab === "automations" && <div>
+          <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">Automations</Text>
+            <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Bindings that connect procedures to triggers, scopes, runtime principals, and inference profiles.</Text>
+          </div>
+          {filteredBindingRows.length > 0 ? <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Automation</th><th className="px-4 py-3">Scope</th><th className="px-4 py-3">Runtime</th><th className="px-4 py-3">Trigger</th><th className="px-4 py-3">Actions</th></tr></thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {filteredBindingRows.map((row) => <tr key={`${row.domain.domainId}:${row.binding.id}`}>
+                <td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{row.binding.name || row.binding.id}</div><div className="font-mono text-xs text-slate-500">{row.binding.id} · <StatusPill value={row.binding.status} /></div><div className="mt-1 font-mono text-xs text-slate-500">→ {row.binding.procedureId} v{row.binding.procedureVersion}</div></td>
+                <td className="px-4 py-3"><Link className="font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={`/spaces/${encodeURIComponent(row.space.spaceId)}`}>{row.space.name || row.space.spaceId}</Link><div className="text-xs text-slate-500">{row.domain.name || row.domain.key}</div></td>
+                <td className="px-4 py-3"><div className="text-xs">actor <span className="font-mono">{row.binding.actorPrincipalId || "automation"}</span></div><div className="text-xs">on behalf <span className="font-mono">{row.binding.onBehalfOfPrincipalId || "—"}</span></div><div className="text-xs">owner <span className="font-mono">{row.binding.ownerPrincipalId || "—"}</span></div></td>
+                <td className="px-4 py-3"><div>{row.binding.triggerType}</div><div className="text-xs text-slate-500">{row.binding.events.join(", ") || "No events"}</div><div className="text-xs text-slate-500">{row.binding.labels.join(", ") || "No labels"}</div></td>
+                <td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => void showBinding(row.domain.domainId, row.binding.id)}>View JSON</Button>{canManage && <Button variant="secondary" disabled={actionLoading} onClick={() => void toggleBinding(row)}>{row.binding.status === "enabled" ? "Disable" : "Enable"}</Button>}</div></td>
+              </tr>)}
+            </tbody>
+          </table> : <LegacyAutomationTable rows={filteredRows} loading={loading} usageByAutomation={usageByAutomation} canManage={canManage} actionLoading={actionLoading} onShowAutomation={showAutomation} onEdit={openEdit} onToggle={toggleAutomation} onDelete={deleteAutomation} />}
+        </div>}
+
+        {activeTab === "runs" && <div>
+          <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">Runs</Text>
+            <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Recent invocation/run attempts with status, trigger event, target, and run detail links.</Text>
+          </div>
+          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Run</th><th className="px-4 py-3">Automation</th><th className="px-4 py-3">Scope</th><th className="px-4 py-3">Event</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {loading ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={6}>Loading runs…</td></tr> : filteredRunRows.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={6}>No recent runs found.</td></tr> : filteredRunRows.map((row) => <tr key={`${row.domain.domainId}:${row.invocation.id}`}>
+                <td className="px-4 py-3"><div className="font-mono text-xs text-slate-900 dark:text-slate-100">{row.invocation.id}</div><div className="text-xs text-slate-500">{row.invocation.updatedAt || row.invocation.createdAt || "—"}</div></td>
+                <td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{row.automation.name || row.automation.id}</div><div className="font-mono text-xs text-slate-500">{row.invocation.automationId} · v{row.invocation.automationVersion}</div></td>
+                <td className="px-4 py-3"><Link className="font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={`/spaces/${encodeURIComponent(row.space.spaceId)}`}>{row.space.name || row.space.spaceId}</Link><div className="text-xs text-slate-500">{row.domain.name || row.domain.key}</div></td>
+                <td className="px-4 py-3"><div>{row.invocation.eventType || "—"}</div><div className="font-mono text-xs text-slate-500">{row.invocation.changedElementId || row.invocation.eventId || "—"}</div></td>
+                <td className="px-4 py-3"><StatusPill value={row.invocation.status} />{row.invocation.skipReason ? <div className="mt-1 text-xs text-slate-500">{row.invocation.skipReason}</div> : null}</td>
+                <td className="px-4 py-3"><Button variant="secondary" onClick={() => void showRun(row.domain.domainId, row.invocation.id)}>View JSON</Button></td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>}
       </div>
 
       {detail && <DetailDrawer title={detail.title} json={detail.json} onClose={() => setDetail(null)} />}
@@ -397,6 +540,32 @@ export function AutomationsPage({
 
 function compareAutomationRows(a: AutomationRow, b: AutomationRow) {
   return `${a.space.name || a.space.spaceId}:${a.domain.name || a.domain.key}:${a.automation.name || a.automation.id}`.localeCompare(`${b.space.name || b.space.spaceId}:${b.domain.name || b.domain.key}:${b.automation.name || b.automation.id}`);
+}
+
+function automationTab(value: string | null): AutomationTab {
+  return value === "procedures" || value === "runs" ? value : "automations";
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+  return <button type="button" role="tab" aria-selected={active} className={`rounded-lg px-3 py-2 text-sm font-medium ${active ? "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-100" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`} onClick={onClick}>{children}</button>;
+}
+
+function LegacyAutomationTable({ rows, loading, usageByAutomation, canManage, actionLoading, onShowAutomation, onEdit, onToggle, onDelete }: { rows: AutomationRow[]; loading: boolean; usageByAutomation: UsageByAutomation; canManage: boolean; actionLoading: boolean; onShowAutomation: (domainId: string, automationId: string) => void | Promise<void>; onEdit: (row: AutomationRow) => void | Promise<void>; onToggle: (row: AutomationRow) => void | Promise<void>; onDelete: (row: AutomationRow) => void | Promise<void> }) {
+  return <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+    <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Scope</th><th className="px-4 py-3">Automation</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Usage</th><th className="px-4 py-3">Actions</th></tr></thead>
+    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+      {loading ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={5}>Loading automations…</td></tr> : rows.length === 0 ? <tr><td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={5}>No graph automations found.</td></tr> : rows.map((row) => {
+        const usage = usageByAutomation[automationUsageKey(row.domain.domainId, row.automation.id)];
+        return <tr key={`${row.domain.domainId}:${row.automation.id}`} className="align-top hover:bg-slate-100 dark:hover:bg-slate-800/40">
+          <td className="px-4 py-3"><Link className="font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={`/spaces/${encodeURIComponent(row.space.spaceId)}`}>{row.space.name || row.space.spaceId}</Link><div className="mt-1 text-slate-600 dark:text-slate-400">{row.domain.name || row.domain.key}</div><div className="mt-1 font-mono text-xs text-slate-500">{row.domain.domainId}</div></td>
+          <td className="px-4 py-3"><div className="font-medium text-slate-900 dark:text-slate-100">{row.automation.name || row.automation.id}</div><div className="font-mono text-xs text-slate-500">{row.automation.id} · v{row.automation.version}</div><div className="mt-2 text-xs text-slate-600 dark:text-slate-400">{row.automation.events.join(", ") || "No event filter"}</div></td>
+          <td className="px-4 py-3"><StatusPill value={row.automation.status} /></td>
+          <td className="px-4 py-3">{usage ? <div><div className="font-medium">{usage.totalTokens.toLocaleString()} tokens</div><div className="text-xs text-slate-500">{usage.requestCount} requests · {usage.failedCount + usage.deniedCount} failed/denied</div></div> : <span className="text-slate-500 dark:text-slate-400">No usage reported</span>}</td>
+          <td className="px-4 py-3"><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => void onShowAutomation(row.domain.domainId, row.automation.id)}>View JSON</Button>{canManage ? <><Button variant="secondary" onClick={() => void onEdit(row)}>Edit</Button><Button variant="secondary" disabled={actionLoading} onClick={() => void onToggle(row)}>{row.automation.status === "enabled" ? "Disable" : "Enable"}</Button><Button variant="secondary" disabled={actionLoading} onClick={() => void onDelete(row)}>Delete</Button></> : <span className="self-center text-slate-500 dark:text-slate-400">Read-only</span>}</div></td>
+        </tr>;
+      })}
+    </tbody>
+  </table>;
 }
 
 function automationUsageKey(domainId: string, automationId: string) {

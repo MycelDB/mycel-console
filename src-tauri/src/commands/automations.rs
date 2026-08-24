@@ -1,8 +1,10 @@
 use mycel_sdk::proto::admin::v1::{
     CreateAutomationRequest, DeleteAutomationRequest, DisableAutomationRequest,
-    EnableAutomationRequest, GetAutomationRequest, GetAutomationRunRequest,
-    ListAutomationInvocationsRequest, ListAutomationsRequest, UpdateAutomationRequest,
-    ValidateAutomationRequest,
+    DisableGraphAutomationBindingRequest, EnableAutomationRequest,
+    EnableGraphAutomationBindingRequest, GetAutomationRequest, GetAutomationRunRequest,
+    GetGraphAutomationBindingRequest, GetGraphProcedureRequest, ListAutomationInvocationsRequest,
+    ListAutomationsRequest, ListGraphAutomationBindingsRequest, ListGraphProceduresRequest,
+    UpdateAutomationRequest, ValidateAutomationRequest,
 };
 use tauri::State;
 use tonic::Request;
@@ -378,5 +380,257 @@ pub async fn admin_get_automation_run(
         .into_inner();
     Ok(AutomationRunInfo {
         run_json: response.run_json,
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphProcedureSummaryInfo {
+    pub id: String,
+    pub name: String,
+    pub version: i32,
+    pub status: String,
+    pub updated_at: String,
+    pub operation: String,
+    pub inference_profile: String,
+    pub inference_profile_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListGraphProceduresResponseInfo {
+    pub procedures: Vec<GraphProcedureSummaryInfo>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphProcedureActionInput {
+    pub domain_id: String,
+    pub procedure_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphProcedureInfo {
+    pub procedure_json: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphAutomationBindingSummaryInfo {
+    pub id: String,
+    pub name: String,
+    pub version: i32,
+    pub status: String,
+    pub procedure_id: String,
+    pub procedure_version: i32,
+    pub trigger_type: String,
+    pub events: Vec<String>,
+    pub labels: Vec<String>,
+    pub actor_principal_id: String,
+    pub owner_principal_id: String,
+    pub on_behalf_of_principal_id: String,
+    pub inference_profile: String,
+    pub inference_profile_id: String,
+    pub scope_space_id: String,
+    pub scope_domain_id: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListGraphAutomationBindingsResponseInfo {
+    pub bindings: Vec<GraphAutomationBindingSummaryInfo>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphAutomationBindingActionInput {
+    pub domain_id: String,
+    pub binding_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphAutomationBindingInfo {
+    pub binding_json: String,
+}
+
+#[tauri::command]
+pub async fn admin_list_graph_procedures(
+    input: DomainAutomationInput,
+    state: State<'_, AppState>,
+) -> Result<ListGraphProceduresResponseInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .list_graph_procedures(Request::new(ListGraphProceduresRequest {
+            domain_id: input.domain_id,
+            status: String::new(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(ListGraphProceduresResponseInfo {
+        procedures: response
+            .procedures
+            .into_iter()
+            .map(|item| GraphProcedureSummaryInfo {
+                id: item.id,
+                name: item.name,
+                version: item.version,
+                status: item.status,
+                updated_at: item.updated_at,
+                operation: item.operation,
+                inference_profile: item.inference_profile,
+                inference_profile_id: item.inference_profile_id,
+            })
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_get_graph_procedure(
+    input: GraphProcedureActionInput,
+    state: State<'_, AppState>,
+) -> Result<GraphProcedureInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .get_graph_procedure(Request::new(GetGraphProcedureRequest {
+            domain_id: input.domain_id,
+            procedure_id: input.procedure_id,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(GraphProcedureInfo {
+        procedure_json: response.procedure_json,
+    })
+}
+
+#[tauri::command]
+pub async fn admin_list_graph_automation_bindings(
+    input: DomainAutomationInput,
+    state: State<'_, AppState>,
+) -> Result<ListGraphAutomationBindingsResponseInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .list_graph_automation_bindings(Request::new(ListGraphAutomationBindingsRequest {
+            domain_id: input.domain_id,
+            status: String::new(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(ListGraphAutomationBindingsResponseInfo {
+        bindings: response
+            .bindings
+            .into_iter()
+            .map(|item| GraphAutomationBindingSummaryInfo {
+                id: item.id,
+                name: item.name,
+                version: item.version,
+                status: item.status,
+                procedure_id: item.procedure_id,
+                procedure_version: item.procedure_version,
+                trigger_type: item.trigger_type,
+                events: item.events,
+                labels: item.labels,
+                actor_principal_id: item.actor_principal_id,
+                owner_principal_id: item.owner_principal_id,
+                on_behalf_of_principal_id: item.on_behalf_of_principal_id,
+                inference_profile: item.inference_profile,
+                inference_profile_id: item.inference_profile_id,
+                scope_space_id: item.scope_space_id,
+                scope_domain_id: item.scope_domain_id,
+                updated_at: item.updated_at,
+            })
+            .collect(),
+    })
+}
+
+#[tauri::command]
+pub async fn admin_get_graph_automation_binding(
+    input: GraphAutomationBindingActionInput,
+    state: State<'_, AppState>,
+) -> Result<GraphAutomationBindingInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .get_graph_automation_binding(Request::new(GetGraphAutomationBindingRequest {
+            domain_id: input.domain_id,
+            binding_id: input.binding_id,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(GraphAutomationBindingInfo {
+        binding_json: response.binding_json,
+    })
+}
+
+#[tauri::command]
+pub async fn admin_enable_graph_automation_binding(
+    input: GraphAutomationBindingActionInput,
+    state: State<'_, AppState>,
+) -> Result<GraphAutomationBindingInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .enable_graph_automation_binding(Request::new(EnableGraphAutomationBindingRequest {
+            domain_id: input.domain_id,
+            binding_id: input.binding_id,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(GraphAutomationBindingInfo {
+        binding_json: response.binding_json,
+    })
+}
+
+#[tauri::command]
+pub async fn admin_disable_graph_automation_binding(
+    input: GraphAutomationBindingActionInput,
+    state: State<'_, AppState>,
+) -> Result<GraphAutomationBindingInfo, String> {
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    let response = session
+        ._client
+        .automation
+        .disable_graph_automation_binding(Request::new(DisableGraphAutomationBindingRequest {
+            domain_id: input.domain_id,
+            binding_id: input.binding_id,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner();
+    Ok(GraphAutomationBindingInfo {
+        binding_json: response.binding_json,
     })
 }

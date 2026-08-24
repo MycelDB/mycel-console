@@ -93,7 +93,7 @@ pub struct ListModelsInput {
     #[serde(default)]
     pub page_token: Option<String>,
     #[serde(default)]
-    pub operation: Option<String>,
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -145,11 +145,12 @@ pub struct ModelEndpointInfo {
 pub struct InferenceModelInfo {
     pub model_id: String,
     pub key: String,
-    pub operation: String,
+    pub kind: String,
     pub model_name: String,
     pub connector_types: Vec<String>,
     pub dimensions: i32,
-    pub modality: String,
+    pub input_modalities: Vec<String>,
+    pub output_modalities: Vec<String>,
     pub vector_space_key: String,
     pub metadata: Option<serde_json::Value>,
 }
@@ -255,7 +256,7 @@ pub struct InferenceModelInput {
     #[serde(default)]
     pub key: String,
     #[serde(default)]
-    pub operation: String,
+    pub kind: String,
     #[serde(default)]
     pub model_name: String,
     #[serde(default)]
@@ -263,7 +264,9 @@ pub struct InferenceModelInput {
     #[serde(default)]
     pub dimensions: i32,
     #[serde(default)]
-    pub modality: String,
+    pub input_modalities: Vec<String>,
+    #[serde(default)]
+    pub output_modalities: Vec<String>,
     #[serde(default)]
     pub vector_space_key: String,
     #[serde(default)]
@@ -394,7 +397,7 @@ pub async fn admin_list_models(
             AdminInferenceCatalogServiceListModelsRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
-                operation: input.operation.unwrap_or_default(),
+                kind: input.kind.unwrap_or_default(),
             },
         ))
         .await
@@ -496,7 +499,7 @@ pub async fn admin_list_model_endpoint_capabilities(
                 AdminInferenceCatalogServiceListModelsRequest {
                     page_size: 1000,
                     page_token: String::new(),
-                    operation: String::new(),
+                    kind: String::new(),
                 },
             ))
             .await
@@ -1520,7 +1523,7 @@ pub async fn admin_list_inference_credential_grants(
                 AdminInferenceCatalogServiceListModelsRequest {
                     page_size: 1000,
                     page_token: String::new(),
-                    operation: String::new(),
+                    kind: String::new(),
                 },
             ))
             .await
@@ -1810,7 +1813,7 @@ pub async fn admin_list_inference_usage_events(
             AdminInferenceCatalogServiceListModelsRequest {
                 page_size: 1000,
                 page_token: String::new(),
-                operation: String::new(),
+                kind: String::new(),
             },
         ))
         .await
@@ -1873,6 +1876,7 @@ fn inference_operation_value(value: &str) -> i32 {
         "rerank" => InferenceOperation::Rerank as i32,
         "summarize" | "summary" => InferenceOperation::Summarize as i32,
         "classify" | "classification" => InferenceOperation::Classify as i32,
+        "image_analysis" | "image-analysis" | "vision" => InferenceOperation::ImageAnalysis as i32,
         _ => InferenceOperation::Unspecified as i32,
     }
 }
@@ -2227,11 +2231,12 @@ fn inference_model_info(model: InferenceModel) -> InferenceModelInfo {
     InferenceModelInfo {
         model_id: model.model_id,
         key: model.key,
-        operation: model.operation,
+        kind: model.kind,
         model_name: model.model_name,
         connector_types: model.connector_types,
         dimensions: model.dimensions,
-        modality: model.modality,
+        input_modalities: model.input_modalities,
+        output_modalities: model.output_modalities,
         vector_space_key: model.vector_space_key,
         metadata: model.metadata.map(json_from_struct),
     }
@@ -2311,16 +2316,15 @@ fn inference_model(input: InferenceModelInput) -> InferenceModel {
     InferenceModel {
         model_id: String::new(),
         key: input.key,
-        operation: input.operation,
+        kind: input.kind,
         model_name: input.model_name,
         connector_types: input.connector_types,
         dimensions: input.dimensions,
-        modality: input.modality,
+        input_modalities: input.input_modalities,
+        output_modalities: input.output_modalities,
         vector_space_key: input.vector_space_key,
         metadata: input.metadata.map(struct_from_map),
-        operation_value: 0,
-        input_modalities: Vec::new(),
-        output_modalities: Vec::new(),
+        kind_value: 0,
         context_tokens: 0,
         max_output_tokens: 0,
         enabled: true,

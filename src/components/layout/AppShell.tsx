@@ -5,6 +5,7 @@ import { AccountPage } from "../../features/account";
 import { BackupsPage } from "../../features/backups";
 import { ClusterPage, NodeDetailPage } from "../../features/cluster";
 import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
+import { ComingSoonPage } from "../../features/placeholder/ComingSoonPage";
 import { AccessPage } from "../../features/intelligence/access";
 import { AutomationsPage } from "../../features/intelligence/automations";
 import { SemanticPage } from "../../features/intelligence/semantic";
@@ -66,6 +67,7 @@ export function AppShell({
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage session={session} principalContext={principalContext} />} />
+            <Route path="/activity" element={<ComingSoonPage title="Activity" description="A cross-console activity stream for recent semantic generation, automation runs, backup events, and cluster warnings." />} />
             <Route path="/me" element={<AccountPage session={session} principalContext={principalContext} loading={principalContextLoading} />} />
             <Route path="/principals" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UsersPage principalContext={principalContext} /></RequireCapabilities>} />
             <Route path="/principals/:principalId" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UserDetailPage principalContext={principalContext} /></RequireCapabilities>} />

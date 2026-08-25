@@ -21,7 +21,7 @@ test("renders main navigation links", () => {
 
   for (const label of [
     "Dashboard",
-    "Account",
+    "Activity",
     "Principals",
     "Spaces",
     "Access",
@@ -31,7 +31,10 @@ test("renders main navigation links", () => {
   ]) {
     expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
   }
+  expect(screen.getByText("Overview")).toBeInTheDocument();
+  expect(screen.getByText("Data")).toBeInTheDocument();
   expect(screen.getByText("Intelligence")).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Account" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Domains" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Access management" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Inference" })).not.toBeInTheDocument();
@@ -61,7 +64,8 @@ test("filters navigation when complete capabilities are available", () => {
   });
 
   expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Account" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Activity" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Account" })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Spaces" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Principals" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Backups" })).not.toBeInTheDocument();
@@ -70,7 +74,7 @@ test("filters navigation when complete capabilities are available", () => {
 test("renders session controls at the bottom", async () => {
   const { onToggleTheme, onLogout } = renderSidebar();
 
-  expect(screen.getByText(/signed in as/i)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /signed in as operator/i })).toHaveAttribute("href", "/me");
   expect(screen.getByText("operator")).toBeInTheDocument();
   expect(screen.getByText("127.0.0.1:9091")).toBeInTheDocument();
 

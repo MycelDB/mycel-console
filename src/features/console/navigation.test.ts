@@ -4,7 +4,7 @@ import { featuresWithAvailability, visibleFeatures } from "./featureRegistry";
 import { buildNavigation } from "./navigation";
 
 const features: ConsoleFeature[] = [
-  { id: "spaces", label: "Spaces", route: "/spaces", navGroup: "environment", requirements: [{ capability: "space.read" }], fallback: "readonly", order: 20 },
+  { id: "spaces", label: "Spaces", route: "/spaces", navGroup: "data", requirements: [{ capability: "space.read" }], fallback: "readonly", order: 10 },
   { id: "dashboard", label: "Dashboard", route: "/dashboard", navGroup: "environment", requirements: [], order: 10 },
   { id: "cluster", label: "Cluster", route: "/cluster", navGroup: "operations", requirements: [{ capability: "cluster.read" }], fallback: "hide", order: 10 },
   { id: "access", label: "Access", route: "/access", navGroup: "administration", requirements: [{ capability: "access.read" }], fallback: "disabled", order: 10 },
@@ -38,7 +38,8 @@ test("buildNavigation orders groups and features deterministically", () => {
 
   const sections = buildNavigation(features, state);
 
-  expect(sections.map((section) => section.group)).toEqual(["environment", "administration", "operations"]);
-  expect(sections[0].features.map((feature) => feature.id)).toEqual(["dashboard", "spaces"]);
-  expect(sections[1].features.map((feature) => feature.id)).toEqual(["access"]);
+  expect(sections.map((section) => section.group)).toEqual(["environment", "data", "administration", "operations"]);
+  expect(sections[0].features.map((feature) => feature.id)).toEqual(["dashboard"]);
+  expect(sections[1].features.map((feature) => feature.id)).toEqual(["spaces"]);
+  expect(sections[2].features.map((feature) => feature.id)).toEqual(["access"]);
 });

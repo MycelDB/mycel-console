@@ -17,7 +17,7 @@ export const navGroupOrder: ConsoleNavGroup[] = [
 ];
 
 export const navGroupLabels: Record<ConsoleNavGroup, string> = {
-  environment: "Environment",
+  environment: "Overview",
   data: "Data",
   intelligence: "Intelligence",
   administration: "Administration",

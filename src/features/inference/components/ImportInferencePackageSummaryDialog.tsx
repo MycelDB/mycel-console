@@ -15,7 +15,7 @@ export function ImportInferencePackageSummaryDialog({ result, onClose, onViewCat
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
+        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
           Inference package imported
         </Text>
         <H2 className="mt-2 text-xl text-slate-900 dark:text-slate-100">{pkg ? `${pkg.name}@${pkg.version}` : "Import complete"}</H2>

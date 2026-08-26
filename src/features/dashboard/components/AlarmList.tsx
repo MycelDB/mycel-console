@@ -4,7 +4,7 @@ export function AlarmList() {
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
       <div className="flex items-center justify-between gap-4">
-        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
+        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
           Alarms
         </Text>
         <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400">

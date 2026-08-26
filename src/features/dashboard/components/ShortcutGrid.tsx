@@ -18,7 +18,7 @@ export function ShortcutGrid({ principalContext }: ShortcutGridProps) {
   const shortcuts = dashboardShortcuts(currentConsoleFeatures, principalContext);
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
-      <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
+      <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
         Shortcuts
       </Text>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">

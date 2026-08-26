@@ -44,6 +44,8 @@ import {
   listVectorStores,
   triggerBackup,
   updateBackupPolicy,
+  login,
+  normalizeAppError,
 } from "./adminService";
 import type { BackupPolicyInfo } from "../types/backups";
 
@@ -55,6 +57,26 @@ const invokeMock = jest.mocked(invoke);
 
 beforeEach(() => {
   invokeMock.mockReset();
+});
+
+test("normalizes structured app errors", () => {
+  expect(normalizeAppError({ kind: "authentication", severity: "warning", message: "invalid credentials" })).toEqual({ kind: "authentication", severity: "warning", message: "invalid credentials" });
+  expect(normalizeAppError({ kind: "bogus", severity: "bogus", message: "bad" })).toEqual({ kind: "unknown", severity: "error", message: "bad" });
+  expect(normalizeAppError("transport error: connection refused")).toEqual({ kind: "unknown", severity: "error", message: "transport error: connection refused" });
+});
+
+test("login rejects with normalized structured app errors", async () => {
+  const input = { addr: "127.0.0.1:19091", username: "admin", password: "bad" };
+  invokeMock.mockRejectedValue({ kind: "authentication", severity: "warning", message: "invalid credentials" });
+
+  await expect(login(input)).rejects.toEqual({ kind: "authentication", severity: "warning", message: "invalid credentials" });
+});
+
+test("login normalizes legacy string errors", async () => {
+  const input = { addr: "127.0.0.1:19091", username: "admin", password: "bad" };
+  invokeMock.mockRejectedValue("transport error: connection refused");
+
+  await expect(login(input)).rejects.toEqual({ kind: "unknown", severity: "error", message: "transport error: connection refused" });
 });
 
 test("detects expired authorization token errors", () => {

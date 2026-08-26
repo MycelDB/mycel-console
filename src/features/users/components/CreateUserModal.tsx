@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
 import type { CreateSpaceInput, CreateSpaceResponse } from "../../../types/spaces";
 import type { CreatePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
@@ -119,7 +119,7 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
           </button>
         </div>
 
-        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+        {error && <Alert className="mt-4">{error}</Alert>}
 
         <Label className="mt-5" htmlFor="create-username">
           Username

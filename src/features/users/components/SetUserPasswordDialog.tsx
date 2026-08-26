@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
 import type { PrincipalInfo, SetPrincipalPasswordInput } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
@@ -76,7 +76,7 @@ export function SetUserPasswordDialog({
           Set a new password for <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span>.
         </Text>
 
-        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+        {error && <Alert className="mt-4">{error}</Alert>}
 
         <Label className="mt-5" htmlFor="set-password">
           New password

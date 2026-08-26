@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, ErrorBox, FieldHint, H2, Input, Text } from "../../../components/typography";
+import { Button, Alert, FieldHint, H2, Input, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
   deleteBackup as defaultDeleteBackup,
@@ -150,7 +150,7 @@ export function BackupsPage({
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">
+          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
             Backups
           </Text>
           <H2 className="mt-2 text-slate-900 dark:text-slate-100">Backup Management</H2>
@@ -170,7 +170,7 @@ export function BackupsPage({
         </div>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
       {notice && (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-200">
           {notice}
@@ -258,7 +258,7 @@ function StatusPanel({ status }: { status: BackupStatusResponse | null }) {
   const current = status?.status;
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
-      <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
+      <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
         Status
       </Text>
       <dl className="mt-5 grid gap-4 md:grid-cols-4">
@@ -267,7 +267,7 @@ function StatusPanel({ status }: { status: BackupStatusResponse | null }) {
         <Metric label="Next run" value={formatTimestamp(current?.nextRunAt)} />
         <Metric label="Active backup" value={current?.backupId || "None"} />
       </dl>
-      {current?.error && <ErrorBox className="mt-4">{current.error}</ErrorBox>}
+      {current?.error && <Alert className="mt-4">{current.error}</Alert>}
     </article>
   );
 }
@@ -292,7 +292,7 @@ function PolicyPanel({
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
       <div className="flex items-center justify-between gap-4">
-        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
+        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
           Backup policy
         </Text>
         {readOnly ? (
@@ -338,7 +338,7 @@ function BackupFilesPanel({
 }) {
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
-      <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">
+      <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
         Backup files
       </Text>
       {backups.length === 0 ? (

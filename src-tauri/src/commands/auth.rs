@@ -5,6 +5,7 @@ use tokio::{
     time::{timeout, Duration},
 };
 
+use crate::commands::command_error::{sdk_error, validation_error, ConsoleCommandError};
 use crate::state::{AdminSession, AppState, PrincipalSession};
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -88,18 +89,18 @@ fn check(id: &str, label: &str, status: &str, detail: String) -> ConnectionDiagn
 pub async fn admin_login(
     input: LoginInput,
     state: State<'_, AppState>,
-) -> Result<PrincipalSession, String> {
+) -> Result<PrincipalSession, ConsoleCommandError> {
     let addr = input.addr.trim().to_string();
     let username = input.username.trim().to_string();
 
     if addr.is_empty() {
-        return Err("Cluster gRPC address is required".to_string());
+        return Err(validation_error("Cluster gRPC address is required"));
     }
     if username.is_empty() {
-        return Err("Principal username is required".to_string());
+        return Err(validation_error("Principal username is required"));
     }
     if input.password.is_empty() {
-        return Err("Password is required".to_string());
+        return Err(validation_error("Password is required"));
     }
 
     let mut client = mycel_sdk::dial_admin(mycel_sdk::Config {
@@ -109,7 +110,7 @@ pub async fn admin_login(
         ..Default::default()
     })
     .await
-    .map_err(|err| err.to_string())?;
+    .map_err(sdk_error)?;
 
     let data_client = mycel_sdk::dial(mycel_sdk::Config {
         addr: addr.clone(),
@@ -119,9 +120,9 @@ pub async fn admin_login(
         ..Default::default()
     })
     .await
-    .map_err(|err| err.to_string())?;
+    .map_err(sdk_error)?;
 
-    let operator = client.who_am_i().await.map_err(|err| err.to_string())?;
+    let operator = client.who_am_i().await.map_err(sdk_error)?;
     let session = AdminSession {
         addr,
         principal_id: operator.principal_id,

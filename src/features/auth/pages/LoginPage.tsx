@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Main } from "../../../components/typography";
-import type { ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../../../types/auth";
-import { connectionDiagnostics as defaultConnectionDiagnostics, login as defaultLogin } from "../../../services/adminService";
+import type { AppError, ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../../../types/auth";
+import { connectionDiagnostics as defaultConnectionDiagnostics, login as defaultLogin, normalizeAppError } from "../../../services/adminService";
 import { LoginForm } from "../components/LoginForm";
+import { writeLoginHints } from "../loginHints";
 
 export type LoginPageProps = {
   onLoginSuccess: (session: PrincipalSession) => void;
@@ -11,41 +12,57 @@ export type LoginPageProps = {
   notice?: string;
 };
 
-function errorMessage(err: unknown, fallback: string) {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "string" && err.trim()) return err;
-  return fallback;
+function validationError(message: string): AppError {
+  return { kind: "validation", severity: "warning", message };
+}
+
+function loginDisplayError(err: unknown): AppError {
+  const appError = normalizeAppError(err, "Login failed");
+  if (appError.kind === "connectivity") {
+    return { ...appError, severity: "error", message: "Could not connect to the Mycel daemon.", detail: appError.detail || appError.message };
+  }
+  if (appError.kind === "unavailable") {
+    return { ...appError, severity: "error", message: "The Mycel daemon is unavailable.", detail: appError.detail || appError.message };
+  }
+  if (appError.kind === "timeout") {
+    return { ...appError, severity: "error", message: "The Mycel daemon request timed out.", detail: appError.detail || appError.message };
+  }
+  if (["validation", "authentication", "authorization"].includes(appError.kind)) {
+    return { ...appError, severity: "warning" };
+  }
+  return { ...appError, severity: "error" };
 }
 
 export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnosticsService = defaultConnectionDiagnostics, notice = "" }: LoginPageProps) {
-  const [error, setError] = useState("");
+  const [error, setError] = useState<AppError | null>(null);
   const [loading, setLoading] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [diagnostics, setDiagnostics] = useState<ConnectionDiagnosticsResponse | null>(null);
 
   async function handleSubmit(input: LoginInput) {
-    setError("");
+    setError(null);
     setLoading(true);
     try {
-      if (!input.addr.trim()) throw new Error("Cluster gRPC address is required");
-      if (!input.username.trim()) throw new Error("Principal username is required");
-      if (!input.password) throw new Error("Password is required");
+      if (!input.addr.trim()) throw validationError("Cluster gRPC address is required");
+      if (!input.username.trim()) throw validationError("Principal username is required");
+      if (!input.password) throw validationError("Password is required");
       const session = await loginService(input);
+      writeLoginHints(input);
       onLoginSuccess(session);
     } catch (err) {
-      setError(errorMessage(err, "Login failed"));
+      setError(loginDisplayError(err));
     } finally {
       setLoading(false);
     }
   }
 
   async function handleDiagnostics(input: LoginInput) {
-    setError("");
+    setError(null);
     setDiagnosticsLoading(true);
     try {
       setDiagnostics(await diagnosticsService(input));
     } catch (err) {
-      setError(errorMessage(err, "Connection diagnostics failed"));
+      setError(normalizeAppError(err, "Connection diagnostics failed"));
     } finally {
       setDiagnosticsLoading(false);
     }
@@ -56,7 +73,8 @@ export function LoginPage({ onLoginSuccess, loginService = defaultLogin, diagnos
       <LoginForm
         loading={loading}
         diagnosticsLoading={diagnosticsLoading}
-        error={error || notice}
+        error={error}
+        notice={notice}
         diagnostics={diagnostics}
         onSubmit={handleSubmit}
         onRunDiagnostics={handleDiagnostics}

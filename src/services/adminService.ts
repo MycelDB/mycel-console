@@ -10,7 +10,7 @@ import type {
   TriggerBackupResponse,
 } from "../types/backups";
 import type { GetMyAccessInput, GrantPrincipalCapabilityInput, GrantPrincipalCapabilityResponse, GrantPrincipalRoleInput, GrantPrincipalRoleResponse, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse, MyAccessInfo, RevokePrincipalCapabilityInput, RevokePrincipalCapabilityResponse, RevokePrincipalRoleInput, RevokePrincipalRoleResponse, SetPrincipalCapabilitiesForScopeInput, SetPrincipalCapabilitiesForScopeResponse, SetPrincipalRolesForScopeInput, SetPrincipalRolesForScopeResponse } from "../types/access";
-import type { ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../types/auth";
+import type { AppError, AppErrorKind, AppErrorSeverity, ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../types/auth";
 import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGqlScriptInput, ExecuteGqlScriptResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
 import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyInput, GraphConsistencyReport, GraphForensicExportInput, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
@@ -96,8 +96,38 @@ function shouldEmitAuthExpired(command: string, err: unknown): boolean {
 }
 
 export function isAuthExpiredError(err: unknown): boolean {
-  const lower = errorMessage(err).toLowerCase();
+  const appError = normalizeAppError(err);
+  const lower = `${appError.message} ${appError.detail || ""}`.toLowerCase();
   return lower.includes("authorization token is expired") || lower.includes("access token is expired") || lower.includes("token is expired") || (lower.includes("unauthenticated") && lower.includes("expired"));
+}
+
+const appErrorKinds = new Set<AppErrorKind>(["validation", "connectivity", "authentication", "authorization", "not_found", "conflict", "rate_limited", "unavailable", "timeout", "internal", "unknown"]);
+const appErrorSeverities = new Set<AppErrorSeverity>(["info", "warning", "error"]);
+
+export function normalizeAppError(err: unknown, fallback = "Request failed"): AppError {
+  if (isAppErrorLike(err)) {
+    const kind = appErrorKinds.has(err.kind as AppErrorKind) ? (err.kind as AppErrorKind) : "unknown";
+    const severity = appErrorSeverities.has(err.severity as AppErrorSeverity) ? (err.severity as AppErrorSeverity) : defaultSeverity(kind);
+    return { kind, severity, message: nonEmptyString(err.message, fallback), detail: optionalString(err.detail) };
+  }
+  return { kind: "unknown", severity: "error", message: nonEmptyString(errorMessage(err), fallback) };
+}
+
+function isAppErrorLike(err: unknown): err is { kind: unknown; severity: unknown; message: unknown; detail?: unknown } {
+  return typeof err === "object" && err !== null && "kind" in err && "severity" in err && "message" in err;
+}
+
+function defaultSeverity(kind: AppErrorKind): AppErrorSeverity {
+  if (["validation", "authentication", "authorization", "not_found", "conflict", "rate_limited"].includes(kind)) return "warning";
+  return "error";
+}
+
+function nonEmptyString(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 function errorMessage(err: unknown): string {
@@ -111,7 +141,11 @@ function errorMessage(err: unknown): string {
 }
 
 export async function login(input: LoginInput): Promise<PrincipalSession> {
-  return invoke<PrincipalSession>("admin_login", { input });
+  try {
+    return await invoke<PrincipalSession>("admin_login", { input });
+  } catch (err) {
+    throw normalizeAppError(err, "Login failed");
+  }
 }
 
 export async function connectionDiagnostics(input: LoginInput): Promise<ConnectionDiagnosticsResponse> {

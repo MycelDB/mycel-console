@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
 import type { DisablePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
@@ -60,7 +60,7 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
           Disable principal <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span> and optionally revoke active sessions.
         </Text>
 
-        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+        {error && <Alert className="mt-4">{error}</Alert>}
 
         <Label className="mt-5" htmlFor="disable-reason">
           Reason

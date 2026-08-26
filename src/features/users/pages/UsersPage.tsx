@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { Button, Alert, H2, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { isPrincipalDeleted, principalIdOf } from "../../../types/users";
 import {
@@ -149,7 +149,7 @@ export function UsersPage({
           <Text
             as="p"
             size="sm"
-            className="font-medium uppercase tracking-[0.3em] text-cyan-300"
+            className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400"
           >
             Principals
           </Text>
@@ -172,7 +172,7 @@ export function UsersPage({
 
       <UserFilters value={filters} onChange={setFilters} />
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
 
       {!loading && (
         <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">

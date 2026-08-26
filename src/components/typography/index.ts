@@ -1,5 +1,6 @@
 export { Button } from "./Button";
-export { ErrorBox } from "./ErrorBox";
+export { Alert } from "./Alert";
+export type { AlertProps, AlertVariant } from "./Alert";
 export { FieldHint } from "./FieldHint";
 export { Form } from "./Form";
 export { H2 } from "./H2";

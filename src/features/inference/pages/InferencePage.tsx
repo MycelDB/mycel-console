@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, ErrorBox, H2, Select, Text } from "../../../components/typography";
+import { Button, Alert, H2, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
   applyInferencePackage as defaultApplyInferencePackage,
@@ -602,7 +602,7 @@ export function InferencePage({
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">Intelligence</Text>
+          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Intelligence</Text>
           <H2 className="mt-2 text-slate-900 dark:text-slate-100">Intelligence Access</H2>
           <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
             Configure the model endpoints, models, credentials, grants, policies, and profiles used by graph automations and semantic generation. Import packages are install-only deployment units; their committed resources appear in the access tabs.
@@ -636,7 +636,7 @@ export function InferencePage({
         </div>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
 
       {activeTab !== "packages" && (
         <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70">
@@ -759,7 +759,7 @@ export function InferencePage({
           <Text intent="muted" className="text-slate-600 dark:text-slate-400">Loading inference catalog…</Text>
         </div>
       ) : catalogError ? (
-        <ErrorBox>{catalogError}</ErrorBox>
+        <Alert>{catalogError}</Alert>
       ) : activeTab === "endpoints" ? (
         <ModelEndpointTable endpoints={endpoints} onViewDetails={(item) => setDetail({ title: item.key || item.name || "Model endpoint", data: item })} />
       ) : activeTab === "models" ? (
@@ -861,7 +861,7 @@ function InferenceSetupSection({ activeTab, loading, error, message, spaceId, pr
     .map((endpoint) => ({ value: endpoint.key || endpoint.modelEndpointId, label: endpoint.key || endpoint.name || endpoint.modelEndpointId, hint: [endpoint.name, endpoint.privacyClass].filter(Boolean).join(" · ") }));
   const toggleProfileRef = (field: "endpointRefs" | "modelRefs", value: string, checked: boolean) => setProfileForm((current) => ({ ...current, [field]: checked ? Array.from(new Set([...current[field], value])) : current[field].filter((item) => item !== value) }));
   return <div className="space-y-4">
-    {error && <ErrorBox>{error}</ErrorBox>}
+    {error && <Alert>{error}</Alert>}
     {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">{message}</div>}
     {(activeTab === "profiles" && canManageProfiles) && <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70"><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Create profile</Text><div className="mt-3 grid gap-3 md:grid-cols-3"><Field label="Key" value={profileForm.key} onChange={(key) => setProfileForm((current) => ({ ...current, key }))} /><Field label="Display name" value={profileForm.displayName} onChange={(displayName) => setProfileForm((current) => ({ ...current, displayName }))} /><SelectField label="Operation" value={profileForm.operation} onChange={(operation) => setProfileForm((current) => ({ ...current, operation, endpointRefs: [], modelRefs: [] }))} options={inferenceOperationOptions} placeholder="Choose an operation" /><Field label="Purpose" value={profileForm.purpose} onChange={(purpose) => setProfileForm((current) => ({ ...current, purpose }))} /><MultiSelectChecklist label="Endpoint refs" values={profileForm.endpointRefs} options={profileEndpointOptions} emptyText="No matching enabled endpoints." onToggle={(value, checked) => toggleProfileRef("endpointRefs", value, checked)} /><MultiSelectChecklist label="Model refs" values={profileForm.modelRefs} options={profileModelOptions} emptyText="No matching models for the selected operation." onToggle={(value, checked) => toggleProfileRef("modelRefs", value, checked)} /><Field label="Max output tokens" value={profileForm.maxOutputTokens} onChange={(maxOutputTokens) => setProfileForm((current) => ({ ...current, maxOutputTokens }))} /></div><Button className="mt-3" onClick={onCreateProfile} disabled={loading || !spaceId}>Create profile</Button></div>}
     {(activeTab === "credentials" && canManageCredentials) && <CredentialCreatePanel draft={credentialForm} setDraft={setCredentialForm} endpoints={endpoints} loading={loading} onCreateCredential={onCreateCredential} />}
@@ -876,7 +876,7 @@ function CredentialCreatePanel({ draft, setDraft, endpoints, loading, onCreateCr
   return <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70">
     <Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Create credential</Text>
     <Text intent="muted" size="sm" className="mt-1">Paste the API key once. The key is sent to the daemon and will not be displayed again.</Text>
-    {enabledEndpoints.length === 0 && <div className="mt-3"><ErrorBox>No enabled endpoints are available. Import an inference package before creating a credential.</ErrorBox></div>}
+    {enabledEndpoints.length === 0 && <div className="mt-3"><Alert>No enabled endpoints are available. Import an inference package before creating a credential.</Alert></div>}
     <div className="mt-3 grid gap-3 md:grid-cols-3">
       <Field label="Credential key" value={draft.key} onChange={(key) => setDraft((current) => ({ ...current, key }))} />
       <SelectField label="Endpoint" value={draft.modelEndpointId} onChange={(modelEndpointId) => setDraft((current) => ({ ...current, modelEndpointId }))} options={enabledEndpoints.map((endpoint) => ({ value: endpoint.modelEndpointId, label: endpoint.key || endpoint.modelEndpointId }))} placeholder="Choose an endpoint" disabled={enabledEndpoints.length === 0} />
@@ -895,7 +895,7 @@ function PolicyCreatePanel({ draft, setDraft, spaces, domains, domainError, load
   }
   return <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70">
     <div className="flex items-start justify-between gap-3"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Create policy</Text><Text intent="muted" size="sm" className="mt-1">Choose the scope where inference is allowed, denied, or restricted.</Text></div><Button variant="secondary" onClick={onCancel} disabled={loading}>Cancel</Button></div>
-    {domainError && <div className="mt-3"><ErrorBox>{domainError}</ErrorBox></div>}
+    {domainError && <div className="mt-3"><Alert>{domainError}</Alert></div>}
     <div className="mt-3 grid gap-4 lg:grid-cols-2">
       <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">Scope</Text><SelectField label="Space" value={draft.spaceId} onChange={(spaceId) => update({ spaceId, domainId: "" })} options={spaces.map((space) => ({ value: space.spaceId, label: space.name || space.spaceId, hint: space.spaceId }))} placeholder="Choose a space" /><SelectField label="Domain" value={draft.domainId} onChange={(domainId) => update({ domainId })} options={domains.map((domain) => ({ value: domain.domainId, label: domain.name || domain.key || domain.domainId, hint: domain.domainId }))} placeholder={draft.spaceId ? "Choose a domain" : "Select a space first"} disabled={!draft.spaceId} /><label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" checked={draft.includeDescendants} onChange={(event) => update({ includeDescendants: event.target.checked })} />Include descendants</label></div>
       <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">Policy</Text><SelectField label="Effect" value={draft.effect} onChange={(effect) => update({ effect })} options={["allow", "deny", "restrict"].map((effect) => ({ value: effect, label: effect }))} placeholder="Choose an effect" /><div><Text size="sm" className="font-medium text-slate-900 dark:text-slate-100">Operations</Text><div className="mt-2 flex flex-wrap gap-2">{operationOptions.map((operation) => <label key={operation} className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"><input type="checkbox" checked={draft.operations.includes(operation)} onChange={(event) => toggleOperation(operation, event.target.checked)} />{operation}</label>)}</div></div><Field label="Reason" value={draft.reason} onChange={(reason) => update({ reason })} /></div>
@@ -923,7 +923,7 @@ function GrantCreatePanel({ draft, setDraft, spaces, domains, domainError, model
 
   return <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70">
     <div className="flex items-start justify-between gap-3"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Create grant</Text><Text intent="muted" size="sm" className="mt-1">Select readable resources; Console sends stable IDs/refs to mycel.</Text></div><Button variant="secondary" onClick={onCancel} disabled={loading}>Cancel</Button></div>
-    {domainError && <div className="mt-3"><ErrorBox>{domainError}</ErrorBox></div>}
+    {domainError && <div className="mt-3"><Alert>{domainError}</Alert></div>}
     <div className="mt-4 grid gap-4 lg:grid-cols-2">
       <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">Scope</Text><SelectField label="Space" value={draft.spaceId} onChange={(spaceId) => update({ spaceId, domainId: "" })} options={spaces.map((space) => ({ value: space.spaceId, label: space.name || space.spaceId, hint: space.spaceId }))} placeholder="Choose a space" /><SelectField label="Domain" value={draft.domainId} onChange={(domainId) => update({ domainId })} options={domains.map((domain) => ({ value: domain.domainId, label: domain.name || domain.key || domain.domainId, hint: domain.domainId }))} placeholder={draft.spaceId ? "Choose a domain" : "Select a space first"} disabled={!draft.spaceId} /><label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><input type="checkbox" checked={draft.includeDescendants} onChange={(event) => update({ includeDescendants: event.target.checked })} />Include descendants</label></div>
       <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"><Text as="h4" className="font-medium text-slate-900 dark:text-slate-100">Model binding</Text><SelectField label="Model" value={draft.modelId} onChange={(modelId) => update({ modelId, endpointId: "", credentialId: "", operations: [] })} options={models.map((model) => ({ value: model.modelId, label: model.key || model.modelId, hint: [model.kind, model.inputModalities?.length ? `in:${model.inputModalities.join("+")}` : "", model.outputModalities?.length ? `out:${model.outputModalities.join("+")}` : "", model.dimensions ? `${model.dimensions} dims` : ""].filter(Boolean).join(" · ") }))} placeholder="Choose a model" /><SelectField label="Endpoint" value={draft.endpointId} onChange={(endpointId) => { const ops = capabilities.filter((capability) => capability.modelId === draft.modelId && capability.modelEndpointId === endpointId && capability.enabled).map((capability) => capability.operation).filter(Boolean); update({ endpointId, credentialId: "", operations: Array.from(new Set(ops)) }); }} options={filteredEndpoints.map((endpoint) => ({ value: endpoint.modelEndpointId, label: endpoint.key || endpoint.modelEndpointId, hint: [endpoint.name, endpoint.enabled ? "enabled" : "disabled", endpoint.privacyClass].filter(Boolean).join(" · ") }))} placeholder={draft.modelId ? "Choose an endpoint" : "Select a model first"} disabled={!draft.modelId} /><OperationCheckboxGroup capabilities={operationOptions} selected={draft.operations} onToggle={toggleOperation} /></div>

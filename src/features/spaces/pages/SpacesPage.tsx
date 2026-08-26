@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { Button, Alert, H2, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { createSpace as defaultCreateSpace, listSpaces as defaultListSpaces } from "../../../services/adminService";
 import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
@@ -89,7 +89,7 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
           <Text
             as="p"
             size="sm"
-            className="font-medium uppercase tracking-[0.3em] text-cyan-300"
+            className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400"
           >
             Spaces
           </Text>
@@ -141,7 +141,7 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
 
       <SpaceFilters value={filters} onChange={setFilters} />
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
 
       {!loading && (
         <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">

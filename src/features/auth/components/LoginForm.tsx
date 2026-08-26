@@ -1,21 +1,25 @@
 import { useState } from "react";
-import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
 import { consoleBranding } from "../../console";
-import { DEFAULT_CLUSTER_ADDR, type ConnectionDiagnosticsResponse, type LoginInput } from "../../../types/auth";
+import type { AppError, ConnectionDiagnosticsResponse, LoginInput } from "../../../types/auth";
+import { readLoginHints } from "../loginHints";
 
 export type LoginFormProps = {
   loading: boolean;
   diagnosticsLoading?: boolean;
-  error: string;
+  error: AppError | null;
+  notice?: string;
   diagnostics?: ConnectionDiagnosticsResponse | null;
   onSubmit: (input: LoginInput) => Promise<void>;
   onRunDiagnostics?: (input: LoginInput) => Promise<void>;
 };
 
-export function LoginForm({ loading, diagnosticsLoading = false, error, diagnostics, onSubmit, onRunDiagnostics }: LoginFormProps) {
-  const [addr, setAddr] = useState(DEFAULT_CLUSTER_ADDR);
-  const [username, setUsername] = useState("");
+export function LoginForm({ loading, diagnosticsLoading = false, error, notice = "", diagnostics, onSubmit, onRunDiagnostics }: LoginFormProps) {
+  const [initialHints] = useState(readLoginHints);
+  const [addr, setAddr] = useState(initialHints.addr);
+  const [username, setUsername] = useState(initialHints.username);
   const [password, setPassword] = useState("");
+  const canRunDiagnostics = Boolean(onRunDiagnostics && error && isConnectionProblem(error.kind));
 
   return (
     <Form
@@ -30,7 +34,13 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
         Log in with principal credentials that have console capabilities for a mycel cluster.
       </Text>
 
-      {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
+      {error && (
+        <Alert variant={error.severity === "info" ? "info" : error.severity} className="mb-4">
+          <span>{error.message}</span>
+          {error.detail && error.detail !== error.message && <span className="mt-1 block text-xs opacity-80">{error.detail}</span>}
+        </Alert>
+      )}
+      {!error && notice && <Alert variant="warning" className="mb-4">{notice}</Alert>}
 
       <Label htmlFor="addr">Cluster gRPC address</Label>
       <Input
@@ -71,7 +81,7 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
         <Button className="w-full" disabled={loading || diagnosticsLoading}>
           {loading ? "Logging in…" : "Login"}
         </Button>
-        {onRunDiagnostics && (
+        {canRunDiagnostics && onRunDiagnostics && (
           <Button
             type="button"
             variant="secondary"
@@ -99,6 +109,10 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, diagnost
       )}
     </Form>
   );
+}
+
+function isConnectionProblem(kind: AppError["kind"]) {
+  return kind === "connectivity" || kind === "unavailable" || kind === "timeout";
 }
 
 function statusIcon(status: string) {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Button, ErrorBox, H2, Select, Text } from "../../../components/typography";
+import { Button, Alert, H2, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticRule as defaultBackfillSemanticRule, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, createAutomation as defaultCreateAutomation, deleteAutomation as defaultDeleteAutomation, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listInferenceProfiles as defaultListInferenceProfiles, listSemanticRules as defaultListSemanticRules, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork, updateAutomation as defaultUpdateAutomation, validateAutomation as defaultValidateAutomation } from "../../../services/adminService";
 import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../../../types/automations";
@@ -440,7 +440,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/spaces">
           ← Back to spaces
         </Link>
-        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-cyan-300">
+        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
           Space detail
         </Text>
         <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -481,7 +481,7 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
         </div>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center dark:border-slate-800 dark:bg-slate-900/70">
@@ -635,12 +635,12 @@ function SemanticMaintenanceSection({ status, workItems, loading, error, workSta
         {canMutate ? <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={onAnalyze} disabled={actionLoading}>Analyze dirty work</Button><Button variant="secondary" onClick={onProcess} disabled={actionLoading}>Process work</Button></div> : <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Read-only</Text>}
         <label className="text-sm text-slate-700 dark:text-slate-300">Work status <select className="ml-2 rounded-md border border-slate-300 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-950" value={workStatus} onChange={(event) => onWorkStatusChange(event.target.value)}><option value="">Any</option><option value="pending">Pending</option><option value="running">Running</option><option value="failed_retryable">Failed retryable</option><option value="failed_permanent">Failed permanent</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
       </div>
-      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      {error && <div className="mt-4"><Alert>{error}</Alert></div>}
       {result && <div className="mt-4 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">{result}</div>}
       {loading ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading semantic maintenance…</Text> : (
         <>
           {status && <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Enabled" value={status.enabled ? "Yes" : "No"} /><Metric label="Degraded" value={status.degraded ? "Yes" : "No"} tone={status.degraded ? "danger" : "default"} /><Metric label="Pending" value={status.queueDepthPending} /><Metric label="Running" value={status.queueDepthRunning} /><Metric label="Retryable failed" value={status.queueDepthFailedRetryable} tone={status.queueDepthFailedRetryable > 0 ? "warning" : "default"} /><Metric label="Permanent failed" value={status.queueDepthFailedPermanent} tone={status.queueDepthFailedPermanent > 0 ? "danger" : "default"} /><Metric label="Oldest pending" value={`${status.oldestPendingAgeSeconds}s`} /><Metric label="Throttle" value={status.throttleState || "None"} /></div>}
-          {status?.degradedReason && <ErrorBox className="mt-4">{status.degradedReason}</ErrorBox>}
+          {status?.degradedReason && <Alert className="mt-4">{status.degradedReason}</Alert>}
           <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-950/60 dark:text-slate-400"><tr><th className="px-4 py-3">Action</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Attempts</th><th className="px-4 py-3">Domain</th><th className="px-4 py-3">Index</th><th className="px-4 py-3">Last error</th><th className="px-4 py-3">Safe actions</th></tr></thead>
@@ -671,7 +671,7 @@ function SemanticRulesSection({ indexes, loading, error, includeDisabled, onIncl
           Include disabled rules
         </label>
       </div>
-      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      {error && <div className="mt-4"><Alert>{error}</Alert></div>}
       {loading ? (
         <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading semantic rules…</Text>
       ) : indexes.length === 0 ? (
@@ -747,7 +747,7 @@ function GraphQueryConsolePreview({ spaceId, domains, currentPrincipal }: { spac
           <Text intent="muted" size="sm" className="mt-1 max-w-3xl text-slate-600 dark:text-slate-400">Execute GQL against this space using the currently logged-in console principal.</Text>
         </div>
       </div>
-      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      {error && <div className="mt-4"><Alert>{error}</Alert></div>}
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
           <div><span className="font-medium">Principal:</span> {currentPrincipal ? `${currentPrincipal.username} @ ${currentPrincipal.addr}` : "Current console principal"}</div>
@@ -831,7 +831,7 @@ function DomainSection({
           Include system domains
         </label>
       </div>
-      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      {error && <div className="mt-4"><Alert>{error}</Alert></div>}
       {loading ? (
         <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading domains…</Text>
       ) : domains.length === 0 ? (
@@ -922,7 +922,7 @@ function AutomationSection({ rows, domains, invocations, loading, error, detail,
         </div>
         <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh automations"}</Button>{canManage && <Button onClick={() => onCreate(domains[0]?.domainId)}>Create automation</Button>}</div>
       </div>
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
       {rows.length === 0 ? <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">{loading ? "Loading automations…" : "No automations found for this space."}</Text> : (
         <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
@@ -994,7 +994,7 @@ function SchemaSection({ domains, schemas, loading, error, onRefresh }: { domain
         </div>
         <Button variant="secondary" onClick={onRefresh} disabled={loading}>{loading ? "Loading…" : "Refresh schemas"}</Button>
       </div>
-      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      {error && <div className="mt-4"><Alert>{error}</Alert></div>}
       {loading && domains.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">Loading schemas…</Text> : domains.length === 0 ? <Text intent="muted" size="sm" className="mt-4 text-slate-600 dark:text-slate-400">No domains found for this space.</Text> : (
         <div className="mt-4 space-y-4">
           {domains.map((domain) => {

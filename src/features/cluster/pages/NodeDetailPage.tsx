@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { getClusterRuntimeStatus, getClusterStatus, listClusterMembers, listRaftGroups } from "../../../services/adminService";
 import type { ClusterMemberInfo, ClusterPeerInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, ListClusterMembersResponse, ListRaftGroupsResponse } from "../../../types/cluster";
-import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { Button, Alert, H2, Text } from "../../../components/typography";
 
 function formatTime(value?: string) {
   if (!value) return "—";
@@ -115,10 +115,10 @@ export function NodeDetailPage() {
         <Button type="button" variant="secondary" disabled>Future actions</Button>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
 
       {!detail.member && !detail.peer ? (
-        <ErrorBox>Node not found in current topology or membership view.</ErrorBox>
+        <Alert>Node not found in current topology or membership view.</Alert>
       ) : (
         <>
         {runtime?.engine === "raft" && (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { Button, Alert, H2, Text } from "../../../components/typography";
 import type { InferencePackageDocument } from "../../../types/inference";
 
 export type ImportInferencePackageModalProps = {
@@ -50,14 +50,14 @@ export function ImportInferencePackageModal({ open, loading, onClose, onImport }
       <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-cyan-300">Import package</Text>
+            <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Import package</Text>
             <H2 className="mt-2 text-xl text-slate-900 dark:text-slate-100">Import inference package JSON</H2>
             <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">Packages are install-only, idempotent deployment units.</Text>
           </div>
           <button className="rounded px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800" onClick={onClose} disabled={loading}>Close</button>
         </div>
 
-        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+        {error && <Alert className="mt-4">{error}</Alert>}
 
         <label className="mt-5 block text-sm font-medium text-slate-900 dark:text-slate-100">
           Package JSON file

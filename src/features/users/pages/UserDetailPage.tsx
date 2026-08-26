@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Button, ErrorBox, H2, Select, Text } from "../../../components/typography";
+import { Button, Alert, H2, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { getPrincipal as defaultGetPrincipal, listDomains as defaultListDomains, listPrincipalCapabilities as defaultListPrincipalCapabilities, listPrincipalRoles as defaultListPrincipalRoles, listPrincipalSessions as defaultListPrincipalSessions, listSpaces as defaultListSpaces, revokePrincipalCapability as defaultRevokePrincipalCapability, revokePrincipalRole as defaultRevokePrincipalRole, revokePrincipalSession as defaultRevokePrincipalSession, revokePrincipalSessions as defaultRevokePrincipalSessions, setPrincipalCapabilitiesForScope as defaultSetPrincipalCapabilitiesForScope, setPrincipalRolesForScope as defaultSetPrincipalRolesForScope } from "../../../services/adminService";
 import type { AccessScopeInput, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse, PrincipalCapabilityGrantInfo, PrincipalRoleGrantInfo, RevokePrincipalCapabilityInput, RevokePrincipalCapabilityResponse, RevokePrincipalRoleInput, RevokePrincipalRoleResponse, SetPrincipalCapabilitiesForScopeInput, SetPrincipalCapabilitiesForScopeResponse, SetPrincipalRolesForScopeInput, SetPrincipalRolesForScopeResponse } from "../../../types/access";
@@ -183,7 +183,7 @@ export function UserDetailPage({
     <section className="space-y-6">
       <div>
         <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/principals">← Back to principals</Link>
-        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-cyan-300">Principal detail</Text>
+        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Principal detail</Text>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <H2 className="text-slate-900 dark:text-slate-100">{user?.username || routePrincipalId || "Principal"}</H2>
           {user?.state && <UserStateBadge state={user.state} />}
@@ -197,7 +197,7 @@ export function UserDetailPage({
         </div>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
       {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">{message}</div>}
       {loading ? <Loading /> : user && activeTab === "overview" ? <><UserIdentity user={user} /><OwnedSpaces spaces={ownedSpaces} /></> : null}
       {!loading && activeTab === "access" && <AccessPanel principal={user} roles={roles} capabilities={capabilities} directGrantCount={directGrantCount} canManage={canManageGrants} spaces={spaces} listDomainsService={listDomainsService} onRefresh={() => void reloadAccess()} onSaveRoles={async (input) => { await setPrincipalRolesForScopeService(input); }} onSaveCapabilities={async (input) => { await setPrincipalCapabilitiesForScopeService(input); await reloadAccess(); }} onRevokeRole={(grant) => setRevokeDialog({ kind: "role", grantId: grant.roleGrantId, label: grant.role, reason: "" })} onRevokeCapability={(grant) => setRevokeDialog({ kind: "capability", grantId: grant.capabilityGrantId, label: grant.capability, reason: "" })} />}
@@ -218,7 +218,7 @@ function UserIdentity({ user }: { user: PrincipalInfo }) {
 function AccessPanel({ principal, roles, capabilities, directGrantCount, canManage, spaces, listDomainsService, onRefresh, onSaveRoles, onSaveCapabilities, onRevokeRole, onRevokeCapability }: { principal: PrincipalInfo | null; roles: ListPrincipalRolesResponse; capabilities: ListPrincipalCapabilitiesResponse; directGrantCount: number; canManage: boolean; spaces: SpaceInfo[]; listDomainsService: (input: ListDomainsInput) => Promise<ListDomainsResponse>; onRefresh: () => void; onSaveRoles: (input: SetPrincipalRolesForScopeInput) => Promise<void>; onSaveCapabilities: (input: SetPrincipalCapabilitiesForScopeInput) => Promise<void>; onRevokeRole: (grant: PrincipalRoleGrantInfo) => void; onRevokeCapability: (grant: PrincipalCapabilityGrantInfo) => void }) {
   return <div className="space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Roles & capabilities</Text><Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Choose a scope, check the direct roles and extra direct capabilities, then Save. Role-inherited capabilities are shown checked and locked.</Text></div><Button variant="secondary" onClick={onRefresh}>Refresh</Button></div>
-    {!canManage && <ErrorBox>Current principal is missing identity.grant.manage; access grants are read-only.</ErrorBox>}
+    {!canManage && <Alert>Current principal is missing identity.grant.manage; access grants are read-only.</Alert>}
     <div className="max-w-xs"><SummaryCard label="Direct grants" value={directGrantCount} /></div>
     {principal && <AccessCheckboxEditor principalId={principalIdOf(principal)} roles={roles} capabilities={capabilities} spaces={spaces} listDomainsService={listDomainsService} canManage={canManage} onSaveRoles={onSaveRoles} onSaveCapabilities={onSaveCapabilities} />}
     <RoleGrantTable grants={roles.grants} canManage={canManage} onRevoke={onRevokeRole} />
@@ -268,7 +268,7 @@ function AccessCheckboxEditor({ principalId, roles, capabilities, spaces, listDo
 
   return <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><Text as="h3" className="font-medium text-slate-900 dark:text-slate-100">Edit selected scope</Text><Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Direct roles and direct capabilities for the selected scope. Inherited capabilities are locked.</Text></div><Button disabled={disabled} onClick={() => void save()}>{saving ? "Saving…" : "Save"}</Button></div>
-    {saveError && <ErrorBox>{saveError}</ErrorBox>}
+    {saveError && <Alert>{saveError}</Alert>}
     {saveMessage && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">{saveMessage}</div>}
     <div className="mt-4"><ScopeEditor form={form} setForm={setForm} spaces={spaces} domains={domains} labelPrefix="Edit " /></div>
     <label className="mt-4 block text-sm font-medium text-slate-900 dark:text-slate-100">Set reason<textarea className="mt-1 block min-h-16 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Audit reason for set operation" /></label>

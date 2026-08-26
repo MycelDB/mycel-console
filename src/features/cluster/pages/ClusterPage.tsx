@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getClusterHealth, getClusterRuntimeStatus, getClusterStatus, getGraphConsistencyReport, getLocalGraphConsistency, getLocalGraphForensicExport, listClusterMembers, listRaftGroups, lookupSpaceRoute } from "../../../services/adminService";
 import type { ClusterHealthInfo, ClusterPeerInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyReport, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LocalGraphConsistencyStatsInfo, LookupSpaceRouteResult, RaftGroupStatusInfo } from "../../../types/cluster";
-import { Button, ErrorBox, H2, Text } from "../../../components/typography";
+import { Button, Alert, H2, Text } from "../../../components/typography";
 import { ClusterEventLog, clusterEventsFromState } from "../components/ClusterEventLog";
 
 function badgeClass(value: string) {
@@ -383,7 +383,7 @@ export function ClusterPage() {
         </div>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
       {status && (
         <>
           {status.cluster.mode === "standalone" && (

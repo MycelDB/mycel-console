@@ -12,7 +12,7 @@ export function ComingSoonPage({ title, description }: ComingSoonPageProps) {
         <Text
           as="p"
           size="sm"
-          className="font-medium uppercase tracking-[0.3em] text-cyan-300"
+          className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400"
         >
           {title}
         </Text>

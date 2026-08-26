@@ -3,6 +3,7 @@ pub mod automations;
 pub mod backups;
 pub mod client_query;
 pub mod cluster;
+pub mod command_error;
 pub mod domains;
 pub mod inference;
 pub mod schemas;

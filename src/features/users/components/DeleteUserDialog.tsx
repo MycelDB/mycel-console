@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Button, ErrorBox, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
 import type { DeletePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
@@ -63,7 +63,7 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
           This will delete <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span>. This action is destructive.
         </Text>
 
-        {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
+        {error && <Alert className="mt-4">{error}</Alert>}
 
         <div className="mt-5 rounded-lg border border-red-500/30 bg-red-950/30 p-3">
           <Text size="sm" className="text-red-200">

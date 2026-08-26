@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Button, ErrorBox, H2, Select, Text } from "../../../../components/typography";
+import { Button, Alert, H2, Select, Text } from "../../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../../console";
 import {
   createAutomation as defaultCreateAutomation,
@@ -437,7 +437,7 @@ export function AutomationsPage({
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-cyan-300">Intelligence</Text>
+          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Intelligence</Text>
           <H2 className="mt-2 text-slate-900 dark:text-slate-100">Graph automations</H2>
           <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
             Manage graph-triggered automations across spaces and domains, inspect recent runs, and monitor inference token usage.
@@ -449,8 +449,8 @@ export function AutomationsPage({
         </div>
       </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
-      {usageError && <ErrorBox>{usageError}</ErrorBox>}
+      {error && <Alert>{error}</Alert>}
+      {usageError && <Alert>{usageError}</Alert>}
 
       <div className="grid gap-4 md:grid-cols-4">
         <SummaryCard label="Procedures" value={totals.procedures} />
@@ -598,5 +598,5 @@ function DetailDrawer({ title, json, onClose }: { title: string; json: string; o
 }
 
 function AutomationEditorDialog({ editor, domains, loading, error, onClose, onSave, onDefinitionChange, onDomainChange, onProfileChange }: { editor: AutomationEditorState; domains: DomainInfo[]; loading: boolean; error: string; onClose: () => void; onSave: () => void; onDefinitionChange: (definitionJson: string) => void; onDomainChange: (domainId: string) => void; onProfileChange: (profile: string) => void }) {
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between gap-4"><div><Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">{editor.mode === "create" ? "Create automation" : "Edit automation"}</Text><Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Definitions reference inference profiles and model access configured in Intelligence / Access.</Text></div><Button variant="secondary" onClick={onClose}>Close</Button></div>{error && <ErrorBox className="mt-4">{error}</ErrorBox>}<div className="mt-4 grid gap-4 md:grid-cols-2"><Select label="Domain" value={editor.domainId} onChange={onDomainChange} options={domains.map((domain) => ({ value: domain.domainId, label: `${domain.name || domain.key} (${domain.spaceId})` }))} disabled={loading || editor.mode === "edit"} /><Select label="Inference profile" value={editor.selectedProfile} onChange={onProfileChange} options={editor.profiles.map((profile) => ({ value: profile.key || profile.inferenceProfileId, label: `${profile.displayName || profile.key} (${profile.operation})` }))} placeholder="No profile selected" disabled={loading} /></div><label className="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor="automation-definition-json">Definition JSON</label><textarea id="automation-definition-json" className="mt-2 min-h-[28rem] w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={editor.definitionJson} onChange={(event) => onDefinitionChange(event.target.value)} disabled={loading} /><div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button><Button onClick={onSave} disabled={loading || !editor.domainId}>{loading ? "Saving…" : "Save automation"}</Button></div></div></div>;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"><div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between gap-4"><div><Text as="h3" className="font-semibold text-slate-900 dark:text-slate-100">{editor.mode === "create" ? "Create automation" : "Edit automation"}</Text><Text intent="muted" size="sm" className="mt-1 text-slate-600 dark:text-slate-400">Definitions reference inference profiles and model access configured in Intelligence / Access.</Text></div><Button variant="secondary" onClick={onClose}>Close</Button></div>{error && <Alert className="mt-4">{error}</Alert>}<div className="mt-4 grid gap-4 md:grid-cols-2"><Select label="Domain" value={editor.domainId} onChange={onDomainChange} options={domains.map((domain) => ({ value: domain.domainId, label: `${domain.name || domain.key} (${domain.spaceId})` }))} disabled={loading || editor.mode === "edit"} /><Select label="Inference profile" value={editor.selectedProfile} onChange={onProfileChange} options={editor.profiles.map((profile) => ({ value: profile.key || profile.inferenceProfileId, label: `${profile.displayName || profile.key} (${profile.operation})` }))} placeholder="No profile selected" disabled={loading} /></div><label className="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor="automation-definition-json">Definition JSON</label><textarea id="automation-definition-json" className="mt-2 min-h-[28rem] w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" value={editor.definitionJson} onChange={(event) => onDefinitionChange(event.target.value)} disabled={loading} /><div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button><Button onClick={onSave} disabled={loading || !editor.domainId}>{loading ? "Saving…" : "Save automation"}</Button></div></div></div>;
 }

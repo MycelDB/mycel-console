@@ -270,6 +270,12 @@ pub struct InferenceModelInput {
     #[serde(default)]
     pub vector_space_key: String,
     #[serde(default)]
+    pub context_tokens: i32,
+    #[serde(default)]
+    pub max_output_tokens: i32,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
     pub metadata: Option<Map<String, serde_json::Value>>,
 }
 
@@ -2325,9 +2331,9 @@ fn inference_model(input: InferenceModelInput) -> InferenceModel {
         vector_space_key: input.vector_space_key,
         metadata: input.metadata.map(struct_from_map),
         kind_value: 0,
-        context_tokens: 0,
-        max_output_tokens: 0,
-        enabled: true,
+        context_tokens: input.context_tokens,
+        max_output_tokens: input.max_output_tokens,
+        enabled: input.enabled,
     }
 }
 

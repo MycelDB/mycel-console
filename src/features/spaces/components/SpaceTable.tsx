@@ -1,13 +1,16 @@
 import { Link } from "react-router-dom";
-import { Text } from "../../../components/typography";
+import { Button, Text } from "../../../components/typography";
 import type { SpaceInfo } from "../../../types/spaces";
 import { SpaceStateBadge } from "./SpaceStateBadge";
 
 export type SpaceTableProps = {
   spaces: SpaceInfo[];
+  canDelete?: boolean;
+  deletingSpaceId?: string;
+  onDelete?: (space: SpaceInfo) => void;
 };
 
-export function SpaceTable({ spaces }: SpaceTableProps) {
+export function SpaceTable({ spaces, canDelete = false, deletingSpaceId = "", onDelete }: SpaceTableProps) {
   if (spaces.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 p-8 text-center">
@@ -42,7 +45,15 @@ export function SpaceTable({ spaces }: SpaceTableProps) {
               </td>
               <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{space.spaceId}</td>
               <td className="px-4 py-3"><SpaceStateBadge state={space.state} /></td>
-              <td className="px-4 py-3 text-sm text-slate-500">Read-only</td>
+              <td className="px-4 py-3 text-sm">
+                {canDelete && onDelete ? (
+                  <Button variant="danger" onClick={() => onDelete(space)} disabled={deletingSpaceId === space.spaceId}>
+                    {deletingSpaceId === space.spaceId ? "Deleting…" : "Delete"}
+                  </Button>
+                ) : (
+                  <span className="text-slate-500 dark:text-slate-400">Read-only</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

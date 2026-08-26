@@ -1,6 +1,7 @@
 mod commands;
 mod state;
 
+use commands::activity::{admin_get_activity_event, admin_list_activity_events};
 use commands::auth::{
     admin_connection_diagnostics, admin_get_my_access, admin_login, admin_logout, admin_whoami,
 };
@@ -54,7 +55,7 @@ use commands::semantic_maintenance::{
     admin_list_semantic_maintenance_work, admin_process_semantic_dirty_work,
     admin_retry_semantic_maintenance_work,
 };
-use commands::spaces::{admin_create_space, admin_get_space, admin_list_spaces};
+use commands::spaces::{admin_create_space, admin_delete_space, admin_get_space, admin_list_spaces};
 use commands::users::{
     admin_create_principal, admin_delete_principal, admin_disable_principal,
     admin_enable_principal, admin_get_principal, admin_grant_principal_capability,
@@ -75,6 +76,8 @@ pub fn run() {
             admin_logout,
             admin_whoami,
             admin_get_my_access,
+            admin_list_activity_events,
+            admin_get_activity_event,
             admin_console_client_query_login,
             admin_console_client_query_logout,
             admin_console_execute_graph_query,
@@ -96,6 +99,7 @@ pub fn run() {
             admin_list_spaces,
             admin_get_space,
             admin_create_space,
+            admin_delete_space,
             admin_get_domain_schema,
             admin_delete_domain_schema,
             admin_list_automations,

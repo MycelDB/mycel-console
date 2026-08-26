@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { H2, Text } from "../../../components/typography";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Text } from "../../../components/typography";
 import { RoleBundleHelp, type ConsolePrincipalContext } from "../../console";
 import type { PrincipalSession } from "../../../types/auth";
 
@@ -19,13 +20,11 @@ export function AccountPage({ session, principalContext, loading = false }: Acco
 
   return (
     <section className="space-y-6">
-      <div>
-        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Account</Text>
-        <H2 className="mt-2 text-slate-900 dark:text-slate-100">My principal</H2>
-        <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
-          View the principal and access context currently loaded by this console. Daemon APIs remain authoritative for every action.
-        </Text>
-      </div>
+      <PageHeader
+        eyebrow="Account"
+        title="My principal"
+        description="View the principal and access context currently loaded by this console. Daemon APIs remain authoritative for every action."
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Session">

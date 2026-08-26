@@ -230,12 +230,19 @@ export function canonicalCapabilityName(capabilityName: string): string {
     case "CAPABILITY_INFERENCE_AUDIT_READ":
     case "inference.audit.read":
       return "inference.audit.read";
+    case "CAPABILITY_AUDIT_READ":
+    case "audit.read":
+      return "audit.read";
+    case "CAPABILITY_AUDIT_WRITE":
+    case "audit.write":
+      return "audit.write";
     case "CAPABILITY_DAEMON_CONFIGURE":
     case "daemon.configure":
       return "daemon.configure";
     case "CAPABILITY_MESH_MANAGE":
     case "cluster.manage":
       return "cluster.manage";
+    case "CAPABILITY_CLUSTER_READ":
     case "cluster.read":
       return "cluster.read";
     case "CAPABILITY_SYSTEM_BACKUP_SPACE":

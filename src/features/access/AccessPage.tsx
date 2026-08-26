@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Button, Alert, H2, Text } from "../../components/typography";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { Button, Alert, Text } from "../../components/typography";
 import { getPrincipal as defaultGetPrincipal, listPrincipalCapabilities as defaultListPrincipalCapabilities, listPrincipalRoles as defaultListPrincipalRoles, listPrincipals as defaultListPrincipals } from "../../services/adminService";
 import type { ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse } from "../../types/access";
 import type { ListPrincipalsResponse, PrincipalInfo } from "../../types/users";
@@ -88,17 +89,12 @@ export function AccessPage({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Access management</Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Roles & capabilities</H2>
-          <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
-            Operators are represented as principals with system roles, explicit capabilities, and scoped authorization grants.
-            {focusedPrincipalId ? " This view is scoped to one principal." : ""}
-          </Text>
-        </div>
-        <Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>
-      </div>
+      <PageHeader
+        eyebrow="Administration"
+        title="Roles & capabilities"
+        description={`Operators are represented as principals with system roles, explicit capabilities, and scoped authorization grants.${focusedPrincipalId ? " This view is scoped to one principal." : ""}`}
+        actions={<Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>}
+      />
 
       {error && <Alert>{error}</Alert>}
 

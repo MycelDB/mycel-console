@@ -5,6 +5,7 @@ import {
   connectionDiagnostics,
   createSpace,
   deleteBackup,
+  deleteSpace,
   getBackupPolicy,
   getBackupStatus,
   getClusterHealth,
@@ -451,6 +452,14 @@ test("createSpace sends create input", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_create_space", {
     input: { name: "Main", ownerUsername: "martin", defaultDomainKey: "default", defaultDomainName: "Default" },
   });
+});
+
+test("deleteSpace sends space id", async () => {
+  invokeMock.mockResolvedValue(undefined);
+
+  await expect(deleteSpace("sp_main")).resolves.toBeUndefined();
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_delete_space", { spaceId: "sp_main" });
 });
 
 test("listDomains sends space scoped input", async () => {

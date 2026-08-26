@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Alert, H2, Text } from "../../../components/typography";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Button, Alert, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
-import { isPrincipalDeleted, principalIdOf } from "../../../types/users";
+import { principalIdOf } from "../../../types/users";
 import {
   createPrincipal as defaultCreatePrincipal,
   createSpace as defaultCreateSpace,
@@ -31,8 +32,6 @@ import { UserTable } from "../components/UserTable";
 const defaultFilters: UserFiltersValue = {
   query: "",
   state: "all",
-  includeDisabled: true,
-  includeDeleted: false,
 };
 
 export type UsersPageProps = {
@@ -78,8 +77,8 @@ export function UsersPage({
         const response = await listPrincipalsService({
           pageSize: 100,
           pageToken,
-          includeDisabled: filters.includeDisabled,
-          includeDeleted: filters.includeDeleted,
+          includeDisabled: true,
+          includeDeleted: true,
         });
         setUsers((current) => (append ? [...current, ...response.principals] : response.principals));
         setNextPageToken(response.nextPageToken);
@@ -90,7 +89,7 @@ export function UsersPage({
         else setLoading(false);
       }
     },
-    [filters.includeDeleted, filters.includeDisabled, listPrincipalsService],
+    [listPrincipalsService],
   );
 
   useEffect(() => {
@@ -104,10 +103,6 @@ export function UsersPage({
 
   function removeOrReplaceDeletedUser(updatedUser: PrincipalInfo) {
     const updatedPrincipalId = principalIdOf(updatedUser);
-    if (isPrincipalDeleted(updatedUser) && !filters.includeDeleted) {
-      setUsers((current) => current.filter((user) => principalIdOf(user) !== updatedPrincipalId));
-      return;
-    }
     replaceUser(updatedUser);
   }
 
@@ -132,8 +127,6 @@ export function UsersPage({
   const filteredUsers = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
     return users.filter((user) => {
-      if (!filters.includeDisabled && user.state === "PRINCIPAL_STATE_DISABLED") return false;
-      if (!filters.includeDeleted && isPrincipalDeleted(user)) return false;
       if (filters.state !== "all") {
         if (user.state !== filters.state) return false;
       }
@@ -144,31 +137,23 @@ export function UsersPage({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Text
-            as="p"
-            size="sm"
-            className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400"
-          >
-            Principals
-          </Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Principal Management</H2>
-          <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-            Inspect human principals and prepare for principal lifecycle operations.
-          </Text>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void loadUsers()} disabled={loading || loadingMore}>
-            Refresh
-          </Button>
-          {canCreatePrincipal && (
-            <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-              Create principal
+      <PageHeader
+        eyebrow="Administration"
+        title="Principals"
+        description="Inspect human principals and prepare for principal lifecycle operations."
+        actions={(
+          <>
+            <Button variant="secondary" onClick={() => void loadUsers()} disabled={loading || loadingMore}>
+              Refresh
             </Button>
-          )}
-        </div>
-      </div>
+            {canCreatePrincipal && (
+              <Button onClick={() => setCreateOpen(true)}>
+                Create principal
+              </Button>
+            )}
+          </>
+        )}
+      />
 
       <UserFilters value={filters} onChange={setFilters} />
 

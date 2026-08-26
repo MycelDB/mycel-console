@@ -5,8 +5,6 @@ import { UserFilters, type UserFiltersValue } from "./UserFilters";
 const value: UserFiltersValue = {
   query: "",
   state: "all",
-  includeDisabled: true,
-  includeDeleted: false,
 };
 
 test("updates username query", async () => {
@@ -27,13 +25,9 @@ test("updates state filter", async () => {
   expect(onChange).toHaveBeenCalledWith({ ...value, state: "PRINCIPAL_STATE_DISABLED" });
 });
 
-test("updates include flags", async () => {
-  const onChange = jest.fn();
-  render(<UserFilters value={value} onChange={onChange} />);
+test("does not render include flag checkboxes", () => {
+  render(<UserFilters value={value} onChange={jest.fn()} />);
 
-  await userEvent.click(screen.getByLabelText(/include disabled/i));
-  await userEvent.click(screen.getByLabelText(/include deleted/i));
-
-  expect(onChange).toHaveBeenCalledWith({ ...value, includeDisabled: false });
-  expect(onChange).toHaveBeenCalledWith({ ...value, includeDeleted: true });
+  expect(screen.queryByLabelText(/include disabled/i)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/include deleted/i)).not.toBeInTheDocument();
 });

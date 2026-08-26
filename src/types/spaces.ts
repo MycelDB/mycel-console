@@ -47,3 +47,5 @@ export type CreateSpaceResponse = {
   space: SpaceInfo;
   defaultDomainId: string;
 };
+
+export type DeleteSpaceResponse = void;

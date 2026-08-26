@@ -6,8 +6,6 @@ export type UserStateFilter = "all" | PrincipalState;
 export type UserFiltersValue = {
   query: string;
   state: UserStateFilter;
-  includeDisabled: boolean;
-  includeDeleted: boolean;
 };
 
 export type UserFiltersProps = {
@@ -46,26 +44,6 @@ export function UserFilters({ value, onChange }: UserFiltersProps) {
             ]}
           />
         </div>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-4">
-        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
-            checked={value.includeDisabled}
-            onChange={(event) => onChange({ ...value, includeDisabled: event.target.checked })}
-          />
-          Include disabled
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
-            checked={value.includeDeleted}
-            onChange={(event) => onChange({ ...value, includeDeleted: event.target.checked })}
-          />
-          Include deleted
-        </label>
       </div>
     </section>
   );

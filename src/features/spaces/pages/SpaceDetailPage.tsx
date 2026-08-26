@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Button, Alert, H2, Select, Text } from "../../../components/typography";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Button, Alert, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork, backfillSemanticRule as defaultBackfillSemanticRule, cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork, createAutomation as defaultCreateAutomation, deleteAutomation as defaultDeleteAutomation, disableAutomation as defaultDisableAutomation, enableAutomation as defaultEnableAutomation, executeGql, executeGqlScript, getAutomation as defaultGetAutomation, getAutomationRun as defaultGetAutomationRun, getDomainSchema as defaultGetDomainSchema, getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus, getSpace as defaultGetSpace, listAutomationInvocations as defaultListAutomationInvocations, listAutomations as defaultListAutomations, listDomains as defaultListDomains, listInferenceProfiles as defaultListInferenceProfiles, listSemanticRules as defaultListSemanticRules, listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork, lookupSpaceRoute as defaultLookupSpaceRoute, processSemanticDirtyWork as defaultProcessSemanticDirtyWork, retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork, updateAutomation as defaultUpdateAutomation, validateAutomation as defaultValidateAutomation } from "../../../services/adminService";
 import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, AutomationDefinitionSummaryInfo, AutomationInvocationSummaryInfo, AutomationRunInfo, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, UpdateAutomationInput, ValidateAutomationInfo } from "../../../types/automations";
@@ -436,21 +437,13 @@ export function SpaceDetailPage({ getSpaceService = defaultGetSpace, listDomains
 
   return (
     <section className="space-y-6">
-      <div>
-        <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/spaces">
-          ← Back to spaces
-        </Link>
-        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-          Space detail
-        </Text>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <H2 className="text-slate-900 dark:text-slate-100">{title}</H2>
-          {space?.state && <SpaceStateBadge state={space.state} />}
-        </div>
-        <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-          Inspect this space's general properties, domains, semantic maintenance, schemas, and query tools.
-        </Text>
-      </div>
+      <PageHeader
+        eyebrow="Data / Spaces"
+        title={title}
+        backLink={{ to: "/spaces", label: "← Back to spaces" }}
+        badge={space?.state ? <SpaceStateBadge state={space.state} /> : null}
+        description="Inspect this space's general properties, domains, semantic maintenance, schemas, and query tools."
+      />
 
       <div className="border-b border-slate-200 dark:border-slate-800">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Space detail sections">

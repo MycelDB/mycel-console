@@ -1,4 +1,5 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import type { ActivityEventInfo, GetActivityEventInput, ListActivityEventsInput, ListActivityEventsResponseInfo } from "../types/activity";
 import type { AutomationActionInput, AutomationDefinitionInfo, AutomationDefinitionInput, DomainAutomationInput, GetAutomationRunInput, ListAutomationInvocationsInput, ListAutomationInvocationsResponseInfo, ListAutomationsResponseInfo, AutomationRunInfo, UpdateAutomationInput, ValidateAutomationInfo, GraphProcedureActionInput, GraphProcedureInfo, ListGraphProceduresResponseInfo, GraphAutomationBindingActionInput, GraphAutomationBindingInfo, ListGraphAutomationBindingsResponseInfo } from "../types/automations";
 import type {
   BackupPolicyInfo,
@@ -12,7 +13,7 @@ import type {
 import type { GetMyAccessInput, GrantPrincipalCapabilityInput, GrantPrincipalCapabilityResponse, GrantPrincipalRoleInput, GrantPrincipalRoleResponse, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse, MyAccessInfo, RevokePrincipalCapabilityInput, RevokePrincipalCapabilityResponse, RevokePrincipalRoleInput, RevokePrincipalRoleResponse, SetPrincipalCapabilitiesForScopeInput, SetPrincipalCapabilitiesForScopeResponse, SetPrincipalRolesForScopeInput, SetPrincipalRolesForScopeResponse } from "../types/access";
 import type { AppError, AppErrorKind, AppErrorSeverity, ConnectionDiagnosticsResponse, LoginInput, PrincipalSession } from "../types/auth";
 import type { ClientQueryLoginInput, ClientQuerySessionInfo, ExecuteGqlInput, ExecuteGqlResponse, ExecuteGqlScriptInput, ExecuteGqlScriptResponse, ExecuteGraphQueryInput, ExecuteGraphQueryResponse } from "../types/clientQuery";
-import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyInput, GraphConsistencyReport, GraphForensicExportInput, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
+import type { ClusterHealthInfo, ClusterRuntimeStatusInfo, ClusterSpaceDistributionInfo, ClusterStatusInfo, GraphConsistencyInput, GraphConsistencyReport, GraphForensicExportInput, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LookupSpaceRouteInput, LookupSpaceRouteResult } from "../types/cluster";
 import type { ListDomainsInput, ListDomainsResponse } from "../types/domains";
 import type {
   ApplyInferencePackageResponse,
@@ -60,7 +61,7 @@ import type {
 import type { DeleteDomainSchemaInput, GetDomainSchemaInput, DomainSchemaInfo } from "../types/schemas";
 import type { CreateSemanticRuleInput, CreateSemanticRuleResponse, DeleteSemanticRuleInput, DeleteSemanticRuleResponse, GetSemanticRuleInput, GetSemanticRuleResponse, ListSemanticRulesInput, ListSemanticRulesResponse, SemanticSearchInput, SemanticSearchResponse, SetSemanticRuleEnabledInput, SetSemanticRuleEnabledResponse, UpdateSemanticRuleInput, UpdateSemanticRuleResponse, ValidateSemanticRuleInput, ValidateSemanticRuleResponse } from "../types/semantic";
 import type { AnalyzeSemanticDirtyWorkInput, AnalyzeSemanticDirtyWorkResponse, BackfillSemanticRuleInput, BackfillSemanticRuleResponse, GetSemanticMaintenanceStatusInput, ListSemanticMaintenanceWorkInput, ListSemanticMaintenanceWorkResponse, ProcessSemanticDirtyWorkInput, ProcessSemanticDirtyWorkResponse, SemanticMaintenanceStatusInfo, SemanticMaintenanceWorkActionInput, SemanticMaintenanceWorkItemInfo } from "../types/semanticMaintenance";
-import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
+import type { CreateSpaceInput, CreateSpaceResponse, DeleteSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../types/spaces";
 import type {
   CreatePrincipalInput,
   DeletePrincipalInput,
@@ -200,6 +201,70 @@ export async function lookupSpaceRoute(input: LookupSpaceRouteInput): Promise<Lo
   return invoke<LookupSpaceRouteResult>("admin_lookup_space_route", { input });
 }
 
+export async function getClusterSpaceDistribution(runtime: ClusterRuntimeStatusInfo): Promise<ClusterSpaceDistributionInfo> {
+  const partitionCount = Math.max(0, runtime.raftPartitionCount || 0);
+  const partitions = Array.from({ length: partitionCount }, (_, partitionId) => ({ partitionId, spaceCount: 0 }));
+  const nodeMap = new Map<number, { nodeId: number; label: string; leaderSpaceCount: number; replicaSpaceCount: number }>();
+  const ensureNode = (nodeId: number) => {
+    const existing = nodeMap.get(nodeId);
+    if (existing) return existing;
+    const addr = runtime.raftNodeAddrs[nodeId - 1];
+    const node = { nodeId, label: addr ? `${nodeId} (${addr})` : String(nodeId), leaderSpaceCount: 0, replicaSpaceCount: 0 };
+    nodeMap.set(nodeId, node);
+    return node;
+  };
+  for (let nodeId = 1; nodeId <= (runtime.raftNodeCount || runtime.raftNodeAddrs.length || 0); nodeId += 1) {
+    ensureNode(nodeId);
+  }
+
+  let pageToken = "";
+  let totalSpaces = 0;
+  let routedSpaces = 0;
+  let unavailableRoutes = 0;
+  do {
+    const page = await listSpaces({ pageSize: 500, pageToken, includeArchived: false });
+    for (const space of page.spaces) {
+      totalSpaces += 1;
+      try {
+        const route = await lookupSpaceRoute({ spaceId: space.spaceId });
+        routedSpaces += 1;
+        if (route.partitionId >= partitions.length) {
+          for (let partitionId = partitions.length; partitionId <= route.partitionId; partitionId += 1) {
+            partitions.push({ partitionId, spaceCount: 0 });
+          }
+        }
+        partitions[route.partitionId].spaceCount += 1;
+        if (route.leaderNodeId) ensureNode(route.leaderNodeId).leaderSpaceCount += 1;
+        route.replicaNodeIds.forEach((nodeId) => {
+          ensureNode(nodeId).replicaSpaceCount += 1;
+        });
+      } catch {
+        unavailableRoutes += 1;
+      }
+    }
+    pageToken = page.nextPageToken || "";
+  } while (pageToken);
+
+  const counts = partitions.map((partition) => partition.spaceCount);
+  const maxPartitionSpaces = counts.length ? Math.max(...counts) : 0;
+  const minPartitionSpaces = counts.length ? Math.min(...counts) : 0;
+  const partitionsUsed = partitions.filter((partition) => partition.spaceCount > 0).length;
+  const skewRatio = minPartitionSpaces > 0 ? maxPartitionSpaces / minPartitionSpaces : (maxPartitionSpaces > 0 ? maxPartitionSpaces : 0);
+
+  return {
+    totalSpaces,
+    routedSpaces,
+    unavailableRoutes,
+    partitionsUsed,
+    partitionCount: partitions.length,
+    maxPartitionSpaces,
+    minPartitionSpaces,
+    skewRatio,
+    partitions,
+    nodes: Array.from(nodeMap.values()).sort((a, b) => a.nodeId - b.nodeId),
+  };
+}
+
 export async function getLocalGraphConsistency(input: GraphConsistencyInput): Promise<LocalGraphConsistencyResponse> {
   return invoke<LocalGraphConsistencyResponse>("admin_get_local_graph_consistency", { input });
 }
@@ -218,6 +283,14 @@ export async function listClusterMembers(): Promise<ListClusterMembersResponse> 
 
 export async function getClusterHealth(): Promise<ClusterHealthInfo> {
   return invoke<ClusterHealthInfo>("admin_get_cluster_health");
+}
+
+export async function listActivityEvents(input: ListActivityEventsInput = {}): Promise<ListActivityEventsResponseInfo> {
+  return invoke<ListActivityEventsResponseInfo>("admin_list_activity_events", { input });
+}
+
+export async function getActivityEvent(input: GetActivityEventInput): Promise<ActivityEventInfo> {
+  return invoke<ActivityEventInfo>("admin_get_activity_event", { input });
 }
 
 export async function listPrincipals(input: ListPrincipalsInput = {}): Promise<ListPrincipalsResponse> {
@@ -277,6 +350,10 @@ export async function getSpace(spaceId: string): Promise<SpaceInfo> {
 
 export async function createSpace(input: CreateSpaceInput): Promise<CreateSpaceResponse> {
   return invoke<CreateSpaceResponse>("admin_create_space", { input });
+}
+
+export async function deleteSpace(spaceId: string): Promise<DeleteSpaceResponse> {
+  return invoke<DeleteSpaceResponse>("admin_delete_space", { spaceId });
 }
 
 export async function listDomains(input: ListDomainsInput): Promise<ListDomainsResponse> {

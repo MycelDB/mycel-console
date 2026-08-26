@@ -68,20 +68,18 @@ test("filters by state", async () => {
   expect(screen.queryByText("alice")).not.toBeInTheDocument();
 });
 
-test("refresh invokes list service with current include flags", async () => {
+test("refresh includes all principal states for client-side state filtering", async () => {
   const listPrincipalsService = jest.fn<Promise<ListPrincipalsResponse>, [ListPrincipalsInput]>().mockResolvedValue(listPrincipalsResponse());
   renderUsersPage(listPrincipalsService);
 
   await screen.findByText("alice");
-  await userEvent.click(screen.getByLabelText(/include disabled/i));
-  await userEvent.click(screen.getByLabelText(/include deleted/i));
   await userEvent.click(screen.getByRole("button", { name: /refresh/i }));
 
   await waitFor(() =>
     expect(listPrincipalsService).toHaveBeenLastCalledWith({
       pageSize: 100,
       pageToken: "",
-      includeDisabled: false,
+      includeDisabled: true,
       includeDeleted: true,
     }),
   );
@@ -102,8 +100,15 @@ test("loads additional pages", async () => {
     pageSize: 100,
     pageToken: "next",
     includeDisabled: true,
-    includeDeleted: false,
+    includeDeleted: true,
   });
+});
+
+test("uses a primary create principal button", async () => {
+  renderUsersPage();
+
+  await screen.findByText("alice");
+  expect(screen.getByRole("button", { name: /^create principal$/i })).toHaveClass("bg-sky-500");
 });
 
 test("creates a principal and refreshes the list", async () => {

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Alert, H2, Text } from "../../../components/typography";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Button, Alert, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
-import { createSpace as defaultCreateSpace, listSpaces as defaultListSpaces } from "../../../services/adminService";
-import type { CreateSpaceInput, CreateSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
+import { createSpace as defaultCreateSpace, deleteSpace as defaultDeleteSpace, listSpaces as defaultListSpaces } from "../../../services/adminService";
+import type { CreateSpaceInput, CreateSpaceResponse, DeleteSpaceResponse, ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
 import { SpaceFilters, type SpaceFiltersValue } from "../components/SpaceFilters";
 import { SpaceTable } from "../components/SpaceTable";
 
@@ -14,10 +15,11 @@ const defaultFilters: SpaceFiltersValue = {
 export type SpacesPageProps = {
   listSpacesService?: (input: ListSpacesInput) => Promise<ListSpacesResponse>;
   createSpaceService?: (input: CreateSpaceInput) => Promise<CreateSpaceResponse>;
+  deleteSpaceService?: (spaceId: string) => Promise<DeleteSpaceResponse>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
-export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceService = defaultCreateSpace, principalContext }: SpacesPageProps) {
+export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceService = defaultCreateSpace, deleteSpaceService = defaultDeleteSpace, principalContext }: SpacesPageProps) {
   const [filters, setFilters] = useState<SpaceFiltersValue>(defaultFilters);
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [nextPageToken, setNextPageToken] = useState("");
@@ -26,6 +28,9 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deletingSpaceId, setDeletingSpaceId] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<SpaceInfo | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [createForm, setCreateForm] = useState<CreateSpaceInput>({ name: "", ownerUsername: "", defaultDomainKey: "default", defaultDomainName: "default" });
 
   const loadSpaces = useCallback(
@@ -71,7 +76,31 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
     }
   }, [createForm, createSpaceService, loadSpaces]);
 
+  function requestDeleteSpace(space: SpaceInfo) {
+    setError("");
+    setPendingDelete(space);
+    setDeleteConfirmName("");
+  }
+
+  async function confirmDeleteSpace() {
+    if (!pendingDelete) return;
+    const space = pendingDelete;
+    setError("");
+    setDeletingSpaceId(space.spaceId);
+    try {
+      await deleteSpaceService(space.spaceId);
+      setPendingDelete(null);
+      setDeleteConfirmName("");
+      await loadSpaces();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete space");
+    } finally {
+      setDeletingSpaceId("");
+    }
+  }
+
   const canCreateSpace = canUseCapability(principalContext, "space.create");
+  const canDeleteSpace = canUseCapability(principalContext, "space.delete");
 
   const filteredSpaces = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
@@ -84,31 +113,23 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Text
-            as="p"
-            size="sm"
-            className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400"
-          >
-            Spaces
-          </Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Space Management</H2>
-          <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-            Inspect Mycel spaces and prepare for space lifecycle operations.
-          </Text>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void loadSpaces()} disabled={loading || loadingMore}>
-            Refresh
-          </Button>
-          {canCreateSpace && (
-            <Button variant="secondary" onClick={() => setShowCreate((value) => !value)}>
-              Create space
+      <PageHeader
+        eyebrow="Data"
+        title="Spaces"
+        description="Inspect Mycel spaces and prepare for space lifecycle operations."
+        actions={(
+          <>
+            <Button variant="secondary" onClick={() => void loadSpaces()} disabled={loading || loadingMore}>
+              Refresh
             </Button>
-          )}
-        </div>
-      </div>
+            {canCreateSpace && (
+              <Button onClick={() => setShowCreate((value) => !value)}>
+                Create space
+              </Button>
+            )}
+          </>
+        )}
+      />
 
       {showCreate && canCreateSpace && (
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -157,7 +178,7 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
         </div>
       ) : (
         <>
-          <SpaceTable spaces={filteredSpaces} />
+          <SpaceTable spaces={filteredSpaces} canDelete={canDeleteSpace} deletingSpaceId={deletingSpaceId} onDelete={requestDeleteSpace} />
           {nextPageToken && (
             <div className="flex justify-center">
               <Button
@@ -171,6 +192,66 @@ export function SpacesPage({ listSpacesService = defaultListSpaces, createSpaceS
           )}
         </>
       )}
+
+      <DeleteSpaceDialog
+        space={pendingDelete}
+        confirmName={deleteConfirmName}
+        deleting={Boolean(deletingSpaceId)}
+        onConfirmNameChange={setDeleteConfirmName}
+        onCancel={() => {
+          setPendingDelete(null);
+          setDeleteConfirmName("");
+        }}
+        onConfirm={() => void confirmDeleteSpace()}
+      />
     </section>
+  );
+}
+
+function DeleteSpaceDialog({
+  space,
+  confirmName,
+  deleting,
+  onConfirmNameChange,
+  onCancel,
+  onConfirm,
+}: {
+  space: SpaceInfo | null;
+  confirmName: string;
+  deleting: boolean;
+  onConfirmNameChange: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!space) return null;
+  const matchesName = confirmName === space.name;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
+      <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-red-600 dark:text-red-300">
+          Delete space
+        </Text>
+        <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">Confirm space deletion</h2>
+        <Text intent="muted" className="mt-3 text-slate-600 dark:text-slate-400">
+          Delete <span className="font-medium text-slate-900 dark:text-slate-100">{space.name}</span>? This is a destructive space lifecycle action and may remove associated domains, graph data, semantic state, and access grants.
+        </Text>
+        <label className="mt-5 block text-sm font-medium text-slate-700 dark:text-slate-200">
+          Type <span className="font-semibold text-slate-900 dark:text-slate-100">{space.name}</span> to confirm
+          <input
+            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            value={confirmName}
+            onChange={(event) => onConfirmNameChange(event.target.value)}
+            disabled={deleting}
+            autoFocus
+          />
+        </label>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel} disabled={deleting}>Cancel</Button>
+          <Button variant="danger" onClick={onConfirm} disabled={deleting || !matchesName}>
+            {deleting ? "Deleting…" : "Delete space"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

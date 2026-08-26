@@ -1,25 +1,41 @@
 import { useEffect, useState } from "react";
 import { Text } from "../../../components/typography";
-import { getClusterRuntimeStatus as defaultGetClusterRuntimeStatus } from "../../../services/adminService";
-import type { ClusterRuntimeStatusInfo } from "../../../types/cluster";
+import { getClusterRuntimeStatus as defaultGetClusterRuntimeStatus, getClusterSpaceDistribution as defaultGetClusterSpaceDistribution } from "../../../services/adminService";
+import { SpaceDistributionCard } from "../../cluster/components/SpaceDistributionCard";
+import type { ClusterRuntimeStatusInfo, ClusterSpaceDistributionInfo } from "../../../types/cluster";
 
 export type ClusterSummaryCardProps = {
   addr: string;
   getClusterRuntimeStatusService?: () => Promise<ClusterRuntimeStatusInfo>;
+  getClusterSpaceDistributionService?: (runtime: ClusterRuntimeStatusInfo) => Promise<ClusterSpaceDistributionInfo>;
 };
 
-export function ClusterSummaryCard({ addr, getClusterRuntimeStatusService = defaultGetClusterRuntimeStatus }: ClusterSummaryCardProps) {
+export function ClusterSummaryCard({ addr, getClusterRuntimeStatusService = defaultGetClusterRuntimeStatus, getClusterSpaceDistributionService = defaultGetClusterSpaceDistribution }: ClusterSummaryCardProps) {
   const [runtime, setRuntime] = useState<ClusterRuntimeStatusInfo | null>(null);
+  const [distribution, setDistribution] = useState<ClusterSpaceDistributionInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [distributionError, setDistributionError] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
+    setDistribution(null);
+    setDistributionError("");
     getClusterRuntimeStatusService()
-      .then((response) => {
-        if (!cancelled) setRuntime(response);
+      .then(async (response) => {
+        if (cancelled) return;
+        setRuntime(response);
+        const clustered = response.engine === "raft" || response.raftPartitionCount > 0;
+        if (clustered) {
+          try {
+            const nextDistribution = await getClusterSpaceDistributionService(response);
+            if (!cancelled) setDistribution(nextDistribution);
+          } catch (err) {
+            if (!cancelled) setDistributionError(err instanceof Error ? err.message : "Space distribution unavailable");
+          }
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Cluster runtime unavailable");
@@ -30,7 +46,7 @@ export function ClusterSummaryCard({ addr, getClusterRuntimeStatusService = defa
     return () => {
       cancelled = true;
     };
-  }, [getClusterRuntimeStatusService]);
+  }, [getClusterRuntimeStatusService, getClusterSpaceDistributionService]);
 
   const clustered = runtime?.engine === "raft" || (runtime?.raftNodeCount ?? 0) > 1 || (runtime?.raftPartitionCount ?? 0) > 0;
   const mode = loading ? "Loading…" : error ? "Unavailable" : clustered ? "Cluster" : "Standalone";
@@ -59,11 +75,12 @@ export function ClusterSummaryCard({ addr, getClusterRuntimeStatusService = defa
         {error ? <div className="text-sm text-amber-700 dark:text-amber-300">{error}</div> : null}
         <div>
           <dt className="text-xs uppercase tracking-wide text-slate-500">Connection state</dt>
-          <dd className="mt-1 inline-flex rounded-full border border-emerald-500/30 bg-emerald-950/50 px-2.5 py-1 text-sm font-medium text-emerald-300">
+          <dd className="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300">
             Connected
           </dd>
         </div>
       </dl>
+      {clustered ? <div className="mt-4"><SpaceDistributionCard distribution={distribution} error={distributionError} compact /></div> : null}
     </article>
   );
 }

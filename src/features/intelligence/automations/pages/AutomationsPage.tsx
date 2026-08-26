@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Button, Alert, H2, Select, Text } from "../../../../components/typography";
+import { PageHeader } from "../../../../components/layout/PageHeader";
+import { Button, Alert, Select, Text } from "../../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../../console";
 import {
   createAutomation as defaultCreateAutomation,
@@ -435,19 +436,17 @@ export function AutomationsPage({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Intelligence</Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Graph automations</H2>
-          <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
-            Manage graph-triggered automations across spaces and domains, inspect recent runs, and monitor inference token usage.
-          </Text>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>
-          {canManage && <Button onClick={() => void openCreate()} disabled={domains.length === 0}>Create automation</Button>}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Intelligence"
+        title="Automations"
+        description="Manage graph-triggered automations across spaces and domains, inspect recent runs, and monitor inference token usage."
+        actions={(
+          <>
+            <Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>
+            {canManage && <Button onClick={() => void openCreate()} disabled={domains.length === 0}>Create automation</Button>}
+          </>
+        )}
+      />
 
       {error && <Alert>{error}</Alert>}
       {usageError && <Alert>{usageError}</Alert>}

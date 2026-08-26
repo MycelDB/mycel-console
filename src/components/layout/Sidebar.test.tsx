@@ -57,8 +57,8 @@ test("filters navigation when complete capabilities are available", () => {
     principalContext: {
       session: { addr: "127.0.0.1:19091", principalId: "prn_viewer", username: "viewer" },
       roles: [],
-      capabilities: ["CAPABILITY_SPACE_READ"],
-      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SPACE_READ" }] },
+      capabilities: ["CAPABILITY_SPACE_READ", "CAPABILITY_AUDIT_READ"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SPACE_READ" }, { capability: "CAPABILITY_AUDIT_READ" }] },
       warnings: [],
     },
   });
@@ -69,6 +69,34 @@ test("filters navigation when complete capabilities are available", () => {
   expect(screen.getByRole("link", { name: "Spaces" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Principals" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Backups" })).not.toBeInTheDocument();
+});
+
+test("shows cluster navigation only for raft runtimes", () => {
+  renderSidebar({
+    principalContext: {
+      session,
+      roles: [],
+      capabilities: ["CAPABILITY_CLUSTER_READ"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_CLUSTER_READ" }] },
+      warnings: [],
+      clusterRuntime: { engine: "static", clusterName: "dev", raftNodeCount: 0, raftPartitionCount: 0, raftReplicaFactor: 0, localRaftNodeId: 0, raftNodeAddrs: [], raftGroupCount: 0, raftGroupsWithLeader: 0 },
+    },
+  });
+  expect(screen.queryByRole("link", { name: "Cluster" })).not.toBeInTheDocument();
+});
+
+test("shows cluster navigation for raft runtimes", () => {
+  renderSidebar({
+    principalContext: {
+      session,
+      roles: [],
+      capabilities: ["CAPABILITY_CLUSTER_READ"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_CLUSTER_READ" }] },
+      warnings: [],
+      clusterRuntime: { engine: "raft", clusterName: "dev", raftNodeCount: 3, raftPartitionCount: 16, raftReplicaFactor: 3, localRaftNodeId: 1, raftNodeAddrs: ["a", "b", "c"], raftGroupCount: 17, raftGroupsWithLeader: 17 },
+    },
+  });
+  expect(screen.getByRole("link", { name: "Cluster" })).toBeInTheDocument();
 });
 
 test("renders session controls at the bottom", async () => {

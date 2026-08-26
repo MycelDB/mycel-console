@@ -2,7 +2,7 @@ export type ClusterNodeState = "standalone" | "clustered" | "failed" | "stopped"
 export type ClusterMode = "standalone" | "clustered" | string;
 export type ClusterPeerState = "self" | "active" | "unreachable" | string;
 export type ClusterPeerSource = "self" | "discovered" | string;
-export type ClusterEngine = "raft" | "unspecified" | string;
+export type ClusterEngine = "raft" | "static" | "unspecified" | string;
 export type RaftGroupKind = "system" | "partition" | "unspecified" | string;
 export type RaftGroupHealth = "healthy" | "no_leader" | "unknown" | "unspecified" | string;
 
@@ -106,6 +106,31 @@ export type LookupSpaceRouteResult = {
   partitionId: number;
   leaderNodeId?: number;
   replicaNodeIds: number[];
+};
+
+export type SpacePartitionDistributionInfo = {
+  partitionId: number;
+  spaceCount: number;
+};
+
+export type SpaceNodeDistributionInfo = {
+  nodeId: number;
+  label: string;
+  leaderSpaceCount: number;
+  replicaSpaceCount: number;
+};
+
+export type ClusterSpaceDistributionInfo = {
+  totalSpaces: number;
+  routedSpaces: number;
+  unavailableRoutes: number;
+  partitionsUsed: number;
+  partitionCount: number;
+  maxPartitionSpaces: number;
+  minPartitionSpaces: number;
+  skewRatio: number;
+  partitions: SpacePartitionDistributionInfo[];
+  nodes: SpaceNodeDistributionInfo[];
 };
 
 export type GraphConsistencyInput = {

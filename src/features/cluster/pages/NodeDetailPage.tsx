@@ -1,8 +1,9 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { getClusterRuntimeStatus, getClusterStatus, listClusterMembers, listRaftGroups } from "../../../services/adminService";
 import type { ClusterMemberInfo, ClusterPeerInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, ListClusterMembersResponse, ListRaftGroupsResponse } from "../../../types/cluster";
-import { Button, Alert, H2, Text } from "../../../components/typography";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Button, Alert, Text } from "../../../components/typography";
 
 function formatTime(value?: string) {
   if (!value) return "—";
@@ -106,14 +107,13 @@ export function NodeDetailPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Link className="text-sm font-medium text-sky-700 hover:underline dark:text-sky-300" to="/cluster">← Back to Cluster</Link>
-          <H2 className="mt-3">{title}</H2>
-          <Text intent="muted">Topology, membership, and Raft responsibility details for this node.</Text>
-        </div>
-        <Button type="button" variant="secondary" disabled>Future actions</Button>
-      </div>
+      <PageHeader
+        eyebrow="Operations / Cluster"
+        title={title}
+        backLink={{ to: "/cluster", label: "← Back to cluster" }}
+        description="Topology, membership, and Raft responsibility details for this node."
+        actions={<Button type="button" variant="secondary" disabled>Future actions</Button>}
+      />
 
       {error && <Alert>{error}</Alert>}
 

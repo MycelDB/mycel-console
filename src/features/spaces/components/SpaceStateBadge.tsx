@@ -5,8 +5,8 @@ export type SpaceStateBadgeProps = {
 };
 
 const stateClasses: Record<string, string> = {
-  SPACE_STATE_ACTIVE: "border-emerald-500/30 bg-emerald-950/50 text-emerald-300",
-  SPACE_STATE_ARCHIVED: "border-amber-500/30 bg-amber-950/50 text-amber-300",
+  SPACE_STATE_ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300",
+  SPACE_STATE_ARCHIVED: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/50 dark:text-amber-300",
   SPACE_STATE_UNSPECIFIED: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300",
 };
 

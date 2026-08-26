@@ -5,7 +5,7 @@ import { AccountPage } from "../../features/account";
 import { BackupsPage } from "../../features/backups";
 import { ClusterPage, NodeDetailPage } from "../../features/cluster";
 import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
-import { ComingSoonPage } from "../../features/placeholder/ComingSoonPage";
+import { ActivityPage } from "../../features/activity/ActivityPage";
 import { AccessPage } from "../../features/intelligence/access";
 import { AutomationsPage } from "../../features/intelligence/automations";
 import { SemanticPage } from "../../features/intelligence/semantic";
@@ -40,6 +40,13 @@ function PrincipalAccessRedirect() {
   return <Navigate to={`/principals/${encodeURIComponent(principalId)}?tab=access`} replace />;
 }
 
+function RequireRaftCluster({ principalContext, children }: { principalContext?: ConsolePrincipalContext | null; children: ReactNode }) {
+  if (principalContext?.clusterRuntime && principalContext.clusterRuntime.engine !== "raft") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 export function AppShell({
   session,
   loggingOut,
@@ -67,7 +74,7 @@ export function AppShell({
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage session={session} principalContext={principalContext} />} />
-            <Route path="/activity" element={<ComingSoonPage title="Activity" description="A cross-console activity stream for recent semantic generation, automation runs, backup events, and cluster warnings." />} />
+            <Route path="/activity" element={<ActivityPage />} />
             <Route path="/me" element={<AccountPage session={session} principalContext={principalContext} loading={principalContextLoading} />} />
             <Route path="/principals" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UsersPage principalContext={principalContext} /></RequireCapabilities>} />
             <Route path="/principals/:principalId" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UserDetailPage principalContext={principalContext} /></RequireCapabilities>} />
@@ -77,8 +84,8 @@ export function AppShell({
             <Route path="/spaces" element={<SpacesPage principalContext={principalContext} />} />
             <Route path="/spaces/:spaceId" element={<SpaceDetailPage principalContext={principalContext} />} />
             <Route path="/backups" element={<BackupsPage principalContext={principalContext} />} />
-            <Route path="/cluster" element={<ClusterPage />} />
-            <Route path="/cluster/nodes/:nodeKey" element={<NodeDetailPage />} />
+            <Route path="/cluster" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("cluster.read")]}><RequireRaftCluster principalContext={principalContext}><ClusterPage /></RequireRaftCluster></RequireCapabilities>} />
+            <Route path="/cluster/nodes/:nodeKey" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("cluster.read")]}><RequireRaftCluster principalContext={principalContext}><NodeDetailPage /></RequireRaftCluster></RequireCapabilities>} />
             <Route path="/inference" element={<Navigate to="/intelligence/access" replace />} />
             <Route path="/semantic" element={<Navigate to="/intelligence/semantic" replace />} />
             <Route path="/intelligence/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("inference.catalog.read")]}><AccessPage principalContext={principalContext} /></RequireCapabilities>} />

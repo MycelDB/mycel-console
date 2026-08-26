@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getClusterHealth, getClusterRuntimeStatus, getClusterStatus, getGraphConsistencyReport, getLocalGraphConsistency, getLocalGraphForensicExport, listClusterMembers, listRaftGroups, lookupSpaceRoute } from "../../../services/adminService";
-import type { ClusterHealthInfo, ClusterPeerInfo, ClusterRuntimeStatusInfo, ClusterStatusInfo, GraphConsistencyReport, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LocalGraphConsistencyStatsInfo, LookupSpaceRouteResult, RaftGroupStatusInfo } from "../../../types/cluster";
-import { Button, Alert, H2, Text } from "../../../components/typography";
-import { ClusterEventLog, clusterEventsFromState } from "../components/ClusterEventLog";
+import { getClusterHealth, getClusterRuntimeStatus, getClusterSpaceDistribution, getClusterStatus, getGraphConsistencyReport, getLocalGraphConsistency, getLocalGraphForensicExport, listActivityEvents, listClusterMembers, listRaftGroups, lookupSpaceRoute } from "../../../services/adminService";
+import type { ActivityEventInfo } from "../../../types/activity";
+import type { ClusterHealthInfo, ClusterPeerInfo, ClusterRuntimeStatusInfo, ClusterSpaceDistributionInfo, ClusterStatusInfo, GraphConsistencyReport, GraphForensicExportResponse, ListClusterMembersResponse, ListRaftGroupsResponse, LocalGraphConsistencyResponse, LocalGraphConsistencyStatsInfo, LookupSpaceRouteResult, RaftGroupStatusInfo, RaftTransportTargetDiagnosticsInfo } from "../../../types/cluster";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Button, Alert, Text } from "../../../components/typography";
+import { ClusterEventLog } from "../components/ClusterEventLog";
+import { SpaceDistributionCard } from "../components/SpaceDistributionCard";
 
 function badgeClass(value: string) {
   switch (value) {
@@ -38,6 +41,19 @@ function badgeClass(value: string) {
 
 function StatusBadge({ value }: { value: string }) {
   return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClass(value)}`}>{value}</span>;
+}
+
+function CountStatusBadge({ label, status, value }: { label: string; status: string; value: number }) {
+  const accessibleLabel = `${label}: ${value} (${status})`;
+  return (
+    <span
+      aria-label={accessibleLabel}
+      className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums ${badgeClass(status)}`}
+      title={accessibleLabel}
+    >
+      {value}
+    </span>
+  );
 }
 
 function CheckBadge({ ok }: { ok: boolean }) {
@@ -79,14 +95,6 @@ function formatTime(value?: string) {
   return date.toLocaleString();
 }
 
-function countPeers(peers: ClusterPeerInfo[], state: string) {
-  return peers.filter((peer) => peer.state === state).length;
-}
-
-function countMembers(membership: ListClusterMembersResponse | null, state: string) {
-  return membership?.members.filter((member) => member.state === state).length || 0;
-}
-
 function raftNodeLabel(nodeId: number | undefined, runtime: ClusterRuntimeStatusInfo | null) {
   if (!nodeId) return "—";
   const addr = runtime?.raftNodeAddrs[nodeId - 1];
@@ -118,6 +126,24 @@ function groupReadFailureCount(group: RaftGroupStatusInfo) {
     + read.readIndexNoLeader
     + read.readIndexNotLeader
     + read.applyWaitFailures;
+}
+
+function transportTargetsForGroup(groupId: string, runtime: ClusterRuntimeStatusInfo | null) {
+  return runtime?.raftTransport?.targets.filter((target) => target.groupId === groupId) || [];
+}
+
+function transportFailureCount(targets: RaftTransportTargetDiagnosticsInfo[]) {
+  return targets.reduce((sum, target) => sum + target.sendFailures + target.authFailures + target.missingSenderFailures, 0);
+}
+
+function transportStatus(targets: RaftTransportTargetDiagnosticsInfo[]) {
+  if (targets.some((target) => target.authFailures > 0 || target.missingSenderFailures > 0)) return "fail";
+  if (targets.some((target) => target.sendFailures > 0 || target.lastError || target.lastFailureReason)) return "warning";
+  return "pass";
+}
+
+function lastTransportReason(targets: RaftTransportTargetDiagnosticsInfo[]) {
+  return targets.find((target) => target.lastFailureReason || target.lastError)?.lastFailureReason || "—";
 }
 
 function matchesRaftGroupStatusFilter(group: RaftGroupStatusInfo, filter: string) {
@@ -183,8 +209,13 @@ export function ClusterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [membershipError, setMembershipError] = useState("");
+  const [clusterActivityEvents, setClusterActivityEvents] = useState<ActivityEventInfo[]>([]);
+  const [clusterActivityError, setClusterActivityError] = useState("");
+  const [spaceDistribution, setSpaceDistribution] = useState<ClusterSpaceDistributionInfo | null>(null);
+  const [spaceDistributionError, setSpaceDistributionError] = useState("");
   const [raftGroupFilter, setRaftGroupFilter] = useState("");
   const [raftGroupStatusFilter, setRaftGroupStatusFilter] = useState("all");
+  const [expandedRaftGroups, setExpandedRaftGroups] = useState<string[]>([]);
   const [routeSpaceId, setRouteSpaceId] = useState("");
   const [routeResult, setRouteResult] = useState<LookupSpaceRouteResult | null>(null);
   const [routeError, setRouteError] = useState("");
@@ -207,6 +238,8 @@ export function ClusterPage() {
     setLoading(true);
     try {
       setMembershipError("");
+      setClusterActivityError("");
+      setSpaceDistributionError("");
       const clusterRuntime = await getClusterRuntimeStatus().catch(() => null);
       const clusterStatus = await getClusterStatus();
       const members = await listClusterMembers().catch((err) => {
@@ -215,12 +248,22 @@ export function ClusterPage() {
       });
       const isRuntimeRaft = clusterRuntime?.engine === "raft";
       const clusterHealth = await getClusterHealth().catch(() => null);
+      const activity = await listActivityEvents({ pageSize: 50, categories: ["cluster"] }).catch((err) => {
+        setClusterActivityError(err instanceof Error ? err.message : "Cluster activity is unavailable");
+        return { events: [], nextPageToken: "" };
+      });
       const groups = isRuntimeRaft ? await listRaftGroups().catch(() => ({ groups: [] })) : { groups: [] };
+      const distribution = isRuntimeRaft && clusterRuntime ? await getClusterSpaceDistribution(clusterRuntime).catch((err) => {
+        setSpaceDistributionError(err instanceof Error ? err.message : "Space distribution is unavailable");
+        return null;
+      }) : null;
       setRuntime(clusterRuntime);
       setRaftGroups(groups);
       setStatus(clusterStatus);
       setMembership(members);
       setHealth(clusterHealth);
+      setClusterActivityEvents(activity.events);
+      setSpaceDistribution(distribution);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load cluster status");
     } finally {
@@ -231,11 +274,6 @@ export function ClusterPage() {
   useEffect(() => {
     void load();
   }, []);
-
-  const events = useMemo(
-    () => clusterEventsFromState(membership?.members || [], status?.peers || []),
-    [membership, status],
-  );
 
   const isRaft = runtime?.engine === "raft";
   const readiness = status?.readiness || health?.readiness;
@@ -262,6 +300,8 @@ export function ClusterPage() {
   const raftTransport = runtime?.raftTransport;
   const raftTransportCritical = Boolean(raftTransport && (raftTransport.authFailures > 0 || raftTransport.missingSenderFailures > 0));
   const raftTransportWarn = Boolean(raftTransport && !raftTransportCritical && (raftTransport.sendFailures > 0 || raftTransport.lastError));
+  const knownRaftGroupIds = new Set(raftGroups.groups.map((group) => group.groupId));
+  const unmatchedTransportTargets = raftTransport?.targets.filter((target) => !target.groupId || !knownRaftGroupIds.has(target.groupId)) || [];
   const snapshotGuidanceCommands = "mycel cluster raft-groups\nmake test-cluster-soak";
   const raftDiagnostics = isRaft ? [
     { label: "System group has leader", ok: Boolean(systemGroup?.leaderNodeId), detail: systemGroup?.leaderNodeId ? `leader ${systemGroup.leaderNodeId}` : "no leader" },
@@ -269,6 +309,11 @@ export function ClusterPage() {
     { label: "Replica factor configured", ok: Boolean(runtime && runtime.raftReplicaFactor > 0 && runtime.raftReplicaFactor <= runtime.raftNodeCount), detail: `${runtime?.raftReplicaFactor || 0}/${runtime?.raftNodeCount || 0}` },
     { label: "Raft node address map complete", ok: Boolean(runtime && runtime.raftNodeAddrs.length === runtime.raftNodeCount), detail: `${runtime?.raftNodeAddrs.length || 0}/${runtime?.raftNodeCount || 0}` },
   ] : [];
+
+  function toggleRaftGroupDetails(groupId: string) {
+    setExpandedRaftGroups((current) => current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId]);
+  }
+
   async function runRouteLookup() {
     const spaceId = routeSpaceId.trim();
     if (!spaceId) {
@@ -371,17 +416,17 @@ export function ClusterPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <H2>Cluster{status?.cluster.clusterId ? ` (${status.cluster.clusterId})` : ""}</H2>
-          <Text intent="muted">Inspect cluster engine, Raft status, local node identity, and known peers.</Text>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        eyebrow="Operations"
+        title="Cluster"
+        badge={status?.cluster.clusterId ? <span className="rounded-full bg-slate-100 px-2 py-1 font-mono text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{status.cluster.clusterId}</span> : null}
+        description="Inspect cluster engine, Raft status, local node identity, and known peers."
+        actions={(
           <Button type="button" onClick={() => void load()} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
-        </div>
-      </div>
+        )}
+      />
 
       {error && <Alert>{error}</Alert>}
       {status && (
@@ -424,61 +469,50 @@ export function ClusterPage() {
             <div className="space-y-6" role="tabpanel" aria-label="General">
               {readiness && (
                 <div className={[
-                  "rounded-lg border p-4 shadow-sm",
+                  "rounded-lg border px-4 py-3 shadow-sm",
                   readiness.clientReady
                     ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30"
                     : "border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30",
                 ].join(" ")}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <Text size="sm" intent="subtle" className="uppercase tracking-wide">
+                      <Text size="xs" intent="subtle" className="uppercase tracking-wide">
                         Client readiness
                         <HelpIcon label="Client readiness" description={readinessHelp.clientReady} />
                       </Text>
-                      <Text className="mt-1 text-lg font-semibold">{readiness.clientReady ? "Client ready" : "Not client ready"}</Text>
-                      <Text size="sm" intent="muted" className="mt-1">
-                        Daemon reachability only means the admin port is open. Client readiness requires committed system Raft metadata and started partition groups.
+                      <Text className="mt-1 font-semibold">{readiness.clientReady ? "Client ready" : "Not client ready"}</Text>
+                      <Text size="xs" intent="muted" className="mt-1">
+                        Daemon reachability only means the admin port is open; readiness says whether clients should trust this daemon.
                       </Text>
                     </div>
                     <StatusBadge value={readiness.clientReady ? "ready" : "blocked"} />
                   </div>
-                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-5">
-                    <div className="rounded-md border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40"><span className="text-slate-500">Metadata applied<HelpIcon label="Metadata applied" description={readinessHelp.metadataApplied} /></span><div className="mt-2"><CheckBadge ok={readiness.metadataApplied} /></div></div>
-                    <div className="rounded-md border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40"><span className="text-slate-500">Metadata validated<HelpIcon label="Metadata validated" description={readinessHelp.metadataValidated} /></span><div className="mt-2"><CheckBadge ok={readiness.metadataValidated} /></div></div>
-                    <div className="rounded-md border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40"><span className="text-slate-500">Partition groups started<HelpIcon label="Partition groups started" description={readinessHelp.partitionGroupsStarted} /></span><div className="mt-2"><CheckBadge ok={readiness.partitionGroupsStarted} /></div></div>
-                    <div className="rounded-md border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40"><span className="text-slate-500">Cluster ID match<HelpIcon label="Cluster ID match" description={readinessHelp.clusterIdMatch} /></span><div className="mt-2"><CheckBadge ok={clusterIdsMatch} /></div><div className="mt-2 break-all font-mono text-xs text-slate-500">local {readiness.localClusterId || "—"}<br />auth {readiness.authoritativeClusterId || "—"}</div></div>
-                    <div className="rounded-md border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40"><span className="text-slate-500">Expected members<HelpIcon label="Expected members" description={readinessHelp.expectedMembers} /></span><div className="mt-2 text-lg font-semibold">{readiness.expectedMemberCount || "—"}</div></div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">Metadata applied<HelpIcon label="Metadata applied" description={readinessHelp.metadataApplied} /><CheckBadge ok={readiness.metadataApplied} /></span>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">Metadata validated<HelpIcon label="Metadata validated" description={readinessHelp.metadataValidated} /><CheckBadge ok={readiness.metadataValidated} /></span>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">Partition groups started<HelpIcon label="Partition groups started" description={readinessHelp.partitionGroupsStarted} /><CheckBadge ok={readiness.partitionGroupsStarted} /></span>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">Cluster ID match<HelpIcon label="Cluster ID match" description={readinessHelp.clusterIdMatch} /><CheckBadge ok={clusterIdsMatch} /></span>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">Expected members<HelpIcon label="Expected members" description={readinessHelp.expectedMembers} /><span className="font-semibold">{readiness.expectedMemberCount || "—"}</span></span>
                   </div>
-                  {readiness.readinessBlockers.length > 0 && (
-                    <div className="mt-4 rounded-md border border-rose-300 bg-rose-100 p-3 dark:border-rose-800 dark:bg-rose-950/60">
-                      <Text className="font-semibold text-rose-900 dark:text-rose-100">Readiness blockers</Text>
-                      <ul className="mt-2 list-disc pl-5 text-sm text-rose-800 dark:text-rose-200">
-                        {readiness.readinessBlockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {runtime && (
-                <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-900 dark:bg-sky-950/30">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <Text size="sm" intent="subtle" className="uppercase tracking-wide">Runtime overview</Text>
-                      <Text className="mt-1 font-semibold">Cluster engine</Text>
-                      <div className="mt-2"><StatusBadge value={runtime.engine} /></div>
-                    </div>
-                    <Text size="sm" intent="muted">{runtime.clusterName || status.cluster.clusterName || "Unnamed cluster"}</Text>
-                  </div>
-                  {isRaft && (
-                    <div className="mt-4 grid gap-3 text-sm md:grid-cols-6">
-                      <div><span className="text-slate-500">Local Raft node</span><div className="font-semibold">{raftNodeLabel(runtime.localRaftNodeId, runtime)}</div></div>
-                      <div><span className="text-slate-500">Nodes</span><div className="font-semibold">{runtime.raftNodeCount}</div></div>
-                      <div><span className="text-slate-500">Partitions</span><div className="font-semibold">{runtime.raftPartitionCount}</div></div>
-                      <div><span className="text-slate-500">Replica factor</span><div className="font-semibold">{runtime.raftReplicaFactor}</div></div>
-                      <div><span className="text-slate-500">Groups with leader</span><div className="font-semibold">{runtime.raftGroupsWithLeader}/{runtime.raftGroupCount}</div></div>
-                      <div><span className="text-slate-500">Cluster ID</span><div className="break-all font-mono text-xs font-semibold">{status.cluster.clusterId || "—"}</div></div>
-                    </div>
+                  {(readiness.readinessBlockers.length > 0 || readiness.localClusterId || readiness.authoritativeClusterId) && (
+                    <details className="mt-3 text-xs">
+                      <summary className="cursor-pointer text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100">Readiness details</summary>
+                      <div className="mt-3 rounded-md border border-slate-200 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+                        <div className="grid gap-2 md:grid-cols-3">
+                          <div><span className="text-slate-500">Local cluster ID</span><div className="break-all font-mono">{readiness.localClusterId || "—"}</div></div>
+                          <div><span className="text-slate-500">Authoritative cluster ID</span><div className="break-all font-mono">{readiness.authoritativeClusterId || "—"}</div></div>
+                          <div><span className="text-slate-500">Expected members</span><div className="font-semibold">{readiness.expectedMemberCount || "—"}</div></div>
+                        </div>
+                        {readiness.readinessBlockers.length > 0 && (
+                          <div className="mt-3">
+                            <Text size="xs" className="font-semibold text-rose-900 dark:text-rose-100">Readiness blockers</Text>
+                            <ul className="mt-1 list-disc pl-5 text-rose-800 dark:text-rose-200">
+                              {readiness.readinessBlockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </details>
                   )}
                 </div>
               )}
@@ -500,64 +534,6 @@ export function ClusterPage() {
                     <Text className="mt-2 font-semibold">{runtime?.raftNodeAddrs.join(", ") || "—"}</Text>
                     <Text size="sm" intent="muted">configured node address map</Text>
                   </div>
-                </div>
-              )}
-
-              {isRaft && raftTransport && (
-                <div className={[
-                  "rounded-lg border bg-white p-4 shadow-sm dark:bg-slate-900",
-                  raftTransportCritical
-                    ? "border-rose-300 dark:border-rose-800"
-                    : raftTransportWarn
-                      ? "border-amber-300 dark:border-amber-800"
-                      : "border-slate-200 dark:border-slate-800",
-                ].join(" ")}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <Text className="font-semibold">Raft transport diagnostics</Text>
-                      <Text size="sm" intent="muted" className="mt-1">Internode Raft message delivery counters. Auth and missing-sender failures are critical because they can prevent replication.</Text>
-                    </div>
-                    <StatusBadge value={raftTransportCritical ? "fail" : raftTransportWarn ? "warning" : "pass"} />
-                  </div>
-                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
-                    <div><span className="text-slate-500">Send attempts</span><div className="font-semibold">{raftTransport.sendAttempts}</div></div>
-                    <div><span className="text-slate-500">Send failures</span><div className="font-semibold">{raftTransport.sendFailures}</div></div>
-                    <div><span className="text-slate-500">Auth failures</span><div className="font-semibold">{raftTransport.authFailures}</div></div>
-                    <div><span className="text-slate-500">Missing sender failures</span><div className="font-semibold">{raftTransport.missingSenderFailures}</div></div>
-                  </div>
-                  {(raftTransport.lastError || raftTransport.lastFailureReason || raftTransport.lastErrorAt) && (
-                    <div className="mt-4 rounded-md border border-slate-200 p-3 text-sm dark:border-slate-800">
-                      <Text className="font-medium">Last transport failure</Text>
-                      <div className="mt-2 grid gap-2 md:grid-cols-3">
-                        <div><span className="text-slate-500">Reason</span><div className="font-semibold">{raftTransport.lastFailureReason || "—"}</div></div>
-                        <div><span className="text-slate-500">Group</span><div className="break-all font-mono text-xs">{raftTransport.lastGroupId || "—"}</div></div>
-                        <div><span className="text-slate-500">Message</span><div className="font-semibold">{raftTransport.lastMessageType || "—"}</div></div>
-                        <div><span className="text-slate-500">Source → target</span><div className="font-semibold">{raftTransport.lastSourceNodeId || "—"} → {raftTransport.lastTargetNodeId || "—"}</div></div>
-                        <div><span className="text-slate-500">At</span><div className="font-semibold">{formatTime(raftTransport.lastErrorAt)}</div></div>
-                        <div><span className="text-slate-500">Error</span><div className="break-all font-mono text-xs">{raftTransport.lastError || "—"}</div></div>
-                      </div>
-                    </div>
-                  )}
-                  {raftTransport.targets.length > 0 && (
-                    <div className="mt-4 overflow-x-auto">
-                      <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-                        <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/80 dark:text-slate-400"><tr><th className="px-3 py-2">Target</th><th className="px-3 py-2">Group</th><th className="px-3 py-2">Attempts</th><th className="px-3 py-2">Failures</th><th className="px-3 py-2">Auth</th><th className="px-3 py-2">Missing sender</th><th className="px-3 py-2">Last reason</th></tr></thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                          {raftTransport.targets.map((target, index) => (
-                            <tr key={`${target.groupId || "group"}-${target.targetNodeId || index}`}>
-                              <td className="px-3 py-2">{raftNodeLabel(target.targetNodeId, runtime)}</td>
-                              <td className="px-3 py-2 font-mono">{target.groupId || "—"}</td>
-                              <td className="px-3 py-2">{target.sendAttempts}</td>
-                              <td className="px-3 py-2">{target.sendFailures}</td>
-                              <td className="px-3 py-2">{target.authFailures}</td>
-                              <td className="px-3 py-2">{target.missingSenderFailures}</td>
-                              <td className="px-3 py-2">{target.lastFailureReason || "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -627,29 +603,6 @@ export function ClusterPage() {
                   )}
                 </div>
               )}
-
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <Text size="sm" intent="subtle" className="uppercase tracking-wide">Mode</Text>
-                  <div className="mt-3"><StatusBadge value={status.cluster.mode} /></div>
-                  <Text size="sm" intent="muted" className="mt-3">{status.cluster.clusterName || "Unnamed cluster"}</Text>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <Text size="sm" intent="subtle" className="uppercase tracking-wide">Local node</Text>
-                  <Text className="mt-2 font-semibold">{status.node.nodeName || status.node.nodeId}</Text>
-                  <div className="mt-2 flex flex-wrap gap-2"><StatusBadge value={status.node.state} /></div>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <Text size="sm" intent="subtle" className="uppercase tracking-wide">Peers</Text>
-                  <Text className="mt-2 text-2xl font-semibold">{status.peers.length}</Text>
-                  <Text size="sm" intent="muted">{countPeers(status.peers, "active")} active · {countPeers(status.peers, "unreachable")} unreachable</Text>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <Text size="sm" intent="subtle" className="uppercase tracking-wide">Members</Text>
-                  <Text className="mt-2 text-2xl font-semibold">{membership?.members.length || 0}</Text>
-                  <Text size="sm" intent="muted">{countMembers(membership, "active")} active · {countMembers(membership, "pending")} pending</Text>
-                </div>
-              </div>
 
               {warnings.length > 0 && (
                 <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
@@ -772,52 +725,166 @@ export function ClusterPage() {
             </div>
           )}
 
-          {activeTab === "events" && <ClusterEventLog events={events} />}
+          {activeTab === "events" && <ClusterEventLog events={clusterActivityEvents} error={clusterActivityError} loading={loading} />}
 
           {activeTab === "topology" && isRaft && (
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" role="tabpanel" aria-label="Raft groups">
-              <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div><Text className="font-semibold">Raft groups</Text><Text size="sm" intent="muted" className="mt-1">System metadata and space partitions by leader, apply lag, snapshot, and read-index status.</Text></div>
-                  <div className="flex flex-wrap gap-2">
-                    <select aria-label="raft group status filter" className="rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={raftGroupStatusFilter} onChange={(event) => setRaftGroupStatusFilter(event.target.value)}>
-                      <option value="all">All</option>
-                      <option value="unhealthy">Unhealthy</option>
-                      <option value="no_leader">No leader</option>
-                      <option value="lagging">Lagging</option>
-                      <option value="read_failures">Read failures</option>
-                      <option value="has_snapshot">Has snapshot</option>
-                    </select>
-                    <input aria-label="filter raft groups" className="rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Filter groups…" value={raftGroupFilter} onChange={(event) => setRaftGroupFilter(event.target.value)} />
+            <div className="space-y-4" role="tabpanel" aria-label="Raft groups">
+              <SpaceDistributionCard distribution={spaceDistribution} error={spaceDistributionError} loading={loading} />
+
+              {raftTransport && (
+                <div className={[
+                  "rounded-lg border bg-white p-4 shadow-sm dark:bg-slate-900",
+                  raftTransportCritical
+                    ? "border-rose-300 dark:border-rose-800"
+                    : raftTransportWarn
+                      ? "border-amber-300 dark:border-amber-800"
+                      : "border-slate-200 dark:border-slate-800",
+                ].join(" ")}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <Text className="font-semibold">Raft transport summary</Text>
+                      <Text size="sm" intent="muted" className="mt-1">Internode message delivery counters are joined into raft group rows below. Auth and missing-sender failures are critical because they can prevent replication.</Text>
+                    </div>
+                    <StatusBadge value={raftTransportCritical ? "fail" : raftTransportWarn ? "warning" : "pass"} />
+                  </div>
+                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
+                    <div><span className="text-slate-500">Send attempts</span><div className="font-semibold">{raftTransport.sendAttempts}</div></div>
+                    <div><span className="text-slate-500">Send failures</span><div className="font-semibold">{raftTransport.sendFailures}</div></div>
+                    <div><span className="text-slate-500">Auth failures</span><div className="font-semibold">{raftTransport.authFailures}</div></div>
+                    <div><span className="text-slate-500">Missing sender failures</span><div className="font-semibold">{raftTransport.missingSenderFailures}</div></div>
+                  </div>
+                  {(raftTransport.lastError || raftTransport.lastFailureReason || raftTransport.lastErrorAt) && (
+                    <div className="mt-4 rounded-md border border-slate-200 p-3 text-sm dark:border-slate-800">
+                      <Text className="font-medium">Last transport failure</Text>
+                      <div className="mt-2 grid gap-2 md:grid-cols-3">
+                        <div><span className="text-slate-500">Reason</span><div className="font-semibold">{raftTransport.lastFailureReason || "—"}</div></div>
+                        <div><span className="text-slate-500">Group</span><div className="break-all font-mono text-xs">{raftTransport.lastGroupId || "—"}</div></div>
+                        <div><span className="text-slate-500">Message</span><div className="font-semibold">{raftTransport.lastMessageType || "—"}</div></div>
+                        <div><span className="text-slate-500">Source → target</span><div className="font-semibold">{raftTransport.lastSourceNodeId || "—"} → {raftTransport.lastTargetNodeId || "—"}</div></div>
+                        <div><span className="text-slate-500">At</span><div className="font-semibold">{formatTime(raftTransport.lastErrorAt)}</div></div>
+                        <div><span className="text-slate-500">Error</span><div className="break-all font-mono text-xs">{raftTransport.lastError || "—"}</div></div>
+                      </div>
+                    </div>
+                  )}
+                  {unmatchedTransportTargets.length > 0 && (
+                    <Text size="sm" intent="muted" className="mt-3">{unmatchedTransportTargets.length} transport target(s) are not associated with a currently listed group.</Text>
+                  )}
+                </div>
+              )}
+
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div><Text className="font-semibold">Raft groups</Text><Text size="sm" intent="muted" className="mt-1">System metadata and space partitions with leader, lag, read-index, and per-group transport diagnostics.</Text></div>
+                    <div className="flex flex-wrap gap-2">
+                      <select aria-label="raft group status filter" className="rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={raftGroupStatusFilter} onChange={(event) => setRaftGroupStatusFilter(event.target.value)}>
+                        <option value="all">All</option>
+                        <option value="unhealthy">Unhealthy</option>
+                        <option value="no_leader">No leader</option>
+                        <option value="lagging">Lagging</option>
+                        <option value="read_failures">Read failures</option>
+                        <option value="has_snapshot">Has snapshot</option>
+                      </select>
+                      <input aria-label="filter raft groups" className="rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" placeholder="Filter groups…" value={raftGroupFilter} onChange={(event) => setRaftGroupFilter(event.target.value)} />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
-                    <tr><th className="px-4 py-3">Health</th><th className="px-4 py-3">Reason</th><th className="px-4 py-3">Group</th><th className="px-4 py-3">Kind</th><th className="px-4 py-3">Leader</th><th className="px-4 py-3">Term</th><th className="px-4 py-3">Commit</th><th className="px-4 py-3">Applied</th><th className="px-4 py-3">Lag</th><th className="px-4 py-3">Last</th><th className="px-4 py-3">Snapshot</th><th className="px-4 py-3">Read failures</th><th className="px-4 py-3">Preferred</th><th className="px-4 py-3">Replicas</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {filteredRaftGroups.map((group) => (
-                      <tr key={group.groupId}>
-                        <td className="px-4 py-3"><StatusBadge value={group.health} /></td>
-                        <td className="px-4 py-3">{group.healthReason || "—"}</td>
-                        <td className="px-4 py-3 font-mono">{group.groupId}</td>
-                        <td className="px-4 py-3">{group.kind}{group.partitionId !== undefined ? ` ${group.partitionId}` : ""}</td>
-                        <td className="px-4 py-3">{raftNodeLabel(group.leaderNodeId, runtime)}</td>
-                        <td className="px-4 py-3">{group.term || "—"}</td>
-                        <td className="px-4 py-3">{group.commitIndex || "—"}</td>
-                        <td className="px-4 py-3">{group.appliedIndex || "—"}</td>
-                        <td className="px-4 py-3"><StatusBadge value={group.applyLag > 0 ? "lagging" : "pass"} /> <span className="ml-1">{group.applyLag || 0}</span></td>
-                        <td className="px-4 py-3">{group.lastIndex || "—"}</td>
-                        <td className="px-4 py-3">{group.snapshotIndex || "—"}</td>
-                        <td className="px-4 py-3">{groupHasReadFailures(group) ? <StatusBadge value="fail" /> : <StatusBadge value="pass" />} <span className="ml-1">{groupReadFailureCount(group)}</span>{group.readDiagnostics?.lastFailureReason ? <div className="mt-1 text-xs text-slate-500">{group.readDiagnostics.lastFailureReason}</div> : null}</td>
-                        <td className="px-4 py-3">{raftNodeLabel(group.preferredLeaderNodeId, runtime)}</td>
-                        <td className="px-4 py-3">{group.replicaNodeIds.map((id) => raftNodeLabel(id, runtime)).join(", ") || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/80 dark:text-slate-400">
+                      <tr><th className="px-4 py-3">Health</th><th className="px-4 py-3">Group</th><th className="px-4 py-3">Kind</th><th className="px-4 py-3">Leader</th><th className="px-4 py-3">Replicas</th><th className="px-4 py-3">Lag</th><th className="px-4 py-3">Read failures</th><th className="px-4 py-3">Transport</th><th className="px-4 py-3">Last transport reason</th><th className="px-4 py-3">Details</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                      {filteredRaftGroups.map((group) => {
+                        const transportTargets = transportTargetsForGroup(group.groupId, runtime);
+                        const transportFailures = transportFailureCount(transportTargets);
+                        const expanded = expandedRaftGroups.includes(group.groupId);
+                        return (
+                          <Fragment key={group.groupId}>
+                            <tr className={expanded ? "bg-slate-50/70 dark:bg-slate-950/60" : undefined}>
+                              <td className="px-4 py-3"><StatusBadge value={group.health} /></td>
+                              <td className="px-4 py-3 font-mono">{group.groupId}<div className="mt-1 text-xs text-slate-500">{group.healthReason || "ok"}</div></td>
+                              <td className="px-4 py-3">{group.kind}{group.partitionId !== undefined ? ` ${group.partitionId}` : ""}</td>
+                              <td className="px-4 py-3">{raftNodeLabel(group.leaderNodeId, runtime)}</td>
+                              <td className="px-4 py-3">{group.replicaNodeIds.map((id) => raftNodeLabel(id, runtime)).join(", ") || "—"}</td>
+                              <td className="px-4 py-3"><CountStatusBadge label="Apply lag" status={group.applyLag > 0 ? "lagging" : "pass"} value={group.applyLag || 0} /></td>
+                              <td className="px-4 py-3"><CountStatusBadge label="Read failures" status={groupHasReadFailures(group) ? "fail" : "pass"} value={groupReadFailureCount(group)} /></td>
+                              <td className="px-4 py-3"><CountStatusBadge label="Transport failures" status={transportStatus(transportTargets)} value={transportFailures} /></td>
+                              <td className="px-4 py-3">{lastTransportReason(transportTargets)}</td>
+                              <td className="px-4 py-3"><Button type="button" variant="secondary" onClick={() => toggleRaftGroupDetails(group.groupId)} aria-expanded={expanded} aria-controls={`raft-group-details-${group.groupId}`}>{expanded ? "Hide" : "Expand"}</Button></td>
+                            </tr>
+                            {expanded && (
+                              <tr id={`raft-group-details-${group.groupId}`} className="bg-slate-50/70 dark:bg-slate-950/60">
+                                <td colSpan={10} className="p-0">
+                                  <div className="space-y-3 border-t border-slate-200 px-4 py-3 text-xs dark:border-slate-800">
+                                    <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-8">
+                                      <div><span className="text-slate-500">Term</span><div className="font-semibold">{group.term || "—"}</div></div>
+                                      <div><span className="text-slate-500">Commit</span><div className="font-semibold">{group.commitIndex || "—"}</div></div>
+                                      <div><span className="text-slate-500">Applied</span><div className="font-semibold">{group.appliedIndex || "—"}</div></div>
+                                      <div><span className="text-slate-500">Last</span><div className="font-semibold">{group.lastIndex || "—"}</div></div>
+                                      <div><span className="text-slate-500">Snapshot</span><div className="font-semibold">{group.snapshotIndex || "—"}</div></div>
+                                      <div><span className="text-slate-500">Preferred leader</span><div className="font-semibold">{raftNodeLabel(group.preferredLeaderNodeId, runtime)}</div></div>
+                                      <div><span className="text-slate-500">Local node</span><div className="font-semibold">{raftNodeLabel(group.localNodeId, runtime)}</div></div>
+                                      <div><span className="text-slate-500">Reason</span><div className="font-semibold">{group.healthReason || "—"}</div></div>
+                                    </div>
+
+                                    {group.readDiagnostics && (
+                                      <div>
+                                        <Text size="xs" className="font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Read-index diagnostics</Text>
+                                        <div className="mt-2 grid gap-3 md:grid-cols-4 lg:grid-cols-8">
+                                          <div><span className="text-slate-500">Attempts</span><div className="font-semibold">{group.readDiagnostics.readIndexAttempts}</div></div>
+                                          <div><span className="text-slate-500">Successes</span><div className="font-semibold">{group.readDiagnostics.readIndexSuccesses}</div></div>
+                                          <div><span className="text-slate-500">Failures</span><div className="font-semibold">{group.readDiagnostics.readIndexFailures}</div></div>
+                                          <div><span className="text-slate-500">Timeouts</span><div className="font-semibold">{group.readDiagnostics.readIndexTimeouts}</div></div>
+                                          <div><span className="text-slate-500">No leader</span><div className="font-semibold">{group.readDiagnostics.readIndexNoLeader}</div></div>
+                                          <div><span className="text-slate-500">Not leader</span><div className="font-semibold">{group.readDiagnostics.readIndexNotLeader}</div></div>
+                                          <div><span className="text-slate-500">Apply wait failures</span><div className="font-semibold">{group.readDiagnostics.applyWaitFailures}</div></div>
+                                          <div><span className="text-slate-500">Apply wait ms</span><div className="font-semibold">{group.readDiagnostics.lastAppliedWaitMillis || "—"}</div></div>
+                                        </div>
+                                        {(group.readDiagnostics.lastFailureReason || group.readDiagnostics.lastFailureAt) && (
+                                          <Text size="xs" intent="muted" className="mt-2">Last read failure: {group.readDiagnostics.lastFailureReason || "unknown"} at {formatTime(group.readDiagnostics.lastFailureAt)}</Text>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <div>
+                                      <Text size="xs" className="font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Transport targets</Text>
+                                      {transportTargets.length > 0 ? (
+                                        <div className="mt-2 overflow-x-auto">
+                                          <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-800">
+                                            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-950 dark:text-slate-400"><tr><th className="px-3 py-2">Target</th><th className="px-3 py-2">Attempts</th><th className="px-3 py-2">Failures</th><th className="px-3 py-2">Auth</th><th className="px-3 py-2">Missing sender</th><th className="px-3 py-2">Last reason</th><th className="px-3 py-2">Last error</th></tr></thead>
+                                            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                                              {transportTargets.map((target, index) => (
+                                                <tr key={`${target.groupId || "group"}-${target.targetNodeId || index}`}>
+                                                  <td className="px-3 py-2">{raftNodeLabel(target.targetNodeId, runtime)}</td>
+                                                  <td className="px-3 py-2">{target.sendAttempts}</td>
+                                                  <td className="px-3 py-2">{target.sendFailures}</td>
+                                                  <td className="px-3 py-2">{target.authFailures}</td>
+                                                  <td className="px-3 py-2">{target.missingSenderFailures}</td>
+                                                  <td className="px-3 py-2">{target.lastFailureReason || "—"}</td>
+                                                  <td className="px-3 py-2 break-all font-mono text-xs">{target.lastError || "—"}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      ) : (
+                                        <Text size="xs" intent="muted" className="mt-2">No per-target transport counters are recorded for this group.</Text>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                      {filteredRaftGroups.length === 0 && (
+                        <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No raft groups match the current filters.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

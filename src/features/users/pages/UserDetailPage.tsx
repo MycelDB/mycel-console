@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { PageHeader } from "../../../components/layout/PageHeader";
 import { Button, Alert, H2, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { getPrincipal as defaultGetPrincipal, listDomains as defaultListDomains, listPrincipalCapabilities as defaultListPrincipalCapabilities, listPrincipalRoles as defaultListPrincipalRoles, listPrincipalSessions as defaultListPrincipalSessions, listSpaces as defaultListSpaces, revokePrincipalCapability as defaultRevokePrincipalCapability, revokePrincipalRole as defaultRevokePrincipalRole, revokePrincipalSession as defaultRevokePrincipalSession, revokePrincipalSessions as defaultRevokePrincipalSessions, setPrincipalCapabilitiesForScope as defaultSetPrincipalCapabilitiesForScope, setPrincipalRolesForScope as defaultSetPrincipalRolesForScope } from "../../../services/adminService";
@@ -181,15 +182,13 @@ export function UserDetailPage({
 
   return (
     <section className="space-y-6">
-      <div>
-        <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/principals">← Back to principals</Link>
-        <Text as="p" size="sm" className="mt-4 font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Principal detail</Text>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <H2 className="text-slate-900 dark:text-slate-100">{user?.username || routePrincipalId || "Principal"}</H2>
-          {user?.state && <UserStateBadge state={user.state} />}
-        </div>
-        <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">Inspect principal identity, roles, capabilities, and active auth sessions.</Text>
-      </div>
+      <PageHeader
+        eyebrow="Administration / Principals"
+        title={user?.username || routePrincipalId || "Principal"}
+        backLink={{ to: "/principals", label: "← Back to principals" }}
+        badge={user?.state ? <UserStateBadge state={user.state} /> : null}
+        description="Inspect principal identity, roles, capabilities, and active auth sessions."
+      />
 
       <div className="border-b border-slate-200 dark:border-slate-800">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Principal detail sections">

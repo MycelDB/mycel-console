@@ -138,6 +138,9 @@ export type InferenceModelInput = {
   input_modalities?: string[];
   output_modalities?: string[];
   vector_space_key?: string;
+  context_tokens?: number;
+  max_output_tokens?: number;
+  enabled?: boolean;
   metadata?: JsonObject;
 };
 

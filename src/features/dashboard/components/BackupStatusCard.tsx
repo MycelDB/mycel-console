@@ -156,7 +156,7 @@ function Metric({ label, value, badge = false }: MetricProps) {
       <dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt>
       <dd className="mt-1">
         {badge ? (
-          <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-950/50 px-2.5 py-1 text-sm font-medium text-emerald-300">
+          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300">
             {value}
           </span>
         ) : (

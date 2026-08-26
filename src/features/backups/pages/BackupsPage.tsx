@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PageHeader } from "../../../components/layout/PageHeader";
 import { Button, Alert, FieldHint, H2, Input, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
@@ -53,7 +54,7 @@ export function BackupsPage({
   const [pendingDelete, setPendingDelete] = useState<BackupSummaryInfo | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [activeTab, setActiveTab] = useState<"status" | "policy" | "files">("status");
+  const [activeTab, setActiveTab] = useState<"overview" | "policy">("overview");
 
   const load = useCallback(
     async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
@@ -148,34 +149,26 @@ export function BackupsPage({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-            Backups
-          </Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Backup Management</H2>
-          <Text intent="muted" className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-            Inspect backup files, monitor backup state, trigger manual backups, and manage the daemon backup policy.
-          </Text>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => void load()} disabled={busy}>
-            Refresh
-          </Button>
-          {canManageBackups && (
-            <Button variant="secondary" onClick={() => void handleTriggerBackup()} disabled={busy}>
-              {triggering ? "Triggering…" : "Trigger backup"}
+      <PageHeader
+        eyebrow="Operations"
+        title="Backups"
+        description="Inspect backup files, monitor backup state, trigger manual backups, and manage the daemon backup policy."
+        actions={(
+          <>
+            <Button variant="secondary" onClick={() => void load()} disabled={busy}>
+              Refresh
             </Button>
-          )}
-        </div>
-      </div>
+            {canManageBackups && (
+              <Button onClick={() => void handleTriggerBackup()} disabled={busy}>
+                {triggering ? "Triggering…" : "Trigger Backup"}
+              </Button>
+            )}
+          </>
+        )}
+      />
 
       {error && <Alert>{error}</Alert>}
-      {notice && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-200">
-          {notice}
-        </div>
-      )}
+      {notice && <Alert variant="success">{notice}</Alert>}
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-8 text-center">
@@ -188,9 +181,8 @@ export function BackupsPage({
           <div className="border-b border-slate-200 dark:border-slate-800">
             <div className="flex flex-wrap gap-2" role="tablist" aria-label="Backup sections">
               {[
-                ["status", "Status"],
+                ["overview", "Overview"],
                 ["policy", "Policy"],
-                ["files", "Files"],
               ].map(([tab, label]) => (
                 <button
                   key={tab}
@@ -211,7 +203,18 @@ export function BackupsPage({
             </div>
           </div>
 
-          {activeTab === "status" && <StatusPanel status={status} />}
+          {activeTab === "overview" && (
+            <OverviewPanel
+              status={status}
+              backups={backups}
+              deletingBackupId={deletingBackupId}
+              onDelete={requestDeleteBackup}
+              canDelete={canManageBackups}
+              nextPageToken={nextPageToken}
+              loadingMore={loadingMore}
+              onLoadMore={() => void load({ append: true, pageToken: nextPageToken })}
+            />
+          )}
           {activeTab === "policy" && policy && (
             <PolicyPanel
               policy={policy}
@@ -220,27 +223,6 @@ export function BackupsPage({
               saving={savingPolicy}
               readOnly={!canManageBackups}
             />
-          )}
-          {activeTab === "files" && (
-            <>
-              <BackupFilesPanel
-                backups={backups}
-                deletingBackupId={deletingBackupId}
-                onDelete={requestDeleteBackup}
-                canDelete={canManageBackups}
-              />
-              {nextPageToken && (
-                <div className="flex justify-center">
-                  <Button
-                    variant="secondary"
-                    onClick={() => void load({ append: true, pageToken: nextPageToken })}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? "Loading more…" : "Load more"}
-                  </Button>
-                </div>
-              )}
-            </>
           )}
           <DeleteBackupDialog
             backup={pendingDelete}
@@ -254,12 +236,51 @@ export function BackupsPage({
   );
 }
 
+function OverviewPanel({
+  status,
+  backups,
+  deletingBackupId,
+  onDelete,
+  canDelete,
+  nextPageToken,
+  loadingMore,
+  onLoadMore,
+}: {
+  status: BackupStatusResponse | null;
+  backups: BackupSummaryInfo[];
+  deletingBackupId: string;
+  onDelete: (backup: BackupSummaryInfo) => void;
+  canDelete: boolean;
+  nextPageToken: string;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}) {
+  return (
+    <div className="space-y-4" role="tabpanel" aria-label="Backup overview">
+      <StatusPanel status={status} />
+      <BackupFilesPanel
+        backups={backups}
+        deletingBackupId={deletingBackupId}
+        onDelete={onDelete}
+        canDelete={canDelete}
+      />
+      {nextPageToken && (
+        <div className="flex justify-center">
+          <Button variant="secondary" onClick={onLoadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading more…" : "Load more"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusPanel({ status }: { status: BackupStatusResponse | null }) {
   const current = status?.status;
   return (
     <article className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-5">
       <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-        Status
+        Backup status
       </Text>
       <dl className="mt-5 grid gap-4 md:grid-cols-4">
         <Metric label="State" value={current?.state || "Unknown"} />

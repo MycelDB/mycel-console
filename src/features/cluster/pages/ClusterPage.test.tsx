@@ -2,15 +2,17 @@ import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClusterPage } from "./ClusterPage";
-import { getClusterHealth, getClusterRuntimeStatus, getClusterStatus, getGraphConsistencyReport, getLocalGraphConsistency, getLocalGraphForensicExport, listClusterMembers, listRaftGroups, lookupSpaceRoute } from "../../../services/adminService";
+import { getClusterHealth, getClusterRuntimeStatus, getClusterSpaceDistribution, getClusterStatus, getGraphConsistencyReport, getLocalGraphConsistency, getLocalGraphForensicExport, listActivityEvents, listClusterMembers, listRaftGroups, lookupSpaceRoute } from "../../../services/adminService";
 
 jest.mock("../../../services/adminService", () => ({
   getClusterStatus: jest.fn(),
   getClusterRuntimeStatus: jest.fn(),
+  getClusterSpaceDistribution: jest.fn(),
   getClusterHealth: jest.fn(),
   getLocalGraphConsistency: jest.fn(),
   getGraphConsistencyReport: jest.fn(),
   getLocalGraphForensicExport: jest.fn(),
+  listActivityEvents: jest.fn(),
   listClusterMembers: jest.fn(),
   listRaftGroups: jest.fn(),
   lookupSpaceRoute: jest.fn(),
@@ -19,11 +21,13 @@ jest.mock("../../../services/adminService", () => ({
 const mockedGetClusterStatus = getClusterStatus as jest.MockedFunction<typeof getClusterStatus>;
 const mockedGetClusterHealth = getClusterHealth as jest.MockedFunction<typeof getClusterHealth>;
 const mockedGetClusterRuntimeStatus = getClusterRuntimeStatus as jest.MockedFunction<typeof getClusterRuntimeStatus>;
+const mockedGetClusterSpaceDistribution = getClusterSpaceDistribution as jest.MockedFunction<typeof getClusterSpaceDistribution>;
 const mockedGetLocalGraphConsistency = getLocalGraphConsistency as jest.MockedFunction<typeof getLocalGraphConsistency>;
 const mockedGetGraphConsistencyReport = getGraphConsistencyReport as jest.MockedFunction<typeof getGraphConsistencyReport>;
 const mockedGetLocalGraphForensicExport = getLocalGraphForensicExport as jest.MockedFunction<typeof getLocalGraphForensicExport>;
 const mockedListRaftGroups = listRaftGroups as jest.MockedFunction<typeof listRaftGroups>;
 const mockedLookupSpaceRoute = lookupSpaceRoute as jest.MockedFunction<typeof lookupSpaceRoute>;
+const mockedListActivityEvents = listActivityEvents as jest.MockedFunction<typeof listActivityEvents>;
 const mockedListClusterMembers = listClusterMembers as jest.MockedFunction<typeof listClusterMembers>;
 
 describe("ClusterPage", () => {
@@ -31,14 +35,18 @@ describe("ClusterPage", () => {
     mockedGetClusterStatus.mockReset();
     mockedGetClusterHealth.mockReset();
     mockedGetClusterRuntimeStatus.mockReset();
+    mockedGetClusterSpaceDistribution.mockReset();
     mockedGetLocalGraphConsistency.mockReset();
     mockedGetGraphConsistencyReport.mockReset();
     mockedGetLocalGraphForensicExport.mockReset();
     mockedListRaftGroups.mockReset();
     mockedLookupSpaceRoute.mockReset();
+    mockedListActivityEvents.mockReset();
     mockedListClusterMembers.mockReset();
+    mockedListActivityEvents.mockResolvedValue({ events: [], nextPageToken: "" });
     mockedListClusterMembers.mockResolvedValue({ clusterId: "cluster_a", clusterName: "dev-cluster", members: [] });
     mockedGetClusterRuntimeStatus.mockResolvedValue({ engine: "static", clusterName: "dev-cluster", raftNodeCount: 0, raftPartitionCount: 0, raftReplicaFactor: 0, localRaftNodeId: 0, raftNodeAddrs: [], raftGroupCount: 0, raftGroupsWithLeader: 0 });
+    mockedGetClusterSpaceDistribution.mockResolvedValue({ totalSpaces: 5, routedSpaces: 5, unavailableRoutes: 0, partitionsUsed: 3, partitionCount: 16, maxPartitionSpaces: 2, minPartitionSpaces: 0, skewRatio: 2, partitions: Array.from({ length: 16 }, (_, partitionId) => ({ partitionId, spaceCount: partitionId < 3 ? partitionId === 0 ? 2 : 1 : 0 })), nodes: [{ nodeId: 1, label: "1 (a:9091)", leaderSpaceCount: 2, replicaSpaceCount: 5 }, { nodeId: 2, label: "2 (b:9091)", leaderSpaceCount: 2, replicaSpaceCount: 5 }, { nodeId: 3, label: "3 (c:9091)", leaderSpaceCount: 1, replicaSpaceCount: 5 }] });
     mockedListRaftGroups.mockResolvedValue({ groups: [] });
     mockedLookupSpaceRoute.mockResolvedValue({ spaceId: "490851b9-0038-4afc-b1f0-d1bd9e829bc8", partitionId: 7, leaderNodeId: 2, replicaNodeIds: [1, 2, 3] });
     mockedGetClusterHealth.mockResolvedValue({ status: "healthy", warnings: [], activeMembers: 1, pendingMembers: 0, unreachablePeers: 0 });
@@ -66,8 +74,8 @@ describe("ClusterPage", () => {
     render(<MemoryRouter><ClusterPage /></MemoryRouter>);
 
     await waitFor(() => expect(mockedGetClusterStatus).toHaveBeenCalledTimes(1));
-    expect((await screen.findAllByText("dev-cluster")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("clustered").length).toBeGreaterThan(0);
+    expect(mockedListRaftGroups).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "Cluster" })).toBeInTheDocument();
     expect(screen.queryByText("primary")).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "General" })).toHaveAttribute("aria-selected", "true");
 
@@ -79,9 +87,10 @@ describe("ClusterPage", () => {
 
     expect(screen.queryByRole("tab", { name: "Membership" })).not.toBeInTheDocument();
 
+    expect(mockedListActivityEvents).toHaveBeenCalledWith({ pageSize: 50, categories: ["cluster"] });
     await user.click(screen.getByRole("tab", { name: "Events" }));
-    expect(screen.getByText("Cluster Events")).toBeInTheDocument();
-    expect(screen.getByText("Join token issued for node-c")).toBeInTheDocument();
+    expect(screen.getByText("Cluster activity")).toBeInTheDocument();
+    expect(screen.getByText("No cluster activity events found.")).toBeInTheDocument();
   });
 
   it("renders raft overview, groups, and route lookup", async () => {
@@ -115,14 +124,12 @@ describe("ClusterPage", () => {
     ] });
     mockedGetClusterStatus.mockResolvedValue({ node: { nodeId: "node_a", nodeName: "node-a", state: "clustered", admitted: true, bootstrap: true }, cluster: { clusterId: "cluster_a", clusterName: "raft-dev", mode: "clustered" }, peers: [] });
     render(<MemoryRouter><ClusterPage /></MemoryRouter>);
-    expect(await screen.findByText("Cluster engine")).toBeInTheDocument();
+    expect(await screen.findByText("System group")).toBeInTheDocument();
     expect(screen.queryByText("Add Node")).not.toBeInTheDocument();
     expect(screen.getByText("Raft diagnostics")).toBeInTheDocument();
     expect(screen.getByText("System group has leader")).toBeInTheDocument();
     expect(screen.getByText("All partitions have leaders")).toBeInTheDocument();
-    expect(screen.getByText("Raft transport diagnostics")).toBeInTheDocument();
-    expect(screen.getByText("Auth failures")).toBeInTheDocument();
-    expect(screen.getAllByText("missing_sender").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Raft transport summary")).not.toBeInTheDocument();
     expect(screen.getByText("Snapshot and compaction guidance")).toBeInTheDocument();
     expect(screen.getByText(/system@2/)).toBeInTheDocument();
     expect(screen.getByText(/Automatic production raft compaction remains off\/conservative/i)).toBeInTheDocument();
@@ -133,9 +140,20 @@ describe("ClusterPage", () => {
     expect(await screen.findByText("7")).toBeInTheDocument();
     expect(mockedLookupSpaceRoute).toHaveBeenCalledWith({ spaceId: "490851b9-0038-4afc-b1f0-d1bd9e829bc8" });
     await user.click(screen.getByRole("tab", { name: "Raft groups" }));
+    expect(screen.getByText("Space distribution")).toBeInTheDocument();
+    expect(screen.getByText("Spaces per partition")).toBeInTheDocument();
+    expect(screen.getByText("Spaces per pod/node")).toBeInTheDocument();
+    expect(screen.getByText("Raft transport summary")).toBeInTheDocument();
+    expect(screen.getByText("Auth failures")).toBeInTheDocument();
+    expect(screen.getAllByText("missing_sender").length).toBeGreaterThan(0);
     expect(screen.getByText("space-partition-7")).toBeInTheDocument();
-    expect(screen.getByText("Snapshot")).toBeInTheDocument();
     expect(screen.getAllByText("Read failures").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Apply lag: 0 (pass)").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Read failures: 1 (fail)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Transport failures: 2 (fail)")).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Expand" })[0]);
+    expect(screen.getByText("Snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Transport targets")).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText(/raft group status filter/i), "read_failures");
     expect(screen.getAllByText("system").length).toBeGreaterThan(0);
     expect(screen.queryByText("space-partition-7")).not.toBeInTheDocument();
@@ -169,7 +187,7 @@ describe("ClusterPage", () => {
     expect(screen.getByLabelText(/Metadata applied: Whether committed system Raft metadata/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Client readiness: Overall safe-to-serve signal/i)).toBeInTheDocument();
     expect(screen.getByText(/admin port is open/i)).toBeInTheDocument();
-    expect(screen.getByText("1 (a:9091)")).toBeInTheDocument();
+    expect(screen.getAllByText("Expected members").length).toBeGreaterThan(0);
   });
 
   it("renders blocked readiness from cluster health", async () => {
@@ -201,8 +219,10 @@ describe("ClusterPage", () => {
     expect(await screen.findByText("Not client ready")).toBeInTheDocument();
     expect(screen.getByText("Readiness blockers")).toBeInTheDocument();
     expect(screen.getByText("system raft metadata has not been validated")).toBeInTheDocument();
-    expect(screen.getByText(/local cluster_local/i)).toBeInTheDocument();
-    expect(screen.getByText(/auth cluster_authoritative/i)).toBeInTheDocument();
+    expect(screen.getByText("Local cluster ID")).toBeInTheDocument();
+    expect(screen.getAllByText("cluster_local").length).toBeGreaterThan(0);
+    expect(screen.getByText("Authoritative cluster ID")).toBeInTheDocument();
+    expect(screen.getByText("cluster_authoritative")).toBeInTheDocument();
   });
 
   it("runs read-only graph consistency diagnostics", async () => {

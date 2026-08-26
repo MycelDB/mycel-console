@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Button, Alert, H2, Input, Select, Text } from "../../../../components/typography";
+import { PageHeader } from "../../../../components/layout/PageHeader";
+import { Button, Alert, Input, Select, Text } from "../../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../../console";
 import {
   analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork,
@@ -419,7 +420,7 @@ export function SemanticPage({
   }
 
   return <section className="space-y-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div><Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Intelligence</Text><H2 className="mt-2 text-slate-900 dark:text-slate-100">Semantic generation rules</H2><Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">Author semantic generation rules, inspect per-binding search-index health, run explicit maintenance, and track token usage.</Text></div><div className="flex gap-2"><Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>{canManage && <Button onClick={startCreate}>New rule</Button>}</div></div>
+    <PageHeader eyebrow="Intelligence" title="Semantic" description="Author semantic generation rules, inspect per-binding search-index health, run explicit maintenance, and track token usage." actions={<><Button variant="secondary" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>{canManage && <Button onClick={startCreate}>New rule</Button>}</>} />
     {error && <Alert>{error}</Alert>}{usageError && <Alert>{usageError}</Alert>}{actionResult && <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{actionResult}</div>}
     <div className="grid gap-4 md:grid-cols-4"><SummaryCard label="Semantic rules" value={filteredRows.length} /><SummaryCard label="Pending work" value={maintenanceTotals.pending} /><SummaryCard label="Failed work" value={maintenanceTotals.failed} /><SummaryCard label="Usage tokens" value={totalUsage} /></div>
     <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70 md:grid-cols-4"><Select label="Space" value={selectedSpaceId} onChange={(value) => setFilter("spaceId", value)} options={spaces.map((space) => ({ value: space.spaceId, label: space.name || space.spaceId }))} placeholder="All spaces" disabled={loading} /><Select label="Domain" value={selectedDomainId} onChange={(value) => setFilter("domainId", value)} options={filteredDomains.map((domain) => ({ value: domain.domainId, label: `${domain.name || domain.key} (${domain.spaceId})` }))} placeholder="All domains" disabled={loading || filteredDomains.length === 0} /><Select label="State" value={stateFilter} onChange={(value) => setFilter("state", value)} options={ruleStates.map((state) => ({ value: state, label: state.replace("SEMANTIC_RULE_STATE_", "") }))} placeholder="All states" disabled={loading} /><label className="flex items-end gap-2 text-sm font-medium text-slate-900 dark:text-slate-100"><input type="checkbox" checked={includeDisabled} onChange={(event) => setFilter("includeDisabled", event.target.checked ? "true" : "")} disabled={loading} /> Include disabled</label></div>

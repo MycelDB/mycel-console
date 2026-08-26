@@ -33,8 +33,9 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     label: "Activity",
     route: "/activity",
     navGroup: "environment",
-    requirements: [],
-    description: "Recent automation, semantic, backup, and cluster activity.",
+    requirements: [{ capability: "audit.read" }],
+    fallback: "hide",
+    description: "Durable operator activity history.",
     order: 20,
   },
   {

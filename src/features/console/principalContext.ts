@@ -1,8 +1,9 @@
-import { getMyAccess, listPrincipalCapabilities, listPrincipalRoles } from "../../services/adminService";
+import { getClusterRuntimeStatus, getMyAccess, listPrincipalCapabilities, listPrincipalRoles } from "../../services/adminService";
 import type { AccessScopeInfo, ListPrincipalCapabilitiesResponse, ListPrincipalRolesResponse, MyAccessInfo } from "../../types/access";
 import type { PrincipalSession } from "../../types/auth";
+import type { ClusterRuntimeStatusInfo } from "../../types/cluster";
 import type { CapabilityGrantSummary, CapabilityScope, PrincipalCapabilityState } from "./capabilities";
-import { capability, completeCapabilities, unknownCapabilities } from "./capabilities";
+import { capability, completeCapabilities, hasCapability, unknownCapabilities } from "./capabilities";
 
 export type ConsolePrincipalContext = {
   session: PrincipalSession;
@@ -10,12 +11,14 @@ export type ConsolePrincipalContext = {
   capabilities: string[];
   capabilityState: PrincipalCapabilityState;
   warnings: string[];
+  clusterRuntime?: ClusterRuntimeStatusInfo;
 };
 
 export type PrincipalContextServices = {
   getMyAccessService?: () => Promise<MyAccessInfo>;
   listPrincipalRolesService?: (principalId: string) => Promise<ListPrincipalRolesResponse>;
   listPrincipalCapabilitiesService?: (principalId: string) => Promise<ListPrincipalCapabilitiesResponse>;
+  getClusterRuntimeStatusService?: () => Promise<ClusterRuntimeStatusInfo>;
 };
 
 export async function loadConsolePrincipalContext(
@@ -34,13 +37,13 @@ export async function loadConsolePrincipalContext(
         ...capabilities.map((item) => capability(item)),
         ...roleCapabilitySummaries(roles),
       ];
-    return {
+    return enrichConsolePrincipalContext({
       session,
       roles,
       capabilities,
       capabilityState: access.complete ? completeCapabilities(stateCapabilities) : { kind: "partial", roles, warnings: access.warnings },
       warnings: access.warnings,
-    };
+    }, services);
   }
 
   return loadConsolePrincipalContextViaAdminDiscovery(session, services, myAccessResult.error);
@@ -64,12 +67,25 @@ async function loadConsolePrincipalContextViaAdminDiscovery(
   const capabilities = capabilitiesResult.ok ? capabilitiesResult.value.effectiveCapabilities : [];
 
   if (capabilitiesResult.ok) {
-    return { session, roles, capabilities, capabilityState: completeCapabilities([...capabilitySummaries(capabilitiesResult.value), ...roleCapabilitySummaries(roles)]), warnings };
+    return enrichConsolePrincipalContext({ session, roles, capabilities, capabilityState: completeCapabilities([...capabilitySummaries(capabilitiesResult.value), ...roleCapabilitySummaries(roles)]), warnings }, services);
   }
   if (rolesResult.ok) {
-    return { session, roles, capabilities, capabilityState: { kind: "partial", roles, warnings }, warnings };
+    return enrichConsolePrincipalContext({ session, roles, capabilities, capabilityState: { kind: "partial", roles, warnings }, warnings }, services);
   }
-  return { session, roles, capabilities, capabilityState: unknownCapabilities(warnings), warnings };
+  return enrichConsolePrincipalContext({ session, roles, capabilities, capabilityState: unknownCapabilities(warnings), warnings }, services);
+}
+
+async function enrichConsolePrincipalContext(
+  context: ConsolePrincipalContext,
+  services: PrincipalContextServices,
+): Promise<ConsolePrincipalContext> {
+  if (!hasCapability(context.capabilityState, { capability: "cluster.read" })) return context;
+  const getRuntime = services.getClusterRuntimeStatusService ?? getClusterRuntimeStatus;
+  try {
+    return { ...context, clusterRuntime: await getRuntime() };
+  } catch {
+    return context;
+  }
 }
 
 function scopeKind(kind: string): CapabilityScope["kind"] {

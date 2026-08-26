@@ -33,6 +33,23 @@ test("derives role bundle capabilities for capability API gaps", () => {
   ]));
 });
 
+test("loads cluster runtime when principal can read cluster status", async () => {
+  const context = await loadConsolePrincipalContext(session, {
+    getMyAccessService: jest.fn().mockResolvedValue({
+      principal: session,
+      effectiveRoles: ["cluster.operator"],
+      effectiveCapabilities: ["cluster.read"],
+      roles: [],
+      capabilities: [{ capability: "cluster.read", source: "role", role: "cluster.operator" }],
+      warnings: [],
+      complete: true,
+    }),
+    getClusterRuntimeStatusService: jest.fn().mockResolvedValue({ engine: "static", clusterName: "dev", raftNodeCount: 0, raftPartitionCount: 0, raftReplicaFactor: 0, localRaftNodeId: 0, raftNodeAddrs: [], raftGroupCount: 0, raftGroupsWithLeader: 0 }),
+  });
+
+  expect(context.clusterRuntime?.engine).toBe("static");
+});
+
 test("loads complete console principal context from self access", async () => {
   const context = await loadConsolePrincipalContext(session, {
     getMyAccessService: jest.fn().mockResolvedValue({

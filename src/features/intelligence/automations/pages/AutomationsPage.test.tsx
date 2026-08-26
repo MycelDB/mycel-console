@@ -20,7 +20,7 @@ function renderPage() {
 test("renders global graph automation inventory and usage", async () => {
   renderPage();
 
-  expect(screen.getByRole("heading", { name: /graph automations/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Automations" })).toBeInTheDocument();
   expect(await screen.findByText("Summarize pages")).toBeInTheDocument();
   expect(screen.getByText(/30 tokens/i)).toBeInTheDocument();
 

@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardPage } from "./DashboardPage";
-import { getBackupStatus, getClusterRuntimeStatus } from "../../../services/adminService";
+import { getBackupStatus, getClusterRuntimeStatus, getClusterSpaceDistribution } from "../../../services/adminService";
 
 jest.mock("../../../services/adminService", () => ({
   getClusterRuntimeStatus: jest.fn().mockResolvedValue({ engine: "static", clusterName: "dev", raftNodeCount: 0, raftPartitionCount: 0, raftReplicaFactor: 0, localRaftNodeId: 0, raftNodeAddrs: [], raftGroupCount: 0, raftGroupsWithLeader: 0 }),
+  getClusterSpaceDistribution: jest.fn().mockResolvedValue({ totalSpaces: 6, routedSpaces: 6, unavailableRoutes: 0, partitionsUsed: 4, partitionCount: 32, maxPartitionSpaces: 2, minPartitionSpaces: 0, skewRatio: 2, partitions: Array.from({ length: 32 }, (_, partitionId) => ({ partitionId, spaceCount: partitionId < 4 ? 1 : 0 })), nodes: [{ nodeId: 1, label: "1 (a)", leaderSpaceCount: 2, replicaSpaceCount: 6 }] }),
   getBackupStatus: jest.fn().mockResolvedValue({
     status: {
       backupId: "backup-1",
@@ -19,6 +20,24 @@ jest.mock("../../../services/adminService", () => ({
       nextRunAt: "2026-07-06T21:00:00Z",
     },
     quiesce: { participants: [] },
+  }),
+  listActivityEvents: jest.fn().mockResolvedValue({
+    events: [
+      {
+        eventId: "evt_1",
+        occurredAt: "1780000000",
+        ingestedAt: "1780000001",
+        severity: "info",
+        category: "lifecycle",
+        eventType: "daemon.started",
+        message: "Daemon started",
+        source: "daemon",
+        actor: "",
+        resource: "",
+        correlationId: "",
+      },
+    ],
+    nextPageToken: "",
   }),
   listBackups: jest.fn().mockResolvedValue({
     backups: [
@@ -39,6 +58,7 @@ jest.mock("../../../services/adminService", () => ({
 
 const mockedGetBackupStatus = getBackupStatus as jest.Mock;
 const mockedGetClusterRuntimeStatus = getClusterRuntimeStatus as jest.Mock;
+const mockedGetClusterSpaceDistribution = getClusterSpaceDistribution as jest.Mock;
 
 const session = {
   addr: "127.0.0.1:9091",
@@ -50,7 +70,7 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-test("renders dashboard cards and shortcuts", async () => {
+test("renders dashboard cards", async () => {
   render(
     <MemoryRouter>
       <DashboardPage session={session} />
@@ -62,10 +82,10 @@ test("renders dashboard cards and shortcuts", async () => {
   expect(screen.queryByText("Principal")).not.toBeInTheDocument();
   expect(await screen.findByText("Standalone")).toBeInTheDocument();
   expect(screen.getByText("Connected")).toBeInTheDocument();
-  expect(screen.getByText(/no alarms available yet/i)).toBeInTheDocument();
+  expect(screen.getByText(/latest activity/i)).toBeInTheDocument();
+  expect(await screen.findByText("Daemon started")).toBeInTheDocument();
   expect(await screen.findByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /manage backups/i })).toHaveAttribute("href", "/backups");
-  expect(screen.getByRole("link", { name: /manage principals/i })).toHaveAttribute("href", "/principals");
 });
 
 test("shows cluster topology counts for raft runtime", async () => {
@@ -82,6 +102,9 @@ test("shows cluster topology counts for raft runtime", async () => {
   expect(screen.getByText("Partitions")).toBeInTheDocument();
   expect(screen.getByText("4")).toBeInTheDocument();
   expect(screen.getByText("32")).toBeInTheDocument();
+  expect(await screen.findByText("Space distribution")).toBeInTheDocument();
+  expect(screen.getByText("Spaces per pod/node")).toBeInTheDocument();
+  expect(mockedGetClusterSpaceDistribution).toHaveBeenCalled();
 });
 
 test("hides backup panel for principals without backup read capability", async () => {

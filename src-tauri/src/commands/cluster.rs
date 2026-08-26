@@ -830,7 +830,7 @@ fn optional(value: String) -> Option<String> {
 fn cluster_engine(value: i32) -> String {
     match ClusterEngine::try_from(value).unwrap_or(ClusterEngine::Unspecified) {
         ClusterEngine::Raft => "raft",
-        ClusterEngine::Unspecified => "unspecified",
+        ClusterEngine::Unspecified => "static",
     }
     .to_string()
 }

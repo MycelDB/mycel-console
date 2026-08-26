@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Alert, H2, Select, Text } from "../../../components/typography";
+import { PageHeader } from "../../../components/layout/PageHeader";
+import { Button, Alert, Select, Text } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
   applyInferencePackage as defaultApplyInferencePackage,
@@ -600,20 +601,18 @@ export function InferencePage({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Text as="p" size="sm" className="font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Intelligence</Text>
-          <H2 className="mt-2 text-slate-900 dark:text-slate-100">Intelligence Access</H2>
-          <Text intent="muted" className="mt-2 max-w-3xl text-slate-600 dark:text-slate-400">
-            Configure the model endpoints, models, credentials, grants, policies, and profiles used by graph automations and semantic generation. Import packages are install-only deployment units; their committed resources appear in the access tabs.
-          </Text>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleRefresh} disabled={(activeTab === "packages" ? loading || loadingMore : catalogLoading || setupLoading) || importing}>Refresh</Button>
-          {(canManageProfiles || canManageCredentials || canManageGrants || canManagePolicies) && <Button variant="secondary" onClick={() => setWizardOpen(true)}>Configure OpenAI</Button>}
-          {canImportPackages && <Button variant="secondary" onClick={() => setImportOpen(true)} disabled={importing}>Import package JSON</Button>}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Intelligence"
+        title="Intelligence Access"
+        description="Configure the model endpoints, models, credentials, grants, policies, and profiles used by graph automations and semantic generation. Import packages are install-only deployment units; their committed resources appear in the access tabs."
+        actions={(
+          <>
+            <Button variant="secondary" onClick={handleRefresh} disabled={(activeTab === "packages" ? loading || loadingMore : catalogLoading || setupLoading) || importing}>Refresh</Button>
+            {(canManageProfiles || canManageCredentials || canManageGrants || canManagePolicies) && <Button variant="secondary" onClick={() => setWizardOpen(true)}>Configure OpenAI</Button>}
+            {canImportPackages && <Button variant="secondary" onClick={() => setImportOpen(true)} disabled={importing}>Import package JSON</Button>}
+          </>
+        )}
+      />
 
       <div className="border-b border-slate-200 dark:border-slate-800">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Intelligence access sections">

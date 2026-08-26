@@ -1,5 +1,6 @@
 use mycel_sdk::proto::admin::v1::{
     AdminSpaceServiceGetSpaceRequest, AdminSpaceServiceListSpacesRequest, CreateSpaceRequest,
+    DeleteSpaceRequest,
 };
 use mycel_sdk::proto::client::v1::{GetSpaceRequest, ListSpacesRequest, Space};
 use mycel_sdk::proto::common::v1::{EffectiveAccess, Principal};
@@ -174,6 +175,28 @@ pub async fn admin_create_space(
             .ok_or_else(|| "Create space response did not include a space".to_string())?,
         default_domain_id: response.default_domain_id,
     })
+}
+
+#[tauri::command]
+pub async fn admin_delete_space(space_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let space_id = space_id.trim().to_string();
+    if space_id.is_empty() {
+        return Err("Space ID is required".to_string());
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+
+    session
+        ._client
+        .spaces
+        .delete_space(tonic::Request::new(DeleteSpaceRequest { space_id }))
+        .await
+        .map_err(|err| err.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command]

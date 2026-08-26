@@ -78,24 +78,23 @@ async function openPolicyTab() {
   await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
 }
 
-async function openFilesTab() {
+async function openOverviewTab() {
+  await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
   await screen.findByText("succeeded");
-  await userEvent.click(screen.getByRole("tab", { name: "Files" }));
 }
 
-test("renders status, policy, and backup files tabs", async () => {
+test("renders overview and policy tabs", async () => {
   renderPage();
 
   expect(screen.getByText(/loading backups/i)).toBeInTheDocument();
   expect(await screen.findByText("succeeded")).toBeInTheDocument();
-  expect(screen.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.queryByRole("tab", { name: "Files" })).not.toBeInTheDocument();
+  expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
+  expect(screen.getByText("2.0 KB")).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
   expect(screen.getByDisplayValue("/data/mycel/backups")).toBeInTheDocument();
-
-  await userEvent.click(screen.getByRole("tab", { name: "Files" }));
-  expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
-  expect(screen.getByText("2.0 KB")).toBeInTheDocument();
 });
 
 test("saves edited backup policy", async () => {
@@ -166,7 +165,7 @@ test("keeps backup data readable while hiding mutation actions without backup ma
   expect(screen.queryByRole("button", { name: /save policy/i })).not.toBeInTheDocument();
   expect(screen.getByDisplayValue("/data/mycel/backups")).toBeDisabled();
 
-  await userEvent.click(screen.getByRole("tab", { name: "Files" }));
+  await openOverviewTab();
   expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
 });
@@ -188,7 +187,6 @@ test("triggers a manual backup and refreshes", async () => {
 test("opens a delete confirmation dialog", async () => {
   renderPage();
 
-  await openFilesTab();
   await screen.findByText("backup-1.tar.zst");
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
 
@@ -203,7 +201,6 @@ test("deletes a backup after confirmation and refreshes from the daemon", async 
     .mockResolvedValueOnce({ backups: [], nextPageToken: "" });
   const services = renderPage({ listBackupsService });
 
-  await openFilesTab();
   await screen.findByText("backup-1.tar.zst");
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
   await userEvent.click(screen.getByRole("button", { name: /delete backup/i }));

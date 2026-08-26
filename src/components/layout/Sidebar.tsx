@@ -50,7 +50,8 @@ function NavItemIcon({ id }: { id: string }) {
 }
 
 export function Sidebar({ session, theme, loggingOut, principalContext, onToggleTheme, onLogout }: SidebarProps) {
-  const sections = buildNavigation(currentConsoleFeatures, navigationCapabilityState(principalContext));
+  const features = currentConsoleFeatures.filter((feature) => feature.id !== "cluster" || principalContext?.clusterRuntime?.engine === "raft");
+  const sections = buildNavigation(features, navigationCapabilityState(principalContext));
   const nextTheme = theme === "dark" ? "light" : "dark";
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900/80">

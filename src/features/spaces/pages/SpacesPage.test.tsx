@@ -101,6 +101,54 @@ test("creates a space without capitalizing submitted names", async () => {
   }));
 });
 
+test("deletes a space after typing the space name", async () => {
+  const listSpacesService = jest
+    .fn<Promise<ListSpacesResponse>, [ListSpacesInput]>()
+    .mockResolvedValueOnce(listSpacesResponse({ spaces: [spaces[0]], nextPageToken: "" }))
+    .mockResolvedValueOnce(listSpacesResponse({ spaces: [], nextPageToken: "" }));
+  const deleteSpaceService = jest.fn().mockResolvedValue(undefined);
+  render(
+    <MemoryRouter>
+      <SpacesPage listSpacesService={listSpacesService} deleteSpaceService={deleteSpaceService} />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Main")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(screen.getByRole("heading", { name: /confirm space deletion/i })).toBeInTheDocument();
+  const confirmButton = screen.getByRole("button", { name: /delete space/i });
+  expect(confirmButton).toBeDisabled();
+
+  await userEvent.type(screen.getByLabelText(/type main to confirm/i), "Main");
+  expect(confirmButton).toBeEnabled();
+  await userEvent.click(confirmButton);
+
+  await waitFor(() => expect(deleteSpaceService).toHaveBeenCalledWith("sp_main"));
+  expect(listSpacesService).toHaveBeenCalledTimes(2);
+  expect(await screen.findByText(/no spaces found/i)).toBeInTheDocument();
+});
+
+test("hides delete action without space delete capability", async () => {
+  render(
+    <MemoryRouter>
+      <SpacesPage
+        listSpacesService={jest.fn().mockResolvedValue(listSpacesResponse())}
+        principalContext={{
+          session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+          roles: [],
+          capabilities: ["CAPABILITY_SPACE_READ"],
+          capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_SPACE_READ" }] },
+          warnings: [],
+        }}
+      />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("Main")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  expect(screen.getAllByText("Read-only").length).toBeGreaterThan(0);
+});
+
 test("hides create action without space create capability", async () => {
   render(
     <MemoryRouter>

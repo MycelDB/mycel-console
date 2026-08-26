@@ -31,7 +31,7 @@ function renderPage(overrides: Partial<Parameters<typeof SemanticPage>[0]> = {})
 test("renders global semantic rule inventory, maintenance, and usage", async () => {
   const { listInferenceProfilesService } = renderPage();
 
-  expect(screen.getByRole("heading", { name: /semantic generation/i })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Semantic" })).toBeInTheDocument();
   expect(await screen.findByText("Page summary")).toBeInTheDocument();
   expect(screen.getByText(/45 tokens/i)).toBeInTheDocument();
   expect(screen.getAllByText(/Pending 1/i).length).toBeGreaterThan(0);

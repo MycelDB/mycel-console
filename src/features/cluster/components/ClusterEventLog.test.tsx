@@ -1,24 +1,35 @@
 import { render, screen } from "@testing-library/react";
-import { ClusterEventLog, clusterEventsFromState } from "./ClusterEventLog";
+import { ClusterEventLog } from "./ClusterEventLog";
+import type { ActivityEventInfo } from "../../../types/activity";
+
+const clusterEvent: ActivityEventInfo = {
+  eventId: "evt_cluster_1",
+  occurredAt: "1780000000",
+  ingestedAt: "1780000001",
+  severity: "info",
+  category: "cluster",
+  eventType: "cluster.node.joined",
+  message: "node-b joined the cluster",
+  source: "node-b",
+  actor: "",
+  resource: "node-b",
+  correlationId: "",
+};
 
 describe("ClusterEventLog", () => {
-  it("derives events from membership and topology snapshots", () => {
-    const events = clusterEventsFromState(
-      [
-        { nodeName: "node-b", state: "active", joinedAt: "2026-07-15T16:12:00Z" },
-        { nodeName: "node-c", state: "pending", tokenId: "join_tok_1", createdAt: "2026-07-15T16:13:00Z" },
-      ],
-      [{ backendAdvertiseAddr: "127.0.0.1:9095", nodeName: "node-d", state: "unreachable", source: "discovered", lastSeenAt: "2026-07-15T16:14:00Z" }],
-    );
+  it("renders cluster activity event rows", () => {
+    render(<ClusterEventLog events={[clusterEvent]} />);
 
-    expect(events.map((event) => event.type)).toEqual(["node_unreachable", "token_issued", "node_joined"]);
+    expect(screen.getByText("Cluster activity")).toBeInTheDocument();
+    expect(screen.getByText("cluster.node.joined")).toBeInTheDocument();
+    expect(screen.getByText("node-b joined the cluster")).toBeInTheDocument();
+    expect(screen.getByText("node-b")).toBeInTheDocument();
   });
 
-  it("renders event rows", () => {
-    render(<ClusterEventLog events={[{ id: "1", type: "node_joined", message: "node-b joined the cluster", time: "2026-07-15T16:12:00Z" }]} />);
+  it("renders unavailable and empty states", () => {
+    render(<ClusterEventLog events={[]} error="audit read denied" />);
 
-    expect(screen.getByText("Cluster Events")).toBeInTheDocument();
-    expect(screen.getByText("node_joined")).toBeInTheDocument();
-    expect(screen.getByText("node-b joined the cluster")).toBeInTheDocument();
+    expect(screen.getByText("audit read denied")).toBeInTheDocument();
+    expect(screen.getByText("No cluster activity events found.")).toBeInTheDocument();
   });
 });

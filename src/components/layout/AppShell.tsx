@@ -7,12 +7,20 @@ import { ClusterPage, NodeDetailPage } from "../../features/cluster";
 import { DashboardPage } from "../../features/dashboard/pages/DashboardPage";
 import { ActivityPage } from "../../features/activity/ActivityPage";
 import { AccessPage } from "../../features/intelligence/access";
+import { ModelsPage } from "../../features/intelligence/models";
 import { AutomationsPage } from "../../features/intelligence/automations";
 import { SemanticPage } from "../../features/intelligence/semantic";
+import { VectorStoresPage } from "../../features/intelligence/vector-stores";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
 import { UserDetailPage, UsersPage } from "../../features/users";
-import { Text } from "../typography";
-import { evaluateRequirements, navigationCapabilityState, requirement, type CapabilityRequirement, type ConsolePrincipalContext } from "../../features/console";
+import { Text, themeClasses } from "../typography";
+import {
+  evaluateRequirements,
+  navigationCapabilityState,
+  requirement,
+  type CapabilityRequirement,
+  type ConsolePrincipalContext,
+} from "../../features/console";
 import type { PrincipalSession } from "../../types/auth";
 import type { Theme } from "../../types/theme";
 
@@ -27,7 +35,15 @@ export type AppShellProps = {
   onLogout: () => void;
 };
 
-function RequireCapabilities({ principalContext, requirements, children }: { principalContext?: ConsolePrincipalContext | null; requirements: CapabilityRequirement[]; children: ReactNode }) {
+function RequireCapabilities({
+  principalContext,
+  requirements,
+  children,
+}: {
+  principalContext?: ConsolePrincipalContext | null;
+  requirements: CapabilityRequirement[];
+  children: ReactNode;
+}) {
   const state = navigationCapabilityState(principalContext);
   if (!evaluateRequirements(state, requirements).available) {
     return <Navigate to="/dashboard" replace />;
@@ -37,11 +53,25 @@ function RequireCapabilities({ principalContext, requirements, children }: { pri
 
 function PrincipalAccessRedirect() {
   const { principalId = "" } = useParams();
-  return <Navigate to={`/principals/${encodeURIComponent(principalId)}?tab=access`} replace />;
+  return (
+    <Navigate
+      to={`/principals/${encodeURIComponent(principalId)}?tab=access`}
+      replace
+    />
+  );
 }
 
-function RequireRaftCluster({ principalContext, children }: { principalContext?: ConsolePrincipalContext | null; children: ReactNode }) {
-  if (principalContext?.clusterRuntime && principalContext.clusterRuntime.engine !== "raft") {
+function RequireRaftCluster({
+  principalContext,
+  children,
+}: {
+  principalContext?: ConsolePrincipalContext | null;
+  children: ReactNode;
+}) {
+  if (
+    principalContext?.clusterRuntime &&
+    principalContext.clusterRuntime.engine !== "raft"
+  ) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
@@ -58,8 +88,17 @@ export function AppShell({
   onLogout,
 }: AppShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <Sidebar session={session} theme={theme} loggingOut={loggingOut} principalContext={principalContext} onToggleTheme={onToggleTheme} onLogout={onLogout} />
+    <div
+      className={`flex h-screen overflow-hidden ${themeClasses.surface.app} ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+    >
+      <Sidebar
+        session={session}
+        theme={theme}
+        loggingOut={loggingOut}
+        principalContext={principalContext}
+        onToggleTheme={onToggleTheme}
+        onLogout={onLogout}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         {logoutError && (
           <Text
@@ -73,24 +112,172 @@ export function AppShell({
         <main className="min-h-0 flex-1 overflow-y-auto p-6">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage session={session} principalContext={principalContext} />} />
+            <Route
+              path="/dashboard"
+              element={
+                <DashboardPage
+                  session={session}
+                  principalContext={principalContext}
+                />
+              }
+            />
             <Route path="/activity" element={<ActivityPage />} />
-            <Route path="/me" element={<AccountPage session={session} principalContext={principalContext} loading={principalContextLoading} />} />
-            <Route path="/principals" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UsersPage principalContext={principalContext} /></RequireCapabilities>} />
-            <Route path="/principals/:principalId" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("identity.principal.read")]}><UserDetailPage principalContext={principalContext} /></RequireCapabilities>} />
-            <Route path="/principals/:principalId/access" element={<PrincipalAccessRedirect />} />
-            <Route path="/access" element={<Navigate to="/principals" replace />} />
-            <Route path="/operators" element={<Navigate to="/principals" replace />} />
-            <Route path="/spaces" element={<SpacesPage principalContext={principalContext} />} />
-            <Route path="/spaces/:spaceId" element={<SpaceDetailPage principalContext={principalContext} />} />
-            <Route path="/backups" element={<BackupsPage principalContext={principalContext} />} />
-            <Route path="/cluster" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("cluster.read")]}><RequireRaftCluster principalContext={principalContext}><ClusterPage /></RequireRaftCluster></RequireCapabilities>} />
-            <Route path="/cluster/nodes/:nodeKey" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("cluster.read")]}><RequireRaftCluster principalContext={principalContext}><NodeDetailPage /></RequireRaftCluster></RequireCapabilities>} />
-            <Route path="/inference" element={<Navigate to="/intelligence/access" replace />} />
-            <Route path="/semantic" element={<Navigate to="/intelligence/semantic" replace />} />
-            <Route path="/intelligence/access" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("inference.catalog.read")]}><AccessPage principalContext={principalContext} /></RequireCapabilities>} />
-            <Route path="/intelligence/automations" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("automation.read"), requirement("space.read"), requirement("domain.read")]}><AutomationsPage principalContext={principalContext} /></RequireCapabilities>} />
-            <Route path="/intelligence/semantic" element={<RequireCapabilities principalContext={principalContext} requirements={[requirement("semantic.search"), requirement("space.read"), requirement("domain.read")]}><SemanticPage principalContext={principalContext} /></RequireCapabilities>} />
+            <Route
+              path="/me"
+              element={
+                <AccountPage
+                  session={session}
+                  principalContext={principalContext}
+                  loading={principalContextLoading}
+                />
+              }
+            />
+            <Route
+              path="/principals"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("identity.principal.read")]}
+                >
+                  <UsersPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/principals/:principalId"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("identity.principal.read")]}
+                >
+                  <UserDetailPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/principals/:principalId/access"
+              element={<PrincipalAccessRedirect />}
+            />
+            <Route
+              path="/access"
+              element={<Navigate to="/principals" replace />}
+            />
+            <Route
+              path="/operators"
+              element={<Navigate to="/principals" replace />}
+            />
+            <Route
+              path="/spaces"
+              element={<SpacesPage principalContext={principalContext} />}
+            />
+            <Route
+              path="/spaces/:spaceId"
+              element={<SpaceDetailPage principalContext={principalContext} />}
+            />
+            <Route
+              path="/backups"
+              element={<BackupsPage principalContext={principalContext} />}
+            />
+            <Route
+              path="/cluster"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("cluster.read")]}
+                >
+                  <RequireRaftCluster principalContext={principalContext}>
+                    <ClusterPage />
+                  </RequireRaftCluster>
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/cluster/nodes/:nodeKey"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("cluster.read")]}
+                >
+                  <RequireRaftCluster principalContext={principalContext}>
+                    <NodeDetailPage />
+                  </RequireRaftCluster>
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/inference"
+              element={<Navigate to="/intelligence/models" replace />}
+            />
+            <Route
+              path="/semantic"
+              element={<Navigate to="/intelligence/semantic" replace />}
+            />
+            <Route
+              path="/intelligence/access"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[
+                    requirement("inference.catalog.read"),
+                    requirement("inference.profile.read"),
+                  ]}
+                >
+                  <AccessPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/intelligence/models"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("inference.catalog.read")]}
+                >
+                  <ModelsPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/intelligence/vector-stores"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("inference.catalog.read")]}
+                >
+                  <VectorStoresPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/intelligence/automations"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[
+                    requirement("automation.read"),
+                    requirement("space.read"),
+                    requirement("domain.read"),
+                  ]}
+                >
+                  <AutomationsPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/intelligence/semantic"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[
+                    requirement("semantic.search"),
+                    requirement("space.read"),
+                    requirement("domain.read"),
+                  ]}
+                >
+                  <SemanticPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>

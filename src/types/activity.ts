@@ -26,7 +26,14 @@ export interface ActivityEventInfo {
   correlationId: string;
 }
 
+export interface ActivityEventSummaryInfo {
+  totalCount: number;
+  warningCount: number;
+  errorCount: number;
+}
+
 export interface ListActivityEventsResponseInfo {
   events: ActivityEventInfo[];
   nextPageToken: string;
+  summary?: ActivityEventSummaryInfo | null;
 }

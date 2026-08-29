@@ -1,7 +1,13 @@
-import type { CapabilityRequirement, FeatureAvailability, FeatureFallback, PrincipalCapabilityState } from "./capabilities";
+import type {
+  CapabilityRequirement,
+  FeatureAvailability,
+  FeatureFallback,
+  PrincipalCapabilityState,
+} from "./capabilities";
 import { featureAvailability } from "./capabilities";
 
-export type ConsoleNavGroup = "environment" | "data" | "intelligence" | "administration" | "operations";
+export type ConsoleNavGroup =
+  "environment" | "data" | "intelligence" | "administration" | "operations";
 
 export type ConsoleFeature = {
   id: string;
@@ -79,23 +85,52 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     order: 20,
   },
   {
-    id: "intelligence-access",
-    label: "Access",
-    route: "/intelligence/access",
+    id: "models",
+    label: "Models",
+    route: "/intelligence/models",
     navGroup: "intelligence",
     requirements: [{ capability: "inference.catalog.read" }],
     fallback: "hide",
-    description: "Model endpoints, models, credentials, grants, policies, profiles, vector stores, and usage.",
+    description: "Model endpoints, models, and package import history.",
     order: 10,
+  },
+  {
+    id: "model-access",
+    label: "Access",
+    route: "/intelligence/access",
+    navGroup: "intelligence",
+    requirements: [
+      { capability: "inference.catalog.read" },
+      { capability: "inference.profile.read" },
+    ],
+    fallback: "hide",
+    description:
+      "Provider credentials, credential grants, inference policies, and profiles.",
+    order: 15,
+  },
+  {
+    id: "vector-stores",
+    label: "Vector stores",
+    route: "/intelligence/vector-stores",
+    navGroup: "intelligence",
+    requirements: [{ capability: "inference.catalog.read" }],
+    fallback: "hide",
+    description: "Vector indexes used by semantic search and embeddings.",
+    order: 17,
   },
   {
     id: "automations",
     label: "Automations",
     route: "/intelligence/automations",
     navGroup: "intelligence",
-    requirements: [{ capability: "automation.read" }, { capability: "space.read" }, { capability: "domain.read" }],
+    requirements: [
+      { capability: "automation.read" },
+      { capability: "space.read" },
+      { capability: "domain.read" },
+    ],
     fallback: "hide",
-    description: "Graph automation inventory, run diagnostics, management, and token usage.",
+    description:
+      "Graph automation inventory, run diagnostics, management, and token usage.",
     order: 20,
   },
   {
@@ -103,12 +138,16 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     label: "Semantic",
     route: "/intelligence/semantic",
     navGroup: "intelligence",
-    requirements: [{ capability: "semantic.search" }, { capability: "space.read" }, { capability: "domain.read" }],
+    requirements: [
+      { capability: "semantic.search" },
+      { capability: "space.read" },
+      { capability: "domain.read" },
+    ],
     fallback: "hide",
-    description: "Semantic generation rules, indexes, maintenance, and token usage.",
+    description:
+      "Semantic generation rules, indexes, maintenance, and token usage.",
     order: 30,
   },
-
 ];
 
 export function featuresWithAvailability(
@@ -117,10 +156,19 @@ export function featuresWithAvailability(
 ): FeatureWithAvailability[] {
   return features.map((feature) => ({
     ...feature,
-    availability: featureAvailability(state, feature.requirements, feature.fallback),
+    availability: featureAvailability(
+      state,
+      feature.requirements,
+      feature.fallback,
+    ),
   }));
 }
 
-export function visibleFeatures(features: ConsoleFeature[], state: PrincipalCapabilityState): FeatureWithAvailability[] {
-  return featuresWithAvailability(features, state).filter((feature) => feature.availability !== "hidden");
+export function visibleFeatures(
+  features: ConsoleFeature[],
+  state: PrincipalCapabilityState,
+): FeatureWithAvailability[] {
+  return featuresWithAvailability(features, state).filter(
+    (feature) => feature.availability !== "hidden",
+  );
 }

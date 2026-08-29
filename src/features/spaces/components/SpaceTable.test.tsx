@@ -14,14 +14,21 @@ test("renders space rows", () => {
       <SpaceTable
         spaces={[
           { spaceId: "sp_main", name: "Main", state: "SPACE_STATE_ACTIVE" },
-          { spaceId: "sp_archive", name: "Archive", state: "SPACE_STATE_ARCHIVED" },
+          {
+            spaceId: "sp_archive",
+            name: "Archive",
+            state: "SPACE_STATE_ARCHIVED",
+          },
         ]}
       />
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("link", { name: "Main" })).toHaveAttribute("href", "/spaces/sp_main");
-  expect(screen.getByText("sp_main")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Main" })).toHaveAttribute(
+    "href",
+    "/spaces/sp_main",
+  );
+  expect(screen.getByTitle("sp_main")).toBeInTheDocument();
   expect(screen.getByText("Active")).toBeInTheDocument();
   expect(screen.getByText("Archive")).toBeInTheDocument();
   expect(screen.getByText("Archived")).toBeInTheDocument();

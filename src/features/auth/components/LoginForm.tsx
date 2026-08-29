@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text,
+  themeClasses,
+} from "../../../components/typography";
 import { consoleBranding } from "../../console";
 import type { AppError, ConnectionDiagnosticsResponse, LoginInput } from "../../../types/auth";
 import { readLoginHints } from "../loginHints";
@@ -96,12 +98,12 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, notice =
 
       {diagnostics && (
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
-          <Text as="p" className="font-medium text-slate-900 dark:text-slate-100">Connection diagnostics</Text>
+          <Text as="p" className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>Connection diagnostics</Text>
           <dl className="mt-3 space-y-2">
             {diagnostics.checks.map((check) => (
               <div key={check.id}>
-                <dt className="font-medium text-slate-900 dark:text-slate-100">{statusIcon(check.status)} {check.label}</dt>
-                <dd className="mt-0.5 text-slate-600 dark:text-slate-400">{check.detail}</dd>
+                <dt className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>{statusIcon(check.status)} {check.label}</dt>
+                <dd className={`mt-0.5 ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}>{check.detail}</dd>
               </div>
             ))}
           </dl>

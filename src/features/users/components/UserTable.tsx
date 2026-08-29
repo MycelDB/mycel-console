@@ -1,7 +1,18 @@
-import { Link } from "react-router-dom";
-import { Text } from "../../../components/typography";
+import {
+  Button,
+  PrincipalLabel,
+  ResourceIdText,
+  Text,
+  themeClasses,
+  TableHead,
+} from "../../../components/typography";
 import type { PrincipalInfo } from "../../../types/users";
-import { isPrincipalActive, isPrincipalDeleted, isPrincipalDisabled, principalIdOf } from "../../../types/users";
+import {
+  isPrincipalActive,
+  isPrincipalDeleted,
+  isPrincipalDisabled,
+  principalIdOf,
+} from "../../../types/users";
 import { UserStateBadge } from "./UserStateBadge";
 
 export type UserTableProps = {
@@ -24,10 +35,10 @@ export function UserTable({
   if (users.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 p-8 text-center">
-        <Text as="p" className="font-medium text-slate-900 dark:text-slate-100">
+        <Text as="p" className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>
           No principals found
         </Text>
-        <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
+        <Text intent="muted" size="sm" className="mt-2">
           Adjust filters or refresh after creating principals.
         </Text>
       </div>
@@ -35,38 +46,62 @@ export function UserTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70">
+    <div
+      className={`overflow-hidden rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel}`}
+    >
       <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
         <thead className="bg-slate-50 dark:bg-slate-950/40">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Username</th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Principal ID</th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">State</th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Actions</th>
+            <TableHead className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}>
+              Principal
+            </TableHead>
+            <TableHead className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}>
+              Identifier
+            </TableHead>
+            <TableHead className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}>
+              State
+            </TableHead>
+            <TableHead className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}>
+              Actions
+            </TableHead>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
           {users.map((user) => {
             const principalId = principalIdOf(user);
             return (
-              <tr key={principalId} className="hover:bg-slate-100 dark:hover:bg-slate-800/40">
-                <td className="px-4 py-3 font-medium">
-                  <Link className="text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={`/principals/${encodeURIComponent(principalId)}`}>
-                    {user.username}
-                  </Link>
+              <tr
+                key={principalId}
+                className="hover:bg-slate-100 dark:hover:bg-slate-800/40"
+              >
+                <td className="px-4 py-3">
+                  <PrincipalLabel
+                    principalId={principalId}
+                    username={user.username}
+                    displayName={user.displayName}
+                    link
+                    showId={false}
+                  />
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">{principalId}</td>
-                <td className="px-4 py-3"><UserStateBadge state={user.state} /></td>
+                <td className="px-4 py-3">
+                  <ResourceIdText value={principalId} />
+                </td>
+                <td className="px-4 py-3">
+                  <UserStateBadge state={user.state} />
+                </td>
                 <td className="px-4 py-3 text-sm">
                   <div className="flex flex-wrap gap-2">
                     {isPrincipalActive(user) && onDisableUser && (
-                      <button
-                        className="rounded px-2 py-1 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/50"
+                      <Button
+                        type="button"
+                        variant="secondary"
                         onClick={() => onDisableUser(user)}
                         disabled={actionLoadingUserId === principalId}
                       >
-                        {actionLoadingUserId === principalId ? "Working…" : "Disable"}
-                      </button>
+                        {actionLoadingUserId === principalId
+                          ? "Working…"
+                          : "Disable"}
+                      </Button>
                     )}
                     {isPrincipalDisabled(user) && onEnableUser && (
                       <button
@@ -74,7 +109,9 @@ export function UserTable({
                         onClick={() => onEnableUser(user)}
                         disabled={actionLoadingUserId === principalId}
                       >
-                        {actionLoadingUserId === principalId ? "Working…" : "Enable"}
+                        {actionLoadingUserId === principalId
+                          ? "Working…"
+                          : "Enable"}
                       </button>
                     )}
                     {!isPrincipalDeleted(user) && onSetPassword && (
@@ -95,7 +132,9 @@ export function UserTable({
                         Delete
                       </button>
                     )}
-                    {isPrincipalDeleted(user) && <span className="text-slate-500">No actions</span>}
+                    {isPrincipalDeleted(user) && (
+                      <span className={`${themeClasses.text.parts.mutedLight}`}>No actions</span>
+                    )}
                   </div>
                 </td>
               </tr>

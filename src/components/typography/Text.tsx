@@ -9,6 +9,10 @@ const textVariants = cva("", {
       primary: themeClasses.text.primary,
       muted: themeClasses.text.muted,
       subtle: themeClasses.text.subtle,
+      secondary: themeClasses.text.secondary,
+      body: themeClasses.text.body,
+      strong: themeClasses.text.strong,
+      heading: themeClasses.text.heading,
       danger: themeClasses.text.danger,
       inverse: themeClasses.text.inverse,
     },
@@ -30,6 +34,17 @@ type TextProps = HTMLAttributes<HTMLElement> &
     as?: ElementType;
   };
 
-export function Text({ as: Component = "p", intent, size, className, ...props }: TextProps) {
-  return <Component className={twMerge(textVariants({ intent, size }), className)} {...props} />;
+export function Text({
+  as: Component = "p",
+  intent,
+  size,
+  className,
+  ...props
+}: TextProps) {
+  return (
+    <Component
+      className={twMerge(textVariants({ intent, size }), className)}
+      {...props}
+    />
+  );
 }

@@ -1,4 +1,10 @@
-import { Input, Label, Select, Text } from "../../../components/typography";
+import {
+  Input,
+  Label,
+  Select,
+  Text,
+  themeClasses,
+} from "../../../components/typography";
 import type { PrincipalState } from "../../../types/users";
 
 export type UserStateFilter = "all" | PrincipalState;
@@ -15,8 +21,14 @@ export type UserFiltersProps = {
 
 export function UserFilters({ value, onChange }: UserFiltersProps) {
   return (
-    <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-4">
-      <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">
+    <section
+      className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4`}
+    >
+      <Text
+        as="p"
+        size="sm"
+        className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+      >
         Filters
       </Text>
       <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
@@ -28,14 +40,18 @@ export function UserFilters({ value, onChange }: UserFiltersProps) {
             value={value.query}
             autoCapitalize="none"
             spellCheck={false}
-            onChange={(event) => onChange({ ...value, query: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...value, query: event.target.value })
+            }
           />
         </div>
         <div>
           <Select
             label="State"
             value={value.state}
-            onChange={(state) => onChange({ ...value, state: state as UserStateFilter })}
+            onChange={(state) =>
+              onChange({ ...value, state: state as UserStateFilter })
+            }
             options={[
               { value: "all", label: "All states" },
               { value: "PRINCIPAL_STATE_ACTIVE", label: "Active" },

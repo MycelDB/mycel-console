@@ -1,5 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
+import {
+  Alert,
+  Button,
+  Form,
+  H2,
+  Input,
+  Label,
+  ResourceIdText,
+  Text,
+  themeClasses,
+} from "../../../components/typography";
 import type { DeletePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
@@ -10,7 +20,12 @@ export type DeleteUserDialogProps = {
   onDeleted: (user: PrincipalInfo) => void;
 };
 
-export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteUserDialogProps) {
+export function DeleteUserDialog({
+  user,
+  onClose,
+  onDelete,
+  onDeleted,
+}: DeleteUserDialogProps) {
   const [confirmation, setConfirmation] = useState("");
   const [revokeSessions, setRevokeSessions] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -44,7 +59,10 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
 
     setLoading(true);
     try {
-      const deleted = await onDelete({ principalId: principalIdOf(currentUser), revokeSessions });
+      const deleted = await onDelete({
+        principalId: principalIdOf(currentUser),
+        revokeSessions,
+      });
       onDeleted(deleted);
       reset();
       onClose();
@@ -57,20 +75,29 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
-      <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
+      <Form
+        className="w-full max-w-md p-6"
+        onSubmit={(event) => void handleSubmit(event)}
+      >
         <H2>Delete principal</H2>
-        <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
-          This will delete <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span>. This action is destructive.
+        <Text intent="muted" size="sm" className="mt-2">
+          This will delete{" "}
+          <span className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>
+            {user.username}
+          </span>
+          . This action is destructive.
         </Text>
 
         {error && <Alert className="mt-4">{error}</Alert>}
 
         <div className="mt-5 rounded-lg border border-red-500/30 bg-red-950/30 p-3">
           <Text size="sm" className="text-red-200">
-            Type <span className="font-mono font-semibold">{user.username}</span> to confirm.
+            Type{" "}
+            <span className="font-mono font-semibold">{user.username}</span> to
+            confirm.
           </Text>
-          <Text intent="muted" size="xs" className="mt-1 text-slate-600 dark:text-slate-400">
-            Principal ID: {principalIdOf(user)}
+          <Text intent="muted" size="xs" className="mt-1">
+            Principal ID: <ResourceIdText value={principalIdOf(user)} />
           </Text>
         </div>
 
@@ -85,7 +112,7 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
           autoFocus
         />
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label className={`mt-4 flex items-center gap-2 text-sm ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}>
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
@@ -97,10 +124,17 @@ export function DeleteUserDialog({ user, onClose, onDelete, onDeleted }: DeleteU
         </label>
 
         <div className="mt-6 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleClose}
+            disabled={loading}
+          >
             Cancel
           </Button>
-          <Button disabled={loading || !confirmed}>{loading ? "Deleting…" : "Delete principal"}</Button>
+          <Button disabled={loading || !confirmed}>
+            {loading ? "Deleting…" : "Delete principal"}
+          </Button>
         </div>
       </Form>
     </div>

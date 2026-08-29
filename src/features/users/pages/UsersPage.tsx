@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
-import { Button, Alert, Text } from "../../../components/typography";
+import {
+  Button,
+  Alert,
+  Text,
+  themeClasses,
+} from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import { principalIdOf } from "../../../types/users";
 import {
@@ -21,7 +26,10 @@ import type {
   PrincipalInfo,
   SetPrincipalPasswordInput,
 } from "../../../types/users";
-import type { CreateSpaceInput, CreateSpaceResponse } from "../../../types/spaces";
+import type {
+  CreateSpaceInput,
+  CreateSpaceResponse,
+} from "../../../types/spaces";
 import { CreateUserModal } from "../components/CreateUserModal";
 import { DeleteUserDialog } from "../components/DeleteUserDialog";
 import { DisableUserDialog } from "../components/DisableUserDialog";
@@ -35,13 +43,25 @@ const defaultFilters: UserFiltersValue = {
 };
 
 export type UsersPageProps = {
-  listPrincipalsService?: (input: ListPrincipalsInput) => Promise<ListPrincipalsResponse>;
-  createPrincipalService?: (input: CreatePrincipalInput) => Promise<PrincipalInfo>;
-  createSpaceService?: (input: CreateSpaceInput) => Promise<CreateSpaceResponse>;
-  disablePrincipalService?: (input: DisablePrincipalInput) => Promise<PrincipalInfo>;
+  listPrincipalsService?: (
+    input: ListPrincipalsInput,
+  ) => Promise<ListPrincipalsResponse>;
+  createPrincipalService?: (
+    input: CreatePrincipalInput,
+  ) => Promise<PrincipalInfo>;
+  createSpaceService?: (
+    input: CreateSpaceInput,
+  ) => Promise<CreateSpaceResponse>;
+  disablePrincipalService?: (
+    input: DisablePrincipalInput,
+  ) => Promise<PrincipalInfo>;
   enablePrincipalService?: (principalId: string) => Promise<PrincipalInfo>;
-  deletePrincipalService?: (input: DeletePrincipalInput) => Promise<PrincipalInfo>;
-  setPrincipalPasswordService?: (input: SetPrincipalPasswordInput) => Promise<PrincipalInfo>;
+  deletePrincipalService?: (
+    input: DeletePrincipalInput,
+  ) => Promise<PrincipalInfo>;
+  setPrincipalPasswordService?: (
+    input: SetPrincipalPasswordInput,
+  ) => Promise<PrincipalInfo>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
@@ -68,7 +88,10 @@ export function UsersPage({
   const [actionLoadingUserId, setActionLoadingUserId] = useState("");
 
   const loadUsers = useCallback(
-    async ({ append = false, pageToken = "" }: { append?: boolean; pageToken?: string } = {}) => {
+    async ({
+      append = false,
+      pageToken = "",
+    }: { append?: boolean; pageToken?: string } = {}) => {
       setError("");
       if (append) setLoadingMore(true);
       else setLoading(true);
@@ -80,10 +103,14 @@ export function UsersPage({
           includeDisabled: true,
           includeDeleted: true,
         });
-        setUsers((current) => (append ? [...current, ...response.principals] : response.principals));
+        setUsers((current) =>
+          append ? [...current, ...response.principals] : response.principals,
+        );
         setNextPageToken(response.nextPageToken);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load principals");
+        setError(
+          err instanceof Error ? err.message : "Failed to load principals",
+        );
       } finally {
         if (append) setLoadingMore(false);
         else setLoading(false);
@@ -98,7 +125,11 @@ export function UsersPage({
 
   function replaceUser(updatedUser: PrincipalInfo) {
     const updatedPrincipalId = principalIdOf(updatedUser);
-    setUsers((current) => current.map((user) => (principalIdOf(user) === updatedPrincipalId ? updatedUser : user)));
+    setUsers((current) =>
+      current.map((user) =>
+        principalIdOf(user) === updatedPrincipalId ? updatedUser : user,
+      ),
+    );
   }
 
   function removeOrReplaceDeletedUser(updatedUser: PrincipalInfo) {
@@ -119,10 +150,22 @@ export function UsersPage({
     }
   }
 
-  const canCreatePrincipal = canUseCapability(principalContext, "identity.principal.create");
-  const canCreatePersonalSpace = canUseCapability(principalContext, "space.create");
-  const canUpdatePrincipal = canUseCapability(principalContext, "identity.principal.update");
-  const canSetCredential = canUseCapability(principalContext, "identity.credential.set");
+  const canCreatePrincipal = canUseCapability(
+    principalContext,
+    "identity.principal.create",
+  );
+  const canCreatePersonalSpace = canUseCapability(
+    principalContext,
+    "space.create",
+  );
+  const canUpdatePrincipal = canUseCapability(
+    principalContext,
+    "identity.principal.update",
+  );
+  const canSetCredential = canUseCapability(
+    principalContext,
+    "identity.credential.set",
+  );
 
   const filteredUsers = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
@@ -141,9 +184,13 @@ export function UsersPage({
         eyebrow="Administration"
         title="Principals"
         description="Inspect human principals and prepare for principal lifecycle operations."
-        actions={(
+        actions={
           <>
-            <Button variant="secondary" onClick={() => void loadUsers()} disabled={loading || loadingMore}>
+            <Button
+              variant="secondary"
+              onClick={() => void loadUsers()}
+              disabled={loading || loadingMore}
+            >
               Refresh
             </Button>
             {canCreatePrincipal && (
@@ -152,7 +199,7 @@ export function UsersPage({
               </Button>
             )}
           </>
-        )}
+        }
       />
 
       <UserFilters value={filters} onChange={setFilters} />
@@ -160,23 +207,28 @@ export function UsersPage({
       {error && <Alert>{error}</Alert>}
 
       {!loading && (
-        <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">
-          Showing {filteredUsers.length} of {users.length} loaded principal{users.length === 1 ? "" : "s"}.
+        <Text intent="muted" size="sm">
+          Showing {filteredUsers.length} of {users.length} loaded principal
+          {users.length === 1 ? "" : "s"}.
         </Text>
       )}
 
       {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-8 text-center">
-          <Text intent="muted" className="text-slate-600 dark:text-slate-400">
-            Loading principals…
-          </Text>
+        <div
+          className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-8 text-center`}
+        >
+          <Text intent="muted">Loading principals…</Text>
         </div>
       ) : (
         <>
           <UserTable
             users={filteredUsers}
             onDisableUser={canUpdatePrincipal ? setDisableUser : undefined}
-            onEnableUser={canUpdatePrincipal ? (user) => void handleEnableUser(user) : undefined}
+            onEnableUser={
+              canUpdatePrincipal
+                ? (user) => void handleEnableUser(user)
+                : undefined
+            }
             onDeleteUser={canUpdatePrincipal ? setDeleteUser : undefined}
             onSetPassword={canSetCredential ? setPasswordUser : undefined}
             actionLoadingUserId={actionLoadingUserId}
@@ -185,7 +237,9 @@ export function UsersPage({
             <div className="flex justify-center">
               <Button
                 variant="secondary"
-                onClick={() => void loadUsers({ append: true, pageToken: nextPageToken })}
+                onClick={() =>
+                  void loadUsers({ append: true, pageToken: nextPageToken })
+                }
                 disabled={loadingMore}
               >
                 {loadingMore ? "Loading more…" : "Load more"}

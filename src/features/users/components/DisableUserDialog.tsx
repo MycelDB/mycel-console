@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
+import { Button, Alert, Form, H2, Input, Label, Text,
+  themeClasses,
+} from "../../../components/typography";
 import type { DisablePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
@@ -56,8 +58,8 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
       <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
         <H2>Disable principal</H2>
-        <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
-          Disable principal <span className="font-medium text-slate-900 dark:text-slate-100">{user.username}</span> and optionally revoke active sessions.
+        <Text intent="muted" size="sm" className="mt-2">
+          Disable principal <span className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>{user.username}</span> and optionally revoke active sessions.
         </Text>
 
         {error && <Alert className="mt-4">{error}</Alert>}
@@ -73,7 +75,7 @@ export function DisableUserDialog({ user, onClose, onDisable, onDisabled }: Disa
           autoFocus
         />
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label className={`mt-4 flex items-center gap-2 text-sm ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}>
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"

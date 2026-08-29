@@ -25,11 +25,15 @@ test("renders inference package accounting rows", () => {
 
   expect(screen.getByText("standard-openai-chat")).toBeInTheDocument();
   expect(screen.getByText("2026-06")).toBeInTheDocument();
-  expect(screen.getByText("examples/inference/standard-openai-chat.json")).toBeInTheDocument();
-  expect(screen.getByText(/model_endpoints: 1/)).toBeInTheDocument();
-  expect(screen.getByText(/models: 2/)).toBeInTheDocument();
-  expect(screen.getByText(/vector_stores: 1/)).toBeInTheDocument();
-  expect(screen.getByText(/model_endpoint_capabilities: 2/)).toBeInTheDocument();
+  expect(
+    screen.getByText("examples/inference/standard-openai-chat.json"),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/Model Endpoints: 1/)).toBeInTheDocument();
+  expect(screen.getByText(/Models: 2/)).toBeInTheDocument();
+  expect(screen.getByText(/Vector Stores: 1/)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Model Endpoint Capabilities: 2/),
+  ).toBeInTheDocument();
   expect(screen.getByText("2026-07-06 20:00:00 UTC")).toBeInTheDocument();
   expect(screen.getByText("admin")).toBeInTheDocument();
   expect(screen.getByText("abc123")).toBeInTheDocument();
@@ -38,13 +42,19 @@ test("renders inference package accounting rows", () => {
 test("renders empty package accounting state", () => {
   render(<InferencePackageTable packages={[]} />);
 
-  expect(screen.getByText(/no inference packages imported yet/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(/no inference packages imported yet/i),
+  ).toBeInTheDocument();
   expect(screen.getByText(/import a package json file/i)).toBeInTheDocument();
 });
 
 test("does not render package uninstall or delete actions", () => {
   render(<InferencePackageTable packages={packages} />);
 
-  expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /uninstall/i })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /delete/i }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /uninstall/i }),
+  ).not.toBeInTheDocument();
 });

@@ -30,7 +30,7 @@ const policy: BackupPolicyInfo = {
 const status: BackupStatusResponse = {
   status: {
     backupId: "backup-1",
-    state: "succeeded",
+    state: "Succeeded",
     startedAt: "2026-07-06T20:00:00Z",
     completedAt: "2026-07-06T20:00:10Z",
     archivePath: "/data/mycel/backups/backup-1.tar.zst",
@@ -59,13 +59,25 @@ const backupsResponse: ListBackupsResponse = {
   nextPageToken: "",
 };
 
-function renderPage(overrides: Partial<Parameters<typeof BackupsPage>[0]> = {}) {
+function renderPage(
+  overrides: Partial<Parameters<typeof BackupsPage>[0]> = {},
+) {
   const services = {
-    getBackupPolicyService: jest.fn<Promise<BackupPolicyInfo>, []>().mockResolvedValue(policy),
-    updateBackupPolicyService: jest.fn<Promise<BackupPolicyInfo>, [BackupPolicyInfo]>().mockResolvedValue(policy),
-    getBackupStatusService: jest.fn<Promise<BackupStatusResponse>, []>().mockResolvedValue(status),
-    listBackupsService: jest.fn<Promise<ListBackupsResponse>, [ListBackupsInput | undefined]>().mockResolvedValue(backupsResponse),
-    triggerBackupService: jest.fn().mockResolvedValue({ status: null, backup: null }),
+    getBackupPolicyService: jest
+      .fn<Promise<BackupPolicyInfo>, []>()
+      .mockResolvedValue(policy),
+    updateBackupPolicyService: jest
+      .fn<Promise<BackupPolicyInfo>, [BackupPolicyInfo]>()
+      .mockResolvedValue(policy),
+    getBackupStatusService: jest
+      .fn<Promise<BackupStatusResponse>, []>()
+      .mockResolvedValue(status),
+    listBackupsService: jest
+      .fn<Promise<ListBackupsResponse>, [ListBackupsInput | undefined]>()
+      .mockResolvedValue(backupsResponse),
+    triggerBackupService: jest
+      .fn()
+      .mockResolvedValue({ status: null, backup: null }),
     deleteBackupService: jest.fn().mockResolvedValue({ backupId: "backup-1" }),
     ...overrides,
   };
@@ -74,21 +86,24 @@ function renderPage(overrides: Partial<Parameters<typeof BackupsPage>[0]> = {}) 
 }
 
 async function openPolicyTab() {
-  await screen.findByText("succeeded");
+  await screen.findByText("Succeeded");
   await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
 }
 
 async function openOverviewTab() {
   await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
-  await screen.findByText("succeeded");
+  await screen.findByText("Succeeded");
 }
 
 test("renders overview and policy tabs", async () => {
   renderPage();
 
   expect(screen.getByText(/loading backups/i)).toBeInTheDocument();
-  expect(await screen.findByText("succeeded")).toBeInTheDocument();
-  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  expect(await screen.findByText("Succeeded")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   expect(screen.queryByRole("tab", { name: "Files" })).not.toBeInTheDocument();
   expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.getByText("2.0 KB")).toBeInTheDocument();
@@ -119,8 +134,12 @@ test("updates archive format and weekly schedule fields", async () => {
   const services = renderPage();
 
   await openPolicyTab();
-  const [archiveFormatSelect, scheduleKindSelect] = screen.getAllByRole("combobox");
-  await userEvent.selectOptions(archiveFormatSelect, "BACKUP_ARCHIVE_FORMAT_ZIP");
+  const [archiveFormatSelect, scheduleKindSelect] =
+    screen.getAllByRole("combobox");
+  await userEvent.selectOptions(
+    archiveFormatSelect,
+    "BACKUP_ARCHIVE_FORMAT_ZIP",
+  );
   await userEvent.selectOptions(scheduleKindSelect, "weekly");
   await userEvent.click(screen.getByLabelText("Mon"));
   await userEvent.click(screen.getByLabelText("Wed"));
@@ -141,40 +160,63 @@ test("renders field hints for obscure backup settings", async () => {
 
   await openPolicyTab();
 
-  expect(screen.getByRole("button", { name: /backup directory help/i })).toBeInTheDocument();
-  expect(screen.getByText(/filesystem path on the mycel daemon/i)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /archive format help/i })).toBeInTheDocument();
-  expect(screen.getByText(/backup archive\/container format/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /backup directory help/i }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/filesystem path on the mycel daemon/i),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /archive format help/i }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/backup archive\/container format/i),
+  ).toBeInTheDocument();
 });
 
 test("keeps backup data readable while hiding mutation actions without backup manage capability", async () => {
   renderPage({
     principalContext: {
-      session: { addr: "127.0.0.1:19091", principalId: "prn_reader", username: "reader" },
+      session: {
+        addr: "127.0.0.1:19091",
+        principalId: "prn_reader",
+        username: "reader",
+      },
       roles: [],
       capabilities: ["CAPABILITY_BACKUP_READ"],
-      capabilityState: { kind: "complete", capabilities: [{ capability: "CAPABILITY_BACKUP_READ" }] },
+      capabilityState: {
+        kind: "complete",
+        capabilities: [{ capability: "CAPABILITY_BACKUP_READ" }],
+      },
       warnings: [],
     },
   });
 
-  expect(await screen.findByText("succeeded")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /trigger backup/i })).not.toBeInTheDocument();
+  expect(await screen.findByText("Succeeded")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /trigger backup/i }),
+  ).not.toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("tab", { name: "Policy" }));
-  expect(screen.queryByRole("button", { name: /save policy/i })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /save policy/i }),
+  ).not.toBeInTheDocument();
   expect(screen.getByDisplayValue("/data/mycel/backups")).toBeDisabled();
 
   await openOverviewTab();
   expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Delete" }),
+  ).not.toBeInTheDocument();
 });
 
 test("triggers a manual backup and refreshes", async () => {
   const services = renderPage();
 
-  await screen.findByText("succeeded");
-  await userEvent.click(screen.getByRole("button", { name: /trigger backup/i }));
+  await screen.findByText("Succeeded");
+  await userEvent.click(
+    screen.getByRole("button", { name: /trigger backup/i }),
+  );
 
   await waitFor(() =>
     expect(services.triggerBackupService).toHaveBeenCalledWith({
@@ -190,8 +232,12 @@ test("opens a delete confirmation dialog", async () => {
   await screen.findByText("backup-1.tar.zst");
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-  expect(screen.getByRole("heading", { name: /confirm delete/i })).toBeInTheDocument();
-  expect(screen.getByText(/removes the backup archive and manifest/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: /confirm delete/i }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/removes the backup archive and manifest/i),
+  ).toBeInTheDocument();
 });
 
 test("deletes a backup after confirmation and refreshes from the daemon", async () => {
@@ -205,14 +251,24 @@ test("deletes a backup after confirmation and refreshes from the daemon", async 
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
   await userEvent.click(screen.getByRole("button", { name: /delete backup/i }));
 
-  await waitFor(() => expect(services.deleteBackupService).toHaveBeenCalledWith("backup-1"));
-  expect(await screen.findByText(/backup deleted: backup-1/i)).toBeInTheDocument();
+  await waitFor(() =>
+    expect(services.deleteBackupService).toHaveBeenCalledWith("backup-1"),
+  );
+  expect(
+    await screen.findByText(/backup deleted: backup-1/i),
+  ).toBeInTheDocument();
   expect(screen.queryByText("backup-1.tar.zst")).not.toBeInTheDocument();
   expect(listBackupsService).toHaveBeenCalledTimes(2);
 });
 
 test("renders backend errors", async () => {
-  renderPage({ getBackupPolicyService: jest.fn().mockRejectedValue(new Error("Backup policy unavailable")) });
+  renderPage({
+    getBackupPolicyService: jest
+      .fn()
+      .mockRejectedValue(new Error("Backup policy unavailable")),
+  });
 
-  expect(await screen.findByRole("alert")).toHaveTextContent("Backup policy unavailable");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Backup policy unavailable",
+  );
 });

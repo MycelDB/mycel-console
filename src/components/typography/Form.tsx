@@ -19,5 +19,10 @@ type FormProps = FormHTMLAttributes<HTMLFormElement> &
   VariantProps<typeof formVariants>;
 
 export function Form({ surface, className, ...props }: FormProps) {
-  return <form className={twMerge(formVariants({ surface }), className)} {...props} />;
+  return (
+    <form
+      className={twMerge(formVariants({ surface }), className)}
+      {...props}
+    />
+  );
 }

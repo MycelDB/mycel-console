@@ -13,15 +13,26 @@ test("renders principal rows", () => {
     <MemoryRouter>
       <UserTable
         users={[
-          { principalId: "prn_alice", username: "alice", state: "PRINCIPAL_STATE_ACTIVE" },
-          { principalId: "prn_disabled", username: "disabled", state: "PRINCIPAL_STATE_DISABLED" },
+          {
+            principalId: "prn_alice",
+            username: "alice",
+            state: "PRINCIPAL_STATE_ACTIVE",
+          },
+          {
+            principalId: "prn_disabled",
+            username: "disabled",
+            state: "PRINCIPAL_STATE_DISABLED",
+          },
         ]}
       />
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/principals/prn_alice");
-  expect(screen.getByText("prn_alice")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute(
+    "href",
+    "/principals/prn_alice",
+  );
+  expect(screen.getByTitle("prn_alice")).toBeInTheDocument();
   expect(screen.getByText("Active")).toBeInTheDocument();
   expect(screen.getByText("disabled")).toBeInTheDocument();
   expect(screen.getByText("Disabled")).toBeInTheDocument();

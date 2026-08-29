@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Text, TextLink } from "../typography";
 
 export interface PageHeaderProps {
   eyebrow: string;
@@ -14,23 +14,46 @@ export interface PageHeaderProps {
   className?: string;
 }
 
-export function PageHeader({ eyebrow, title, description, actions, badge, backLink, className = "" }: PageHeaderProps) {
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+  badge,
+  backLink,
+  className = "",
+}: PageHeaderProps) {
   return (
-    <div className={`flex flex-wrap items-start justify-between gap-4 ${className}`.trim()}>
+    <div
+      className={`flex flex-wrap items-start justify-between gap-4 ${className}`.trim()}
+    >
       <div>
         {backLink ? (
-          <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to={backLink.to}>
-            {backLink.label}
-          </Link>
+          <TextLink to={backLink.to}>{backLink.label}</TextLink>
         ) : null}
-        <p className={`${backLink ? "mt-4 " : ""}text-sm font-medium uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400`}>
+        <Text
+          as="p"
+          intent="muted"
+          size="sm"
+          className={`${backLink ? "mt-4 " : ""}font-medium uppercase tracking-[0.3em]`}
+        >
           {eyebrow}
-        </p>
+        </Text>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">{title}</h1>
+          <Text
+            as="h1"
+            intent="primary"
+            className="text-3xl font-semibold tracking-tight"
+          >
+            {title}
+          </Text>
           {badge}
         </div>
-        {description ? <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">{description}</p> : null}
+        {description ? (
+          <Text as="p" intent="subtle" size="sm" className="mt-2 max-w-3xl">
+            {description}
+          </Text>
+        ) : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>

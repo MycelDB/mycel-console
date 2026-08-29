@@ -1,16 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Alert, Text } from "../../../components/typography";
-import { listActivityEvents as defaultListActivityEvents, normalizeAppError } from "../../../services/adminService";
-import type { ActivityEventInfo, ListActivityEventsInput, ListActivityEventsResponseInfo } from "../../../types/activity";
+import {
+  Alert,
+  formatEnumLabel,
+  ResourceIdText,
+  Text,
+  TextLink,
+  themeClasses,
+} from "../../../components/typography";
+import {
+  listActivityEvents as defaultListActivityEvents,
+  normalizeAppError,
+} from "../../../services/adminService";
+import type {
+  ActivityEventInfo,
+  ListActivityEventsInput,
+  ListActivityEventsResponseInfo,
+} from "../../../types/activity";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 
 export type LatestActivityCardProps = {
   principalContext?: ConsolePrincipalContext | null;
-  listActivityEventsService?: (input?: ListActivityEventsInput) => Promise<ListActivityEventsResponseInfo>;
+  listActivityEventsService?: (
+    input?: ListActivityEventsInput,
+  ) => Promise<ListActivityEventsResponseInfo>;
 };
 
-export function LatestActivityCard({ principalContext, listActivityEventsService = defaultListActivityEvents }: LatestActivityCardProps) {
+export function LatestActivityCard({
+  principalContext,
+  listActivityEventsService = defaultListActivityEvents,
+}: LatestActivityCardProps) {
   const canReadActivity = canUseCapability(principalContext, "audit.read");
   const [events, setEvents] = useState<ActivityEventInfo[]>([]);
   const [loading, setLoading] = useState(canReadActivity);
@@ -26,40 +44,66 @@ export function LatestActivityCard({ principalContext, listActivityEventsService
         const response = await listActivityEventsService({ pageSize: 10 });
         if (!cancelled) setEvents(response.events);
       } catch (err) {
-        if (!cancelled) setError(normalizeAppError(err, "Latest activity unavailable").message);
+        if (!cancelled)
+          setError(
+            normalizeAppError(err, "Latest activity unavailable").message,
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canReadActivity, listActivityEventsService]);
 
-  const latestEvents = useMemo(() => [...events].sort(compareOccurredAt).slice(0, 10), [events]);
+  const latestEvents = useMemo(
+    () => [...events].sort(compareOccurredAt).slice(0, 10),
+    [events],
+  );
 
   if (!canReadActivity) return null;
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/70">
+    <article
+      className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-5`}
+    >
       <div className="flex items-center justify-between gap-4">
-        <Text as="p" size="sm" className="font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+        <Text
+          as="p"
+          size="sm"
+          className={`font-medium uppercase tracking-[0.2em] ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
+        >
           Latest activity
         </Text>
-        <Link className="text-sm font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" to="/activity">
-          View all →
-        </Link>
+        <TextLink to="/activity">View all →</TextLink>
       </div>
 
-      {error ? <Alert variant="warning" className="mt-4">{error}</Alert> : null}
+      {error ? (
+        <Alert variant="warning" className="mt-4">
+          {error}
+        </Alert>
+      ) : null}
 
       {loading ? (
         <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-center dark:border-slate-700 dark:bg-slate-950/40">
-          <Text intent="muted" size="sm" className="text-slate-600 dark:text-slate-400">Loading latest activity…</Text>
+          <Text intent="muted" size="sm">
+            Loading latest activity…
+          </Text>
         </div>
       ) : latestEvents.length === 0 && !error ? (
         <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-center dark:border-slate-700 dark:bg-slate-950/40">
-          <Text as="p" className="font-medium text-slate-900 dark:text-slate-100">No activity yet</Text>
-          <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">Activity events will appear here after daemon or operator activity is recorded.</Text>
+          <Text
+            as="p"
+            className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+          >
+            No activity yet
+          </Text>
+          <Text intent="muted" size="sm" className="mt-2">
+            Activity events will appear here after daemon or operator activity
+            is recorded.
+          </Text>
         </div>
       ) : (
         <ol className="mt-4 divide-y divide-slate-200 dark:divide-slate-800">
@@ -69,14 +113,35 @@ export function LatestActivityCard({ principalContext, listActivityEventsService
                 <SeverityDot severity={event.severity} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <Text as="p" size="sm" className="font-medium text-slate-900 dark:text-slate-100">{event.message || event.eventType}</Text>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">{event.category || "activity"}</span>
+                    <Text
+                      as="p"
+                      size="sm"
+                      className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+                    >
+                      {event.message || formatEnumLabel(event.eventType)}
+                    </Text>
+                    <span className={`rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10px] ${themeClasses.text.parts.subtleLight} dark:bg-slate-800 ${themeClasses.text.parts.darkSecondary}`}>
+                      {formatEnumLabel(event.category || "activity")}
+                    </span>
                   </div>
-                  <Text intent="muted" size="sm" className="mt-1 truncate text-slate-600 dark:text-slate-400">
-                    {event.eventType}{event.resource || event.source ? ` · ${event.resource || event.source}` : ""}
+                  <Text intent="muted" size="sm" className="mt-1 truncate">
+                    {formatEnumLabel(event.eventType)}
+                    {event.resource || event.source ? (
+                      <>
+                        {" · "}
+                        <ResourceIdText
+                          value={event.resource || event.source}
+                        />
+                      </>
+                    ) : null}
                   </Text>
                 </div>
-                <time className="shrink-0 text-xs text-slate-500 dark:text-slate-400" dateTime={event.occurredAt}>{formatWhen(event.occurredAt)}</time>
+                <time
+                  className={`shrink-0 text-xs ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
+                  dateTime={event.occurredAt}
+                >
+                  {formatWhen(event.occurredAt)}
+                </time>
               </div>
             </li>
           ))}
@@ -87,8 +152,18 @@ export function LatestActivityCard({ principalContext, listActivityEventsService
 }
 
 function SeverityDot({ severity }: { severity: string }) {
-  const color = severity === "error" ? "bg-rose-500" : severity === "warning" ? "bg-amber-500" : "bg-sky-500";
-  return <span aria-label={severity || "info"} className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${color}`} />;
+  const color =
+    severity === "error"
+      ? "bg-rose-500"
+      : severity === "warning"
+        ? "bg-amber-500"
+        : "bg-sky-500";
+  return (
+    <span
+      aria-label={severity || "info"}
+      className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${color}`}
+    />
+  );
 }
 
 function compareOccurredAt(a: ActivityEventInfo, b: ActivityEventInfo) {

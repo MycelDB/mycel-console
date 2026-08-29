@@ -8,7 +8,7 @@ const clusterEvent: ActivityEventInfo = {
   ingestedAt: "1780000001",
   severity: "info",
   category: "cluster",
-  eventType: "cluster.node.joined",
+  eventType: "Cluster Node Joined",
   message: "node-b joined the cluster",
   source: "node-b",
   actor: "",
@@ -21,7 +21,7 @@ describe("ClusterEventLog", () => {
     render(<ClusterEventLog events={[clusterEvent]} />);
 
     expect(screen.getByText("Cluster activity")).toBeInTheDocument();
-    expect(screen.getByText("cluster.node.joined")).toBeInTheDocument();
+    expect(screen.getByText("Cluster Node Joined")).toBeInTheDocument();
     expect(screen.getByText("node-b joined the cluster")).toBeInTheDocument();
     expect(screen.getByText("node-b")).toBeInTheDocument();
   });
@@ -30,6 +30,8 @@ describe("ClusterEventLog", () => {
     render(<ClusterEventLog events={[]} error="audit read denied" />);
 
     expect(screen.getByText("audit read denied")).toBeInTheDocument();
-    expect(screen.getByText("No cluster activity events found.")).toBeInTheDocument();
+    expect(
+      screen.getByText("No cluster activity events found."),
+    ).toBeInTheDocument();
   });
 });

@@ -1,6 +1,19 @@
 import { useState, type FormEvent } from "react";
-import { Button, Alert, Form, H2, Input, Label, Text } from "../../../components/typography";
-import type { CreateSpaceInput, CreateSpaceResponse } from "../../../types/spaces";
+import {
+  Button,
+  Alert,
+  Form,
+  H2,
+  Input,
+  Label,
+  Text,
+  errorMessage,
+  themeClasses,
+} from "../../../components/typography";
+import type {
+  CreateSpaceInput,
+  CreateSpaceResponse,
+} from "../../../types/spaces";
 import type { CreatePrincipalInput, PrincipalInfo } from "../../../types/users";
 import { principalIdOf } from "../../../types/users";
 
@@ -8,12 +21,21 @@ export type CreateUserModalProps = {
   open: boolean;
   onClose: () => void;
   onCreate: (input: CreatePrincipalInput) => Promise<PrincipalInfo>;
-  onCreatePersonalSpace?: (input: CreateSpaceInput) => Promise<CreateSpaceResponse>;
+  onCreatePersonalSpace?: (
+    input: CreateSpaceInput,
+  ) => Promise<CreateSpaceResponse>;
   canCreatePersonalSpace?: boolean;
   onCreated: (principal: PrincipalInfo, warning?: string) => void;
 };
 
-export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace, canCreatePersonalSpace = false, onCreated }: CreateUserModalProps) {
+export function CreateUserModal({
+  open,
+  onClose,
+  onCreate,
+  onCreatePersonalSpace,
+  canCreatePersonalSpace = false,
+  onCreated,
+}: CreateUserModalProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [disabled, setDisabled] = useState(false);
@@ -61,7 +83,9 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
       return;
     }
     if (!disabled && !password) {
-      setError("Initial password is required for an active principal. Create the principal disabled if you do not want to set a password yet.");
+      setError(
+        "Initial password is required for an active principal. Create the principal disabled if you do not want to set a password yet.",
+      );
       return;
     }
 
@@ -82,7 +106,10 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
             defaultDomainName: trimmedDomainName,
           });
         } catch (spaceErr) {
-          onCreated(principal, `Principal created, but personal space creation failed: ${errorMessage(spaceErr, "Create space failed")}`);
+          onCreated(
+            principal,
+            `Principal created, but personal space creation failed: ${errorMessage(spaceErr, "Create space failed")}`,
+          );
           reset();
           onClose();
           return;
@@ -100,17 +127,21 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
-      <Form className="w-full max-w-md p-6" onSubmit={(event) => void handleSubmit(event)}>
+      <Form
+        className="w-full max-w-md p-6"
+        onSubmit={(event) => void handleSubmit(event)}
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <H2>Create principal</H2>
-            <Text intent="muted" size="sm" className="mt-2 text-slate-600 dark:text-slate-400">
-              Create a human mycel principal. Passwords are sent to the daemon and are never returned.
+            <Text intent="muted" size="sm" className="mt-2">
+              Create a human mycel principal. Passwords are sent to the daemon
+              and are never returned.
             </Text>
           </div>
           <button
             type="button"
-            className="rounded px-2 py-1 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            className={`rounded px-2 py-1 text-sm ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted} hover:bg-slate-100 ${themeClasses.text.hover.primary} dark:hover:bg-slate-800`}
             onClick={handleClose}
             disabled={loading}
             aria-label="Close create principal dialog"
@@ -146,7 +177,9 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
           disabled={loading}
         />
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label
+          className={`mt-4 flex items-center gap-2 text-sm ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}
+        >
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
@@ -159,7 +192,9 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
 
         {canCreatePersonalSpace && onCreatePersonalSpace && (
           <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label
+              className={`flex items-center gap-2 text-sm font-medium ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}
+            >
               <input
                 type="checkbox"
                 className="h-4 w-4 rounded border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-950"
@@ -167,7 +202,8 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
                 onChange={(event) => {
                   const checked = event.target.checked;
                   setCreatePersonalSpace(checked);
-                  if (checked && !personalSpaceName.trim()) setPersonalSpaceName(username.trim());
+                  if (checked && !personalSpaceName.trim())
+                    setPersonalSpaceName(username.trim());
                 }}
                 disabled={loading}
               />
@@ -175,17 +211,62 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
             </label>
             {createPersonalSpace && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Space name</span>
-                  <Input className="mt-1" value={personalSpaceName} onChange={(event) => setPersonalSpaceName(event.target.value)} autoCapitalize="none" spellCheck={false} disabled={loading} />
+                <label
+                  className={`block text-sm ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}
+                >
+                  <span
+                    className={`text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}
+                  >
+                    Space name
+                  </span>
+                  <Input
+                    className="mt-1"
+                    value={personalSpaceName}
+                    onChange={(event) =>
+                      setPersonalSpaceName(event.target.value)
+                    }
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    disabled={loading}
+                  />
                 </label>
-                <label className="block text-sm text-slate-700 dark:text-slate-300">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Default domain key</span>
-                  <Input className="mt-1" value={defaultDomainKey} onChange={(event) => setDefaultDomainKey(event.target.value)} autoCapitalize="none" spellCheck={false} disabled={loading} />
+                <label
+                  className={`block text-sm ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}
+                >
+                  <span
+                    className={`text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}
+                  >
+                    Default domain key
+                  </span>
+                  <Input
+                    className="mt-1"
+                    value={defaultDomainKey}
+                    onChange={(event) =>
+                      setDefaultDomainKey(event.target.value)
+                    }
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    disabled={loading}
+                  />
                 </label>
-                <label className="block text-sm text-slate-700 dark:text-slate-300 sm:col-span-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Default domain name</span>
-                  <Input className="mt-1" value={defaultDomainName} onChange={(event) => setDefaultDomainName(event.target.value)} autoCapitalize="none" spellCheck={false} disabled={loading} />
+                <label
+                  className={`block text-sm ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary} sm:col-span-2`}
+                >
+                  <span
+                    className={`text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}
+                  >
+                    Default domain name
+                  </span>
+                  <Input
+                    className="mt-1"
+                    value={defaultDomainName}
+                    onChange={(event) =>
+                      setDefaultDomainName(event.target.value)
+                    }
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    disabled={loading}
+                  />
                 </label>
               </div>
             )}
@@ -193,18 +274,19 @@ export function CreateUserModal({ open, onClose, onCreate, onCreatePersonalSpace
         )}
 
         <div className="mt-6 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleClose}
+            disabled={loading}
+          >
             Cancel
           </Button>
-          <Button disabled={loading}>{loading ? "Creating…" : "Create principal"}</Button>
+          <Button disabled={loading}>
+            {loading ? "Creating…" : "Create principal"}
+          </Button>
         </div>
       </Form>
     </div>
   );
-}
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof Error && err.message) return err.message;
-  if (typeof err === "string" && err.trim()) return err;
-  return fallback;
 }

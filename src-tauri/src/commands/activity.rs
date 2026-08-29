@@ -37,9 +37,18 @@ pub struct ActivityEventInfo {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ActivityEventSummaryInfo {
+    pub total_count: u64,
+    pub warning_count: u64,
+    pub error_count: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListActivityEventsResponseInfo {
     pub events: Vec<ActivityEventInfo>,
     pub next_page_token: String,
+    pub summary: ActivityEventSummaryInfo,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -104,9 +113,15 @@ pub async fn admin_list_activity_events(
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
+    let summary = response.summary.unwrap_or_default();
     Ok(ListActivityEventsResponseInfo {
         events: response.events.into_iter().map(map_event).collect(),
         next_page_token: response.next_page_token,
+        summary: ActivityEventSummaryInfo {
+            total_count: summary.total_count,
+            warning_count: summary.warning_count,
+            error_count: summary.error_count,
+        },
     })
 }
 

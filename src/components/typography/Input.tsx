@@ -27,5 +27,10 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> &
   VariantProps<typeof inputVariants>;
 
 export function Input({ fit, inputSize, className, ...props }: InputProps) {
-  return <input className={twMerge(inputVariants({ fit, inputSize }), className)} {...props} />;
+  return (
+    <input
+      className={twMerge(inputVariants({ fit, inputSize }), className)}
+      {...props}
+    />
+  );
 }

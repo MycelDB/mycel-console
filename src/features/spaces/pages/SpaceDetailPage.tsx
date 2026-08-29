@@ -1,11 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Button,
@@ -16,13 +10,11 @@ import {
   formatEnumLabel,
   PrincipalLabel,
   ResourceIdText,
-  metricToneClass,
   Select,
   SpaceLabel,
   Tabs,
   Text,
   themeClasses,
-  type MetricTone,
   TableHead,
 } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
@@ -110,15 +102,19 @@ import type {
   ListPrincipalsResponse,
   PrincipalInfo as UserPrincipalInfo,
 } from "../../../types/users";
-import { GraphResultCanvas } from "../components/GraphResultCanvas";
-import {
-  aggregateRowsFromQueryResponse,
-  diagnosticsFromQueryResponse,
-  diagnosticsMessage,
-  graphFromQueryResponse,
-  pathGraphsFromQueryResponse,
-} from "../components/graphResultExtraction";
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
+import { QueryResultView } from "../components/QueryResultView";
+import {
+  ConfirmMaintenanceActionDialog,
+  ContextualIntelligenceLink,
+  DetailCard,
+  DetailList,
+  DetailRow,
+  formatTargetLabel,
+  formatTimestamp,
+  Metric,
+  RecentInvocations,
+} from "../components/SpaceDetailPrimitives";
 
 export type SpaceDetailPageProps = {
   getSpaceService?: (spaceId: string) => Promise<SpaceInfo>;
@@ -1107,101 +1103,6 @@ export function SpaceDetailPage({
   );
 }
 
-function ContextualIntelligenceLink({
-  title,
-  description,
-  to,
-}: {
-  title: string;
-  description: string;
-  to: string;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/70 dark:bg-sky-950/30">
-      <div>
-        <Text
-          as="h3"
-          className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-        >
-          {title}
-        </Text>
-        <Text intent="muted" size="sm" className="mt-1 max-w-3xl">
-          {description}
-        </Text>
-      </div>
-      <Link
-        className="rounded-md border border-sky-300 px-3 py-2 text-sm font-medium text-sky-800 transition hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-900/60"
-        to={to}
-      >
-        Open Intelligence view
-      </Link>
-    </div>
-  );
-}
-
-function ConfirmMaintenanceActionDialog({
-  kind,
-  item,
-  loading,
-  onCancel,
-  onConfirm,
-}: {
-  kind: "retry" | "cancel";
-  item: SemanticMaintenanceWorkItemInfo;
-  loading: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const isRetry = kind === "retry";
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-      <div
-        className={`w-full max-w-lg rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.elevated} p-6 shadow-xl`}
-      >
-        <Text
-          as="h3"
-          className={`font-semibold ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-        >
-          {isRetry
-            ? "Retry maintenance work item"
-            : "Cancel maintenance work item"}
-        </Text>
-        <Text intent="muted" size="sm" className="mt-2">
-          {isRetry
-            ? "Retry will make this item eligible for processing again."
-            : "Cancel will stop this queued item from being processed."}{" "}
-          Review the target before continuing.
-        </Text>
-        <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-950/60">
-          <div>
-            <strong>Work item:</strong>{" "}
-            <ResourceIdText value={item.workItemId} />
-          </div>
-          <div>
-            <strong>Action:</strong> {formatEnumLabel(item.action)}
-          </div>
-          <div>
-            <strong>Status:</strong> {formatEnumLabel(item.status)}
-          </div>
-          <div>
-            <strong>Rule:</strong>{" "}
-            <ResourceIdText value={item.semanticRuleId} /> /{" "}
-            {item.embeddingBindingKey || "—"}
-          </div>
-        </div>
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onCancel} disabled={loading}>
-            Keep item unchanged
-          </Button>
-          <Button onClick={onConfirm} disabled={loading}>
-            {loading ? "Working…" : isRetry ? "Retry item" : "Cancel item"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SemanticMaintenanceSection({
   status,
   workItems,
@@ -1420,26 +1321,6 @@ function SemanticMaintenanceSection({
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: ReactNode;
-  tone?: MetricTone;
-}) {
-  const valueClass = metricToneClass(tone);
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-      <Text intent="muted" size="sm">
-        {label}
-      </Text>
-      <Text className={`mt-1 font-semibold ${valueClass}`}>{value}</Text>
     </div>
   );
 }
@@ -1831,121 +1712,6 @@ function GraphQueryConsolePreview({
   );
 }
 
-function QueryResultView({
-  result,
-  view,
-}: {
-  result: any;
-  view: "rows" | "graph" | "raw";
-}) {
-  if (!result)
-    return (
-      <div
-        className={`mt-3 rounded-lg border border-dashed border-slate-300 p-4 text-sm ${themeClasses.text.parts.subtleLight} dark:border-slate-700 ${themeClasses.text.parts.darkMuted}`}
-      >
-        No query run yet.
-      </div>
-    );
-  const payload = result.result ?? result;
-  const statements = payload?.statements ?? result?.statements;
-  const diagnostics = diagnosticsFromQueryResponse(result);
-  const message = diagnosticsMessage(diagnostics);
-  const diagnosticsBanner = message ? (
-    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-      {message}
-    </div>
-  ) : null;
-  if (view === "graph")
-    return (
-      <>
-        <GraphResultCanvas graph={graphFromQueryResponse(result)} />
-        {diagnosticsBanner}
-      </>
-    );
-  if (Array.isArray(statements)) {
-    return (
-      <div className="mt-3 space-y-3">
-        {diagnosticsBanner}
-        <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead
-              className={`bg-slate-100 text-left text-xs uppercase tracking-wide ${themeClasses.text.parts.subtleLight} dark:bg-slate-950/60 ${themeClasses.text.parts.darkMuted}`}
-            >
-              <tr>
-                <TableHead className="px-4 py-3">#</TableHead>
-                <TableHead className="px-4 py-3">Status</TableHead>
-                <TableHead className="px-4 py-3">Statement</TableHead>
-                <TableHead className="px-4 py-3">Error</TableHead>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {statements.map((statement: any) => (
-                <tr key={statement.index}>
-                  <td className="px-4 py-3">{statement.index}</td>
-                  <td className="px-4 py-3">{statement.success ? "✓" : "✗"}</td>
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {statement.statement}
-                  </td>
-                  <td className="px-4 py-3">
-                    {statement.error ? (
-                      <Alert icon={false} className="py-2">
-                        {statement.error}
-                      </Alert>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {view === "raw" ? (
-          <pre
-            className={`max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs ${themeClasses.text.parts.bodyLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
-          >
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        ) : null}
-      </div>
-    );
-  }
-  if (view === "rows") {
-    const rows = payload?.rows ?? [];
-    const aggregateRows = aggregateRowsFromQueryResponse(result);
-    const pathCount = pathGraphsFromQueryResponse(result).length;
-    const renderedRows = aggregateRows.length ? aggregateRows : rows;
-    return (
-      <div className="mt-3 space-y-3">
-        {diagnosticsBanner}
-        {pathCount > 0 ? (
-          <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
-            {pathCount} path value{pathCount === 1 ? "" : "s"} available in
-            returned rows.
-          </div>
-        ) : null}
-        <pre
-          className={`max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs ${themeClasses.text.parts.bodyLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
-        >
-          {renderedRows.length
-            ? JSON.stringify(renderedRows, null, 2)
-            : "No rows returned."}
-        </pre>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-3 space-y-3">
-      {diagnosticsBanner}
-      <pre
-        className={`max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs ${themeClasses.text.parts.bodyLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
-      >
-        {JSON.stringify(result, null, 2)}
-      </pre>
-    </div>
-  );
-}
-
 function DomainSection({
   domains,
   loading,
@@ -2068,75 +1834,6 @@ function domainFlags(domain: DomainInfo) {
   if (domain.isDefault) flags.push("default");
   if (domain.system) flags.push("system");
   return flags.length ? flags.join(", ") : "—";
-}
-
-function DetailCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-6`}
-    >
-      <Text
-        as="h3"
-        className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-      >
-        {title}
-      </Text>
-      <dl className="mt-4 space-y-3">{children}</dl>
-    </div>
-  );
-}
-
-function DetailRow({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div>
-      <dt
-        className={`text-xs font-medium uppercase tracking-wide ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
-      >
-        {label}
-      </dt>
-      <dd
-        className={`mt-1 break-words text-sm ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-      >
-        {children ?? value}
-      </dd>
-    </div>
-  );
-}
-
-function DetailList({ label, values }: { label: string; values?: string[] }) {
-  const displayValues = values?.length ? values : ["Not reported"];
-  return <DetailRow label={label} value={displayValues.join(", ")} />;
-}
-
-function formatTargetLabel(spaceId: string, domainId: string) {
-  return `${shortInlineId(spaceId)} / ${shortInlineId(domainId)}`;
-}
-
-function shortInlineId(value?: string) {
-  if (!value) return "—";
-  if (value.length <= 24) return value;
-  return `${value.slice(0, 10)}…${value.slice(-8)}`;
-}
-
-function formatTimestamp(value?: string) {
-  if (!value) return "Not reported";
-  const seconds = Number(value);
-  if (!Number.isFinite(seconds)) return value;
-  return new Date(seconds * 1000).toLocaleString();
 }
 
 function AutomationSection({
@@ -2432,46 +2129,6 @@ function AutomationEditorDialog({
           </Button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function RecentInvocations({
-  domainId,
-  items,
-  onShowRun,
-}: {
-  domainId: string;
-  items: AutomationInvocationSummaryInfo[];
-  onShowRun: (domainId: string, runId: string) => void;
-}) {
-  if (items.length === 0)
-    return (
-      <Text intent="muted" size="sm" className="mt-2">
-        No recent invocations.
-      </Text>
-    );
-  return (
-    <div className="mt-2 space-y-1">
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className={`flex flex-wrap items-center gap-2 text-xs ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}
-        >
-          <EnumBadge value={item.status} />
-          <span>
-            changed <ResourceIdText value={item.changedElementId} />
-          </span>
-          {item.skipReason && <span>{item.skipReason}</span>}
-          <button
-            type="button"
-            className="text-sky-700 hover:text-sky-900 dark:text-sky-300"
-            onClick={() => onShowRun(domainId, item.id)}
-          >
-            Run detail
-          </button>
-        </div>
-      ))}
     </div>
   );
 }

@@ -43,314 +43,27 @@ import {
   TableHead,
 } from "../../../components/typography";
 import { ClusterEventLog } from "../components/ClusterEventLog";
+import {
+  CheckBadge,
+  CountStatusBadge,
+  HelpIcon,
+  StatusBadge,
+} from "../components/ClusterStatusBadges";
+import { GraphConsistencyStatsGrid } from "../components/GraphConsistencyStatsGrid";
+import {
+  formatClusterTime,
+  groupHasReadFailures,
+  groupReadFailureCount,
+  lastTransportReason,
+  matchesRaftGroupStatusFilter,
+  raftNodeLabel,
+  readinessHelp,
+  topologyResponsibility,
+  transportFailureCount,
+  transportStatus,
+  transportTargetsForGroup,
+} from "../model/clusterDisplay";
 import { SpaceDistributionCard } from "../components/SpaceDistributionCard";
-
-function badgeClass(value: string) {
-  switch (value) {
-    case "clustered":
-    case "active":
-    case "self":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
-    case "standalone":
-      return `bg-slate-200 ${themeClasses.text.parts.strongLight} dark:bg-slate-800 ${themeClasses.text.parts.darkStrong}`;
-    case "pass":
-    case "ready":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
-    case "unreachable":
-    case "failed":
-    case "fail":
-    case "blocked":
-    case "no_leader":
-      return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
-    case "warning":
-    case "lagging":
-    case "degraded":
-      return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
-    case "divergent":
-    case "critical":
-      return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200";
-    case "consistent":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
-    default:
-      return "bg-sky-50 text-sky-800 dark:bg-sky-950 dark:text-sky-200";
-  }
-}
-
-function StatusBadge({ value }: { value: string }) {
-  return (
-    <span
-      className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClass(value)}`}
-      title={value}
-    >
-      {formatEnumLabel(value)}
-    </span>
-  );
-}
-
-function CountStatusBadge({
-  label,
-  status,
-  value,
-}: {
-  label: string;
-  status: string;
-  value: number;
-}) {
-  const accessibleLabel = `${label}: ${value} (${formatEnumLabel(status)})`;
-  return (
-    <span
-      aria-label={accessibleLabel}
-      className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums ${badgeClass(status)}`}
-      title={accessibleLabel}
-    >
-      {value}
-    </span>
-  );
-}
-
-function CheckBadge({ ok }: { ok: boolean }) {
-  return <StatusBadge value={ok ? "pass" : "fail"} />;
-}
-
-function HelpIcon({
-  label,
-  description,
-}: {
-  label: string;
-  description: string;
-}) {
-  return (
-    <span className="group relative inline-flex align-middle">
-      <span
-        aria-label={`${label}: ${description}`}
-        className={`ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 ${themeClasses.surface.elevated} text-[10px] font-bold ${themeClasses.text.parts.subtleLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
-        role="img"
-        tabIndex={0}
-      >
-        ?
-      </span>
-      <span
-        className={`pointer-events-none absolute left-0 top-5 z-20 hidden w-72 rounded-md border ${themeClasses.border.default} ${themeClasses.surface.elevated} p-3 text-left text-xs normal-case tracking-normal ${themeClasses.text.parts.bodyLight} shadow-lg group-hover:block group-focus-within:block dark:border-slate-700 ${themeClasses.text.parts.darkStrong}`}
-        role="tooltip"
-      >
-        <span
-          className={`block font-semibold ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-        >
-          {label}
-        </span>
-        <span className="mt-1 block">{description}</span>
-      </span>
-    </span>
-  );
-}
-
-const readinessHelp = {
-  clientReady:
-    "Overall safe-to-serve signal. Possible values: ready means this daemon can serve client traffic; blocked means raft metadata or partition groups are not ready, even if the admin port is reachable.",
-  metadataApplied:
-    "Whether committed system Raft metadata has been applied locally. Possible values: pass means applied; fail means the daemon is still waiting and should fail closed for client traffic.",
-  metadataValidated:
-    "Whether the applied system Raft metadata matches local expectations such as cluster identity and placement. Possible values: pass means validated; fail means the node must not trust local fallback metadata.",
-  partitionGroupsStarted:
-    "Whether all expected partition Raft groups have started locally. Possible values: pass means partitions are running; fail means one or more groups are not started yet.",
-  clusterIdMatch:
-    "Whether local cluster ID equals the authoritative cluster ID from system Raft metadata. Possible values: pass means they match; fail means identity mismatch or one value is unavailable.",
-  expectedMembers:
-    "Expected member count from authoritative cluster metadata. Possible values: a positive number in raft mode, or blank when metadata has not supplied it.",
-};
-
-function formatTime(value?: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
-function raftNodeLabel(
-  nodeId: number | undefined,
-  runtime: ClusterRuntimeStatusInfo | null,
-) {
-  if (!nodeId) return "—";
-  const addr = runtime?.raftNodeAddrs[nodeId - 1];
-  return addr ? `${nodeId} (${addr})` : String(nodeId);
-}
-
-function topologyResponsibility(peer: ClusterPeerInfo) {
-  if (peer.state === "self") return "local node";
-  if (peer.state === "active") return "raft peer";
-  return "unknown";
-}
-
-function groupHasReadFailures(group: RaftGroupStatusInfo) {
-  const read = group.readDiagnostics;
-  return Boolean(
-    read &&
-    (read.readIndexFailures > 0 ||
-      read.readIndexTimeouts > 0 ||
-      read.readIndexNoLeader > 0 ||
-      read.readIndexNotLeader > 0 ||
-      read.applyWaitFailures > 0),
-  );
-}
-
-function groupReadFailureCount(group: RaftGroupStatusInfo) {
-  const read = group.readDiagnostics;
-  if (!read) return 0;
-  return (
-    read.readIndexFailures +
-    read.readIndexTimeouts +
-    read.readIndexNoLeader +
-    read.readIndexNotLeader +
-    read.applyWaitFailures
-  );
-}
-
-function transportTargetsForGroup(
-  groupId: string,
-  runtime: ClusterRuntimeStatusInfo | null,
-) {
-  return (
-    runtime?.raftTransport?.targets.filter(
-      (target) => target.groupId === groupId,
-    ) || []
-  );
-}
-
-function transportFailureCount(targets: RaftTransportTargetDiagnosticsInfo[]) {
-  return targets.reduce(
-    (sum, target) =>
-      sum +
-      target.sendFailures +
-      target.authFailures +
-      target.missingSenderFailures,
-    0,
-  );
-}
-
-function transportStatus(targets: RaftTransportTargetDiagnosticsInfo[]) {
-  if (
-    targets.some(
-      (target) => target.authFailures > 0 || target.missingSenderFailures > 0,
-    )
-  )
-    return "fail";
-  if (
-    targets.some(
-      (target) =>
-        target.sendFailures > 0 || target.lastError || target.lastFailureReason,
-    )
-  )
-    return "warning";
-  return "pass";
-}
-
-function lastTransportReason(targets: RaftTransportTargetDiagnosticsInfo[]) {
-  return (
-    targets.find((target) => target.lastFailureReason || target.lastError)
-      ?.lastFailureReason || "—"
-  );
-}
-
-function matchesRaftGroupStatusFilter(
-  group: RaftGroupStatusInfo,
-  filter: string,
-) {
-  switch (filter) {
-    case "unhealthy":
-      return group.health !== "healthy";
-    case "no_leader":
-      return !group.leaderNodeId || group.health === "no_leader";
-    case "lagging":
-      return group.applyLag > 0;
-    case "read_failures":
-      return groupHasReadFailures(group);
-    case "has_snapshot":
-      return group.snapshotIndex > 0;
-    default:
-      return true;
-  }
-}
-
-function StatsGrid({ stats }: { stats: LocalGraphConsistencyStatsInfo }) {
-  return (
-    <div className="grid gap-3 text-sm md:grid-cols-4">
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Revision
-        </span>
-        <div className="font-semibold">{stats.revision}</div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>Nodes</span>
-        <div className="font-semibold">{stats.nodeCount}</div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>Edges</span>
-        <div className="font-semibold">{stats.edgeCount}</div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Partition
-        </span>
-        <div className="font-semibold">{stats.partitionId}</div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Graph checksum
-        </span>
-        <div>
-          <ResourceIdText value={stats.graphChecksum} />
-        </div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Node checksum
-        </span>
-        <div>
-          <ResourceIdText value={stats.nodeChecksum} />
-        </div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Edge checksum
-        </span>
-        <div>
-          <ResourceIdText value={stats.edgeChecksum} />
-        </div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Algorithm
-        </span>
-        <div className="font-semibold">
-          {formatEnumLabel(stats.checksumAlgorithm)}
-        </div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>
-          Collected at
-        </span>
-        <div className="font-semibold">{formatTime(stats.collectedAt)}</div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>Source</span>
-        <div className="font-semibold">{formatEnumLabel(stats.source)}</div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>Space</span>
-        <div>
-          <ResourceIdText value={stats.spaceId} />
-        </div>
-      </div>
-      <div>
-        <span className={`${themeClasses.text.parts.mutedLight}`}>Domain</span>
-        <div>
-          <ResourceIdText value={stats.domainId} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function forensicExportJson(exportResult: GraphForensicExportResponse | null) {
   return exportResult ? JSON.stringify(exportResult, null, 2) : "";
@@ -1269,7 +982,9 @@ export function ClusterPage() {
                   </div>
                   {localConsistency.stats ? (
                     <div className="mt-4">
-                      <StatsGrid stats={localConsistency.stats} />
+                      <GraphConsistencyStatsGrid
+                        stats={localConsistency.stats}
+                      />
                     </div>
                   ) : (
                     <Text intent="muted" className="mt-3">
@@ -1542,7 +1257,9 @@ export function ClusterPage() {
                           Collected
                         </span>
                         <div className="font-semibold">
-                          {formatTime(forensicExport.manifest?.collectedAt)}
+                          {formatClusterTime(
+                            forensicExport.manifest?.collectedAt,
+                          )}
                         </div>
                       </div>
                       <div>
@@ -1567,7 +1284,7 @@ export function ClusterPage() {
                       </div>
                     </div>
                     {forensicExport.stats && (
-                      <StatsGrid stats={forensicExport.stats} />
+                      <GraphConsistencyStatsGrid stats={forensicExport.stats} />
                     )}
                     {forensicExport.warnings.length > 0 && (
                       <ul className="list-disc pl-5 text-sm text-amber-800 dark:text-amber-200">
@@ -1788,7 +1505,7 @@ export function ClusterPage() {
                             At
                           </span>
                           <div className="font-semibold">
-                            {formatTime(raftTransport.lastErrorAt)}
+                            {formatClusterTime(raftTransport.lastErrorAt)}
                           </div>
                         </div>
                         <div>
@@ -2187,7 +1904,7 @@ export function ClusterPage() {
                                               .lastFailureReason ||
                                               "unknown"}{" "}
                                             at{" "}
-                                            {formatTime(
+                                            {formatClusterTime(
                                               group.readDiagnostics
                                                 .lastFailureAt,
                                             )}
@@ -2366,7 +2083,7 @@ export function ClusterPage() {
                             {formatEnumLabel(peer.source)}
                           </td>
                           <td className="px-4 py-3">
-                            {formatTime(peer.lastSeenAt)}
+                            {formatClusterTime(peer.lastSeenAt)}
                           </td>
                         </tr>
                       );

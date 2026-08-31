@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MycelDB/mycel-console/security/advisories/new
+    about: Please report suspected vulnerabilities privately. Do not open public security issues.
+  - name: Mycel daemon
+    url: https://github.com/MycelDB/mycel/issues
+    about: File daemon or CLI issues in mycel when Console is only displaying daemon behavior.
+  - name: MycelDB API contracts
+    url: https://github.com/MycelDB/mycel-api/issues
+    about: File protobuf/API contract issues in mycel-api.
+  - name: Mycel Rust SDK
+    url: https://github.com/MycelDB/mycel-rust-sdk/issues
+    about: File Rust SDK issues in mycel-rust-sdk when the Console bridge is not the source of the problem.

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          path: mycel-console
+
+      - name: Checkout Rust SDK at matching ref
+        id: checkout-rust-sdk
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: MycelDB/mycel-rust-sdk
+          ref: ${{ github.ref_type == 'tag' && github.ref_name || (github.head_ref || github.ref_name) }}
+          path: mycel-rust-sdk
+
+      - name: Remove incomplete Rust SDK checkout
+        if: steps.checkout-rust-sdk.outcome == 'failure'
+        run: rm -rf mycel-rust-sdk
+
+      - name: Checkout Rust SDK at develop fallback
+        if: steps.checkout-rust-sdk.outcome == 'failure'
+        uses: actions/checkout@v4
+        with:
+          repository: MycelDB/mycel-rust-sdk
+          ref: develop
+          path: mycel-rust-sdk
+
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mycel-console/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: mycel-console
+        run: npm ci
+
+      - name: Frontend tests
+        working-directory: mycel-console
+        run: npm test -- --runInBand
+
+      - name: Frontend build
+        working-directory: mycel-console
+        run: npm run build
+
+      - name: Tauri/Rust tests
+        working-directory: mycel-console
+        run: cargo test --manifest-path src-tauri/Cargo.toml

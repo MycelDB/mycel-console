@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a reproducible Mycel Console problem
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. If this involves credentials, tokens, TLS key material, private data, production data, confidential infrastructure, screenshots with sensitive content, or a suspected vulnerability, stop here and use the private security reporting link instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Mycel Console version, commit SHA, release tag, or build.
+      placeholder: v0.6.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Startup/development setup
+        - Tauri desktop shell
+        - Authentication/session
+        - Spaces/domains/schema
+        - Graph/query
+        - Semantic/inference/automation
+        - Backup/restore/import/export
+        - Activity/audit views
+        - Raft/cluster reliability
+        - UI/accessibility
+        - Packaging/release
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Provide a minimal reproducible example when possible.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized errors, logs, or screenshots. Do not paste secrets or private data.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS/architecture, browser/WebView, Node/npm versions, Rust version for Tauri issues, daemon/API/SDK versions, and relevant sanitized configuration.
+      placeholder: |
+        OS/arch: ...
+        Mode: Vite dev / Tauri dev / packaged app
+        Node/npm: ...
+        Rust: ...
+        Mycel daemon/API/SDK version: ...
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety-sensitive context
+      description: If relevant, describe auth state, raft/cluster state, backup/restore state, recent migrations, import/export activity, or recovery steps already attempted.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links, related issues, screenshots without sensitive data, or notes.

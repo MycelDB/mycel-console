@@ -1,0 +1,2 @@
+# False positive: historical test fixture one-time cluster join token, not a real credential.
+e6eadbc3fe5672dcd7b10e1f940ca87be0edcdea:src/features/cluster/components/AddClusterNodeModal.test.tsx:generic-api-key:11

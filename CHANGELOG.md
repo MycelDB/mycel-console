@@ -6,16 +6,25 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-08-31
+
 ### Added
 
-- Open-source project documentation: README, contributing guide, agent guidance, security policy, code of conduct, changelog, CI workflow, pull request template, and issue templates.
+- First public-release baseline for Mycel Console.
+- Open-source project documentation: README, contributing guide, agent guidance, security policy, code of conduct, changelog, CI workflow, pull request template, issue templates, and gitleaks false-positive baseline.
+- Operator-facing UI coverage for authentication, spaces/domains, graph/query workflows, semantic/inference setup, backups, activity, and raft/cluster reliability.
+
+### Changed
+
+- Aligned package, Tauri, and Rust bridge versions for the coordinated MycelDB public-release baseline.
+- Updated the Rust bridge lockfile for the `mycel-rust-sdk` low-level crate rename from `mycel-proto` to `mycel`.
 
 ## Release notes policy
 
 For each release, add a dated section such as:
 
 ```md
-## [v0.6.0] - YYYY-MM-DD
+## [v0.9.0] - YYYY-MM-DD
 
 ### Added
 ### Changed

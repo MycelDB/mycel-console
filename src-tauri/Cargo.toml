@@ -1,6 +1,6 @@
 [package]
 name = "mycel-console"
-version = "0.6.0"
+version = "0.9.0"
 description = "Desktop console UI for Mycel clusters"
 authors = ["MycelDB"]
 license = "Apache-2.0"

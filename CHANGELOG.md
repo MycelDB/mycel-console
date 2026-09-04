@@ -6,6 +6,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Added
+
+- Tag-triggered macOS DMG release workflow for Intel and Apple Silicon builds, plus Homebrew Cask distribution documentation.
+
 ## [v0.9.0] - 2026-08-31
 
 ### Added

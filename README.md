@@ -76,6 +76,16 @@ Build a Tauri desktop bundle:
 npm run tauri build
 ```
 
+## macOS distribution
+
+Tagged `v*` releases build Intel and Apple Silicon DMGs and attach them to the matching GitHub Release. The Homebrew Cask install path is:
+
+```sh
+brew install --cask myceldb/tap/mycel-console
+```
+
+See [`docs/release/homebrew-cask.md`](docs/release/homebrew-cask.md) for release asset names, cask update steps, and the current unsigned/notarization status.
+
 ## Security
 
 Please report suspected vulnerabilities privately through GitHub Security Advisories / private vulnerability reporting. See [`SECURITY.md`](SECURITY.md).

@@ -134,6 +134,19 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     order: 20,
   },
   {
+    id: "search",
+    label: "Search",
+    route: "/search",
+    navGroup: "data",
+    requirements: [
+      { capability: "space.read" },
+      { capability: "domain.read" },
+    ],
+    fallback: "hide",
+    description: "Lexical search, freshness diagnostics, and index maintenance.",
+    order: 20,
+  },
+  {
     id: "semantic",
     label: "Semantic",
     route: "/intelligence/semantic",

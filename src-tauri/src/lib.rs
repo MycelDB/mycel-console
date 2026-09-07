@@ -43,6 +43,9 @@ use commands::inference::{
     admin_set_inference_credential_status, admin_set_inference_profile_enabled,
     admin_summarize_inference_usage,
 };
+use commands::lexical::{
+    admin_rebuild_lexical_index, client_get_lexical_index_status, client_lexical_search,
+};
 use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
 use commands::semantic::{
     admin_create_semantic_rule, admin_delete_semantic_rule, admin_get_semantic_rule,
@@ -127,6 +130,9 @@ pub fn run() {
             admin_set_semantic_rule_enabled,
             admin_delete_semantic_rule,
             client_semantic_search,
+            client_lexical_search,
+            client_get_lexical_index_status,
+            admin_rebuild_lexical_index,
             admin_get_semantic_maintenance_status,
             admin_list_semantic_maintenance_work,
             admin_retry_semantic_maintenance_work,

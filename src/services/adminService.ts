@@ -134,6 +134,14 @@ import type {
   DomainSchemaInfo,
 } from "../types/schemas";
 import type {
+  LexicalIndexScopeInput,
+  LexicalIndexStatus,
+  LexicalSearchInput,
+  LexicalSearchResponse,
+  RebuildLexicalIndexInput,
+  RebuildLexicalIndexResponse,
+} from "../types/lexical";
+import type {
   CreateSemanticRuleInput,
   CreateSemanticRuleResponse,
   DeleteSemanticRuleInput,
@@ -864,6 +872,26 @@ export async function semanticSearch(
   input: SemanticSearchInput,
 ): Promise<SemanticSearchResponse> {
   return invoke<SemanticSearchResponse>("client_semantic_search", { input });
+}
+
+export async function lexicalSearch(
+  input: LexicalSearchInput,
+): Promise<LexicalSearchResponse> {
+  return invoke<LexicalSearchResponse>("client_lexical_search", { input });
+}
+
+export async function getLexicalIndexStatus(
+  input: LexicalIndexScopeInput,
+): Promise<LexicalIndexStatus> {
+  return invoke<LexicalIndexStatus>("client_get_lexical_index_status", { input });
+}
+
+export async function rebuildLexicalIndex(
+  input: RebuildLexicalIndexInput,
+): Promise<RebuildLexicalIndexResponse> {
+  return invoke<RebuildLexicalIndexResponse>("admin_rebuild_lexical_index", {
+    input,
+  });
 }
 
 export async function getSemanticMaintenanceStatus(

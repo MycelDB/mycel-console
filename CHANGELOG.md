@@ -6,6 +6,13 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.11.0] - 2026-09-07
+
+### Added
+
+- Tag-triggered macOS DMG release workflow for Intel and Apple Silicon builds, plus Homebrew Cask distribution documentation.
+- Added lexical search UI, Tauri command bindings, freshness/status display, and index rebuild controls backed by the Rust SDK lexical Search/Admin APIs.
+
 ## [v0.9.0] - 2026-08-31
 
 ### Added

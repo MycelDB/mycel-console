@@ -245,6 +245,12 @@ export function canonicalCapabilityName(capabilityName: string): string {
     case "CAPABILITY_CLUSTER_READ":
     case "cluster.read":
       return "cluster.read";
+    case "CAPABILITY_SYSTEM_COMPACT_SPACE":
+    case "system.compact_space":
+      return "system.compact_space";
+    case "CAPABILITY_SYSTEM_MAINTAIN_SPACE":
+    case "system.maintain_space":
+      return "system.maintain_space";
     case "CAPABILITY_SYSTEM_BACKUP_SPACE":
     case "backup.manage":
       return "backup.manage";

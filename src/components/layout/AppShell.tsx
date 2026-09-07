@@ -11,6 +11,7 @@ import { ModelsPage } from "../../features/intelligence/models";
 import { AutomationsPage } from "../../features/intelligence/automations";
 import { SemanticPage } from "../../features/intelligence/semantic";
 import { VectorStoresPage } from "../../features/intelligence/vector-stores";
+import { LexicalSearchPage } from "../../features/search";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
 import { UserDetailPage, UsersPage } from "../../features/users";
 import { Text, themeClasses } from "../typography";
@@ -173,6 +174,20 @@ export function AppShell({
             <Route
               path="/spaces/:spaceId"
               element={<SpaceDetailPage principalContext={principalContext} />}
+            />
+            <Route
+              path="/search"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[
+                    requirement("space.read"),
+                    requirement("domain.read"),
+                  ]}
+                >
+                  <LexicalSearchPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
             />
             <Route
               path="/backups"

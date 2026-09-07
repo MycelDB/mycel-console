@@ -20,6 +20,9 @@ import {
   isAuthExpiredError,
   grantPrincipalCapability,
   grantPrincipalRole,
+  lexicalSearch,
+  getLexicalIndexStatus,
+  rebuildLexicalIndex,
   listBackups,
   listPrincipalCapabilities,
   listPrincipalRoles,
@@ -572,6 +575,36 @@ test("semanticSearch invokes client semantic search command", async () => {
   await expect(semanticSearch(input)).resolves.toEqual(response);
 
   expect(invokeMock).toHaveBeenCalledWith("client_semantic_search", { input });
+});
+
+test("lexicalSearch invokes client lexical search command", async () => {
+  const response = { results: [], nextPageToken: "", freshness: null, warnings: [] };
+  const input = { spaceId: "sp1", domainId: "dom1", query: "graph memory", pageSize: 10 };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(lexicalSearch(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("client_lexical_search", { input });
+});
+
+test("getLexicalIndexStatus invokes client lexical status command", async () => {
+  const input = { spaceId: "sp1", domainId: "dom1" };
+  const response = { spaceId: "sp1", domainId: "dom1", state: "LEXICAL_INDEX_STATE_READY" };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getLexicalIndexStatus(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("client_get_lexical_index_status", { input });
+});
+
+test("rebuildLexicalIndex invokes admin lexical rebuild command", async () => {
+  const input = { spaceId: "sp1", domainId: "dom1", dryRun: true };
+  const response = { spaceId: "sp1", domainId: "dom1", accepted: true, dryRun: true, warnings: [] };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(rebuildLexicalIndex(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_rebuild_lexical_index", { input });
 });
 
 test("listModelEndpointCapabilities sends filters", async () => {

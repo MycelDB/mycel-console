@@ -58,7 +58,9 @@ use commands::semantic_maintenance::{
     admin_list_semantic_maintenance_work, admin_process_semantic_dirty_work,
     admin_retry_semantic_maintenance_work,
 };
-use commands::spaces::{admin_create_space, admin_delete_space, admin_get_space, admin_list_spaces};
+use commands::spaces::{
+    admin_create_space, admin_delete_space, admin_get_space, admin_list_spaces,
+};
 use commands::users::{
     admin_create_principal, admin_delete_principal, admin_disable_principal,
     admin_enable_principal, admin_get_principal, admin_grant_principal_capability,

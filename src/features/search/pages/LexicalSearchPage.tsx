@@ -28,6 +28,7 @@ import type {
   LexicalIndexStatus,
   LexicalSearchInput,
   LexicalSearchResponse,
+  SearchMode,
   RebuildLexicalIndexInput,
   RebuildLexicalIndexResponse,
 } from "../../../types/lexical";
@@ -55,10 +56,20 @@ export function LexicalSearchPage({
   const [spaceId, setSpaceId] = useState("");
   const [domainId, setDomainId] = useState("");
   const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<SearchMode>("lexical");
   const [pageSize, setPageSize] = useState(20);
   const [pageToken, setPageToken] = useState("");
   const [allowStale, setAllowStale] = useState(false);
   const [includeDiagnostics, setIncludeDiagnostics] = useState(false);
+  const [lexicalWeight, setLexicalWeight] = useState(0.5);
+  const [semanticWeight, setSemanticWeight] = useState(0.5);
+  const [requireBoth, setRequireBoth] = useState(false);
+  const [lexicalCandidates, setLexicalCandidates] = useState(0);
+  const [semanticCandidates, setSemanticCandidates] = useState(0);
+  const [semanticRuleId, setSemanticRuleId] = useState("");
+  const [embeddingBindingKey, setEmbeddingBindingKey] = useState("");
+  const [labelFilters, setLabelFilters] = useState("");
+  const [propertyFilters, setPropertyFilters] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -145,10 +156,19 @@ export function LexicalSearchPage({
         spaceId,
         domainId,
         query: query.trim(),
+        mode,
         pageSize,
-        pageToken: nextPageToken,
+        pageToken: mode === "hybrid" ? "" : nextPageToken,
         allowStale,
         includeDiagnostics,
+        lexicalWeight: mode === "hybrid" ? lexicalWeight : undefined,
+        semanticWeight: mode === "hybrid" ? semanticWeight : undefined,
+        requireBoth: mode === "hybrid" ? requireBoth : undefined,
+        lexicalCandidates: lexicalCandidates || undefined,
+        semanticCandidates: mode === "hybrid" ? semanticCandidates || undefined : undefined,
+        semanticRuleId: mode === "hybrid" ? semanticRuleId.trim() || undefined : undefined,
+        embeddingBindingKey: mode === "hybrid" ? embeddingBindingKey.trim() || undefined : undefined,
+        filters: buildSearchFilters(labelFilters, propertyFilters),
       });
       setSearchResponse(response);
       setPageToken(nextPageToken);
@@ -204,8 +224,8 @@ export function LexicalSearchPage({
     <div className="space-y-6">
       <PageHeader
         eyebrow="Search"
-        title="Lexical search"
-        description="Run BM25 full-text search over node payload and property text, inspect index freshness, and trigger maintenance rebuilds."
+        title="Search"
+        description="Run lexical or hybrid lexical + semantic search, inspect index freshness, and trigger maintenance rebuilds."
       />
       {error ? <ErrorGroup errors={[{ id: "lexical-search", source: "Lexical search", message: error }]} /> : null}
       {rebuildNotice ? <Alert variant="success">{rebuildNotice}</Alert> : null}
@@ -244,10 +264,63 @@ export function LexicalSearchPage({
       </section>
 
       <form className={`rounded-xl border ${themeClasses.border.input} ${themeClasses.surface.panel} p-5`} onSubmit={(event) => void submitSearch(event, "")}>
-        <label className="space-y-2">
-          <Text as="span" size="sm" intent="subtle">Query</Text>
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
-        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Select
+            label="Mode"
+            value={mode}
+            onChange={(value) => setMode(value as SearchMode)}
+            options={[
+              { value: "lexical", label: "Lexical" },
+              { value: "hybrid", label: "Hybrid lexical + semantic" },
+            ]}
+          />
+          <label className="space-y-2">
+            <Text as="span" size="sm" intent="subtle">Query</Text>
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
+          </label>
+        </div>
+        {mode === "hybrid" ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-4">
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Lexical weight</Text>
+              <Input type="number" min={0} step={0.1} value={lexicalWeight} onChange={(event) => setLexicalWeight(Number(event.target.value) || 0)} />
+            </label>
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Semantic weight</Text>
+              <Input type="number" min={0} step={0.1} value={semanticWeight} onChange={(event) => setSemanticWeight(Number(event.target.value) || 0)} />
+            </label>
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Lexical candidates</Text>
+              <Input type="number" min={0} value={lexicalCandidates} onChange={(event) => setLexicalCandidates(Number(event.target.value) || 0)} />
+            </label>
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Semantic candidates</Text>
+              <Input type="number" min={0} value={semanticCandidates} onChange={(event) => setSemanticCandidates(Number(event.target.value) || 0)} />
+            </label>
+            <label className="flex items-center gap-2 text-sm md:col-span-4">
+              <input type="checkbox" checked={requireBoth} onChange={(event) => setRequireBoth(event.target.checked)} />
+              Require both lexical and semantic matches
+            </label>
+            <label className="space-y-2 md:col-span-2">
+              <Text as="span" size="sm" intent="subtle">Semantic rule ID</Text>
+              <Input value={semanticRuleId} onChange={(event) => setSemanticRuleId(event.target.value)} placeholder="optional" />
+            </label>
+            <label className="space-y-2 md:col-span-2">
+              <Text as="span" size="sm" intent="subtle">Embedding binding key</Text>
+              <Input value={embeddingBindingKey} onChange={(event) => setEmbeddingBindingKey(event.target.value)} placeholder="optional; requires rule ID" />
+            </label>
+          </div>
+        ) : null}
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="space-y-2">
+            <Text as="span" size="sm" intent="subtle">Required labels</Text>
+            <Input value={labelFilters} onChange={(event) => setLabelFilters(event.target.value)} placeholder="comma separated, e.g. Note,Incident" />
+          </label>
+          <label className="space-y-2">
+            <Text as="span" size="sm" intent="subtle">Property filters</Text>
+            <Input value={propertyFilters} onChange={(event) => setPropertyFilters(event.target.value)} placeholder="tags:contains:k3s; status:equals:published" />
+          </label>
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <label className="space-y-2">
             <Text as="span" size="sm" intent="subtle">Page size</Text>
@@ -311,16 +384,41 @@ export function LexicalSearchPage({
               </div>
               <Text intent="muted" size="xs" className="mt-1">Revision {result.indexedGraphRevision}</Text>
               {includeDiagnostics ? (
-                <Text intent="muted" size="xs" className="mt-1">Terms: {result.matchedTerms.join(", ") || "none"}; fields: {result.matchedFieldPaths.join(", ") || "none"}</Text>
+                <div className="mt-1 space-y-1">
+                  <Text intent="muted" size="xs">Terms: {result.matchedTerms.join(", ") || "none"}; fields: {result.matchedFieldPaths.join(", ") || "none"}</Text>
+                  {result.sources?.length ? (
+                    <Text intent="muted" size="xs">Sources: {result.sources.map((source) => `${source.kind.replace("SEARCH_RESULT_SOURCE_KIND_", "").toLowerCase()} rank ${source.rank}`).join("; ")}</Text>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ))}
         </div>
-        {searchResponse && searchResponse.results.length === 0 ? <Text intent="muted" size="sm">No lexical matches.</Text> : null}
-        {searchResponse?.nextPageToken ? (
+        {searchResponse && searchResponse.results.length === 0 ? <Text intent="muted" size="sm">No search matches.</Text> : null}
+        {searchResponse?.nextPageToken && mode !== "hybrid" ? (
           <Button className="mt-4" variant="secondary" onClick={() => void submitSearch(undefined, searchResponse.nextPageToken)} disabled={searchLoading}>Next page</Button>
         ) : null}
       </section>
     </div>
   );
+}
+
+function buildSearchFilters(labelText: string, propertyText: string): LexicalSearchInput["filters"] | undefined {
+  const nodeLabels = labelText.split(",").map((value) => value.trim()).filter(Boolean);
+  const properties = propertyText
+    .split(";")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((spec) => {
+      const [path = "", operator = "", valueText = ""] = spec.split(":");
+      const normalizedOperator = operator.trim().replace(/_/g, "-") as "equals" | "not-equals" | "in" | "contains" | "exists";
+      return {
+        path: path.trim(),
+        operator: normalizedOperator,
+        values: valueText.split(",").map((value) => value.trim()).filter(Boolean),
+      };
+    })
+    .filter((filter) => filter.path && filter.operator);
+  if (!nodeLabels.length && !properties.length) return undefined;
+  return { nodeLabels, properties };
 }

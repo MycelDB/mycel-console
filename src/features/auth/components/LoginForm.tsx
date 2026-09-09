@@ -31,7 +31,15 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, notice =
         void onSubmit({ addr, username, password });
       }}
     >
-      <H2 className="mb-1">{consoleBranding.currentDisplayName}</H2>
+      <div className="mb-4 flex items-center gap-3">
+        <img
+          src="/mycel-branding.png"
+          alt=""
+          aria-hidden="true"
+          className="h-12 w-12 rounded-2xl border border-[#d6cdb8] bg-[#0b3d2a] object-cover shadow-sm dark:border-[#2a6b4a]"
+        />
+        <H2>{consoleBranding.currentDisplayName}</H2>
+      </div>
       <Text intent="muted" size="sm" className="mb-6">
         Log in with principal credentials that have console capabilities for a mycel cluster.
       </Text>

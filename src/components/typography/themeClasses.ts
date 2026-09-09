@@ -40,9 +40,9 @@ export const themeClasses = {
     },
   },
   surface: {
-    app: "bg-slate-50 dark:bg-slate-950",
-    chrome: "bg-slate-50 dark:bg-slate-950/90",
-    panel: "bg-white dark:bg-slate-900/70",
+    app: "bg-[#fbf7ec] dark:bg-[#031a11]",
+    chrome: "bg-[#f7efd9]/90 dark:bg-[#062719]/95",
+    panel: "bg-white dark:bg-[#09291c]/80",
     elevated: "bg-white shadow-sm dark:bg-slate-900 dark:shadow-none",
     sunken: "bg-white dark:bg-slate-950/60",
     tabActive: "bg-white dark:bg-slate-950",
@@ -56,13 +56,13 @@ export const themeClasses = {
     danger: "border-red-300/60 dark:border-red-500/40",
   },
   interactive: {
-    primary: "bg-sky-500 text-white hover:bg-sky-400",
+    primary: "bg-[#0b3d2a] text-[#f7efd9] hover:bg-[#145437] dark:bg-[#f7efd9] dark:text-[#062719] dark:hover:bg-[#efe2c1]",
     secondary: "hover:bg-slate-100 dark:hover:bg-slate-800",
   },
   focus: {
-    ring: "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
+    ring: "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#145437]",
     ringSubtle:
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#145437]/50",
   },
   form: {
     input:

@@ -108,7 +108,7 @@ test("uses a primary create principal button", async () => {
   renderUsersPage();
 
   await screen.findByText("alice");
-  expect(screen.getByRole("button", { name: /^create principal$/i })).toHaveClass("bg-sky-500");
+  expect(screen.getByRole("button", { name: /^create principal$/i })).toHaveClass("bg-[#0b3d2a]");
 });
 
 test("creates a principal and refreshes the list", async () => {

@@ -6,6 +6,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Added
+
+- Added hybrid lexical + semantic search controls to the Search UI and Tauri command bridge, including weights, candidate counts, metadata filters, and source diagnostics.
+
 ## [v0.11.0] - 2026-09-07
 
 ### Added

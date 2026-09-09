@@ -8,17 +8,49 @@ export type LexicalIndexState =
 
 export type SearchScoreKind =
   | "SEARCH_SCORE_KIND_UNSPECIFIED"
-  | "SEARCH_SCORE_KIND_BM25";
+  | "SEARCH_SCORE_KIND_BM25"
+  | "SEARCH_SCORE_KIND_HYBRID_FUSED";
+
+export type SearchMode = "lexical" | "hybrid";
+
+export type PropertyFilterInput = {
+  path: string;
+  operator: "equals" | "not-equals" | "in" | "contains" | "exists";
+  values?: string[];
+};
+
+export type SearchFiltersInput = {
+  nodeLabels?: string[];
+  nodeIds?: string[];
+  properties?: PropertyFilterInput[];
+};
 
 export type LexicalSearchInput = {
   spaceId: string;
   domainId: string;
   query: string;
+  mode?: SearchMode;
   pageSize?: number;
   pageToken?: string;
   allowStale?: boolean;
   maxRevisionLag?: number;
   includeDiagnostics?: boolean;
+  lexicalWeight?: number;
+  semanticWeight?: number;
+  requireBoth?: boolean;
+  lexicalCandidates?: number;
+  semanticCandidates?: number;
+  semanticRuleId?: string;
+  embeddingBindingKey?: string;
+  semanticMinScore?: number;
+  filters?: SearchFiltersInput;
+};
+
+export type SearchResultSource = {
+  kind: string;
+  rawScore: number;
+  rank: number;
+  normalizedScore: number;
 };
 
 export type LexicalSearchResult = {
@@ -30,6 +62,7 @@ export type LexicalSearchResult = {
   indexedGraphRevision: number;
   matchedTerms: string[];
   matchedFieldPaths: string[];
+  sources: SearchResultSource[];
 };
 
 export type LexicalFreshness = {

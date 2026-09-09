@@ -178,7 +178,10 @@ pub async fn admin_create_space(
 }
 
 #[tauri::command]
-pub async fn admin_delete_space(space_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn admin_delete_space(
+    space_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let space_id = space_id.trim().to_string();
     if space_id.is_empty() {
         return Err("Space ID is required".to_string());

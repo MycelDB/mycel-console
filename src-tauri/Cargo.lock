@@ -1924,7 +1924,7 @@ dependencies = [
 
 [[package]]
 name = "mycel-console"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "mycel-sdk",
  "prost-types",

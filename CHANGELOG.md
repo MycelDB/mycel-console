@@ -6,6 +6,12 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.13.0] - 2026-09-12
+
+### Changed
+
+- Added the improved Mycel Console app icon and refreshed brand styling (#4).
+
 ## [v0.12.0] - 2026-09-09
 
 ### Added

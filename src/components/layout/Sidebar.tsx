@@ -117,14 +117,22 @@ export function Sidebar({
   );
   const nextTheme = theme === "dark" ? "light" : "dark";
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-900/80">
-      <Text
-        as="p"
-        size="sm"
-        className={`font-medium uppercase tracking-[0.3em] ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
-      >
-        {consoleBranding.currentDisplayName}
-      </Text>
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-[#d6cdb8] bg-[#f7efd9] p-4 dark:border-[#164b35] dark:bg-[#062719]">
+      <div className="flex items-center gap-3">
+        <img
+          src="/mycel-branding.png"
+          alt=""
+          aria-hidden="true"
+          className="h-10 w-10 rounded-xl border border-[#d6cdb8] bg-[#0b3d2a] object-cover shadow-sm dark:border-[#2a6b4a]"
+        />
+        <Text
+          as="p"
+          size="sm"
+          className={`font-semibold uppercase tracking-[0.22em] text-[#0b3d2a] dark:text-[#f7efd9]`}
+        >
+          {consoleBranding.currentDisplayName}
+        </Text>
+      </div>
       <nav className="mt-8 space-y-5" aria-label="Main navigation">
         {sections.map((section) => (
           <div key={section.group}>
@@ -155,8 +163,8 @@ export function Sidebar({
                       [
                         "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition",
                         isActive
-                          ? `bg-sky-50 text-sky-900 dark:bg-sky-950 dark:text-sky-100`
-                          : `${themeClasses.text.parts.bodyLight} hover:bg-slate-200 ${themeClasses.text.hover.primary} ${themeClasses.text.parts.darkSecondary} dark:hover:bg-slate-800`,
+                          ? `bg-[#0b3d2a] text-[#f7efd9] dark:bg-[#f7efd9] dark:text-[#062719]`
+                          : `${themeClasses.text.parts.bodyLight} hover:bg-[#efe2c1] ${themeClasses.text.hover.primary} ${themeClasses.text.parts.darkSecondary} dark:hover:bg-[#0b3d2a]/70`,
                       ].join(" ")
                     }
                     to={item.route}

@@ -6,3 +6,19 @@ export type ExecuteGqlScriptInput = { spaceId: string; domainId: string; script:
 export type ExecuteGqlScriptResponse = { statements: unknown[]; result: unknown };
 export type ExecuteGraphQueryInput = { spaceId: string; domainId: string; queryJson: string; pageSize?: number; pageToken?: string };
 export type ExecuteGraphQueryResponse = { rows: unknown; nextPageToken: string };
+export type CreateBlobAttachmentInput = {
+  spaceId: string;
+  domainId: string;
+  parentNodeId: string;
+  fileName: string;
+  mimeType?: string;
+  content: number[];
+  labels?: string[];
+  properties?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+};
+export type BlobAttachmentResponse = {
+  node: unknown;
+  blob: unknown;
+  edge: unknown;
+};

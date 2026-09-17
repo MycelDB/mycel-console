@@ -22,6 +22,7 @@ import {
   analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork,
   backfillSemanticRule as defaultBackfillSemanticRule,
   cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork,
+  createBlobAttachment as defaultCreateBlobAttachment,
   createAutomation as defaultCreateAutomation,
   deleteAutomation as defaultDeleteAutomation,
   disableAutomation as defaultDisableAutomation,
@@ -62,6 +63,10 @@ import type {
   ValidateAutomationInfo,
 } from "../../../types/automations";
 import type { PrincipalSession } from "../../../types/auth";
+import type {
+  BlobAttachmentResponse,
+  CreateBlobAttachmentInput,
+} from "../../../types/clientQuery";
 import type {
   LookupSpaceRouteInput,
   LookupSpaceRouteResult,
@@ -104,6 +109,7 @@ import type {
 } from "../../../types/users";
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
 import { QueryResultView } from "../components/QueryResultView";
+import { displayNodeLabel, shortenId, type QueryGraphNode } from "../components/graphResultMapping";
 import {
   ConfirmMaintenanceActionDialog,
   ContextualIntelligenceLink,
@@ -185,6 +191,9 @@ export type SpaceDetailPageProps = {
   listPrincipalsService?: (
     input?: ListPrincipalsInput,
   ) => Promise<ListPrincipalsResponse>;
+  createBlobAttachmentService?: (
+    input: CreateBlobAttachmentInput,
+  ) => Promise<BlobAttachmentResponse>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
@@ -213,6 +222,7 @@ export function SpaceDetailPage({
   getAutomationRunService = defaultGetAutomationRun,
   listInferenceProfilesService = defaultListInferenceProfiles,
   listPrincipalsService = defaultListPrincipals,
+  createBlobAttachmentService = defaultCreateBlobAttachment,
   principalContext,
 }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
@@ -248,7 +258,13 @@ export function SpaceDetailPage({
     useState(false);
   const [maintenanceResult, setMaintenanceResult] = useState("");
   const [activeTab, setActiveTab] = useState<
-    "general" | "domains" | "schemas" | "automations" | "semantic" | "query"
+    | "general"
+    | "domains"
+    | "schemas"
+    | "automations"
+    | "semantic"
+    | "attachments"
+    | "query"
   >("general");
   const [spaceRoute, setSpaceRoute] = useState<LookupSpaceRouteResult | null>(
     null,
@@ -838,7 +854,7 @@ export function SpaceDetailPage({
         title={title}
         backLink={{ to: "/spaces", label: "← Back to spaces" }}
         badge={space?.state ? <SpaceStateBadge state={space.state} /> : null}
-        description="Inspect this space's general properties, domains, semantic maintenance, schemas, and query tools."
+        description="Inspect this space's general properties, domains, attachments, semantic maintenance, schemas, and query tools."
       />
 
       <Tabs
@@ -849,6 +865,7 @@ export function SpaceDetailPage({
           { id: "schemas", label: "Schemas" },
           { id: "automations", label: "Automations" },
           { id: "semantic", label: "Semantic" },
+          { id: "attachments", label: "Attachments" },
           { id: "query", label: "Graph query" },
         ]}
         active={activeTab}
@@ -984,6 +1001,16 @@ export function SpaceDetailPage({
             }
             actionLoading={maintenanceActionLoading}
             canMutate={canManageSemantic}
+          />
+        </div>
+      )}
+
+      {activeTab === "attachments" && (
+        <div role="tabpanel" aria-label="Attachments">
+          <BlobAttachmentPanel
+            spaceId={spaceId}
+            domains={domains}
+            createBlobAttachmentService={createBlobAttachmentService}
           />
         </div>
       )}
@@ -1450,6 +1477,302 @@ function SemanticRulesSection({
       )}
     </div>
   );
+}
+
+function BlobAttachmentPanel({
+  spaceId,
+  domains,
+  createBlobAttachmentService,
+}: {
+  spaceId: string;
+  domains: DomainInfo[];
+  createBlobAttachmentService: (
+    input: CreateBlobAttachmentInput,
+  ) => Promise<BlobAttachmentResponse>;
+}) {
+  const [domainId, setDomainId] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [nodeIdFallback, setNodeIdFallback] = useState("");
+  const [nodes, setNodes] = useState<QueryGraphNode[]>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [labelsText, setLabelsText] = useState("attachment, blob");
+  const [searching, setSearching] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<BlobAttachmentResponse | null>(null);
+
+  useEffect(() => {
+    if (domainId || domains.length === 0) return;
+    setDomainId(selectDefaultDomain(domains)?.domainId ?? "");
+  }, [domainId, domains]);
+
+  const filteredNodes = useMemo(() => {
+    const needle = searchText.trim().toLowerCase();
+    if (!needle) return nodes;
+    return nodes.filter((node) => searchableNodeText(node).includes(needle));
+  }, [nodes, searchText]);
+
+  const selectedNode = nodes.find((node) => node.nodeId === selectedNodeId);
+  const effectiveParentNodeId = selectedNodeId || nodeIdFallback.trim();
+  const canAttach = Boolean(domainId && effectiveParentNodeId && file && !uploading);
+
+  async function loadNodes() {
+    if (!domainId) return;
+    setSearching(true);
+    setError("");
+    setResult(null);
+    try {
+      const response = await executeGql({
+        spaceId,
+        domainId,
+        query: "MATCH (n) RETURN n FETCH FIRST 200 ROWS ONLY",
+        pageSize: 200,
+        readWrite: false,
+      });
+      const nextNodes = extractNodesFromGqlResponse(response);
+      setNodes(nextNodes);
+      if (selectedNodeId && !nextNodes.some((node) => node.nodeId === selectedNodeId)) {
+        setSelectedNodeId("");
+      }
+    } catch (err) {
+      setError(errorMessage(err, "Failed to search graph nodes"));
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function attachFile() {
+    if (!file || !effectiveParentNodeId) return;
+    setUploading(true);
+    setError("");
+    setResult(null);
+    try {
+      const buffer = await file.arrayBuffer();
+      const response = await createBlobAttachmentService({
+        spaceId,
+        domainId,
+        parentNodeId: effectiveParentNodeId,
+        fileName: file.name,
+        mimeType: file.type,
+        content: Array.from(new Uint8Array(buffer)),
+        labels: labelsText
+          .split(",")
+          .map((label) => label.trim())
+          .filter(Boolean),
+        properties: {
+          name: file.name,
+          title: file.name,
+        },
+        meta: {
+          console_source: "space-detail-blob-attachment",
+          attached_to_node_id: effectiveParentNodeId,
+        },
+      });
+      setResult(response);
+      setFile(null);
+    } catch (err) {
+      setError(errorMessage(err, "Failed to attach blob"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-6`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Text
+            as="h3"
+            className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+          >
+            Attach file to graph node
+          </Text>
+          <Text intent="muted" size="sm" className="mt-1 max-w-3xl">
+            Search for an existing node, select it as the parent, and create a
+            blob-backed child node connected by a contains attachment edge.
+          </Text>
+        </div>
+        <Button variant="secondary" disabled={!domainId || searching} onClick={() => void loadNodes()}>
+          {searching ? "Searching…" : "Search nodes"}
+        </Button>
+      </div>
+
+      {error && <div className="mt-4"><Alert>{error}</Alert></div>}
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
+          <label className="block font-medium">
+            Domain
+            <select
+              className={`mt-1 w-full rounded-md border border-slate-300 ${themeClasses.surface.input} px-2 py-2 dark:border-slate-700`}
+              value={domainId}
+              onChange={(event) => {
+                setDomainId(event.target.value);
+                setNodes([]);
+                setSelectedNodeId("");
+              }}
+            >
+              <option value="">Select domain…</option>
+              {domains.map((domain) => (
+                <option key={domain.domainId} value={domain.domainId}>
+                  {domain.name || domain.key || domain.domainId}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block font-medium">
+            Filter nodes
+            <input
+              className={`mt-1 w-full rounded-md border border-slate-300 ${themeClasses.surface.input} px-2 py-2 dark:border-slate-700`}
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search ID, label, name, title…"
+            />
+          </label>
+          <label className="block font-medium">
+            Exact node ID fallback
+            <input
+              className={`mt-1 w-full rounded-md border border-slate-300 ${themeClasses.surface.input} px-2 py-2 font-mono text-xs dark:border-slate-700`}
+              value={nodeIdFallback}
+              onChange={(event) => {
+                setNodeIdFallback(event.target.value);
+                if (event.target.value.trim()) setSelectedNodeId("");
+              }}
+              placeholder="Paste node ID"
+            />
+          </label>
+        </div>
+
+        <div className="space-y-4">
+          <div className="max-h-72 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
+            {searching ? (
+              <Text intent="muted" size="sm" className="p-4">Searching nodes…</Text>
+            ) : filteredNodes.length === 0 ? (
+              <Text intent="muted" size="sm" className="p-4">
+                No nodes loaded. Click Search nodes, or paste an exact node ID.
+              </Text>
+            ) : (
+              <div className="divide-y divide-slate-200 dark:divide-slate-800">
+                {filteredNodes.map((node) => (
+                  <label
+                    key={node.nodeId}
+                    className={`flex cursor-pointer gap-3 p-3 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-950/40 ${selectedNodeId === node.nodeId ? "bg-sky-50 dark:bg-sky-950/30" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="blob-attachment-node"
+                      className="mt-1 h-4 w-4 border-slate-300 text-sky-600"
+                      checked={selectedNodeId === node.nodeId}
+                      onChange={() => {
+                        setSelectedNodeId(node.nodeId ?? "");
+                        setNodeIdFallback("");
+                      }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>
+                        {displayNodeLabel(node)}
+                      </span>
+                      <span className={`block ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}>
+                        <ResourceIdText value={node.nodeId} />
+                        {node.labels?.length ? ` · ${node.labels.join(", ")}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block text-sm font-medium">
+              File
+              <input
+                className={`mt-1 block w-full rounded-md border border-slate-300 ${themeClasses.surface.input} px-2 py-2 text-sm dark:border-slate-700`}
+                type="file"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Blob node labels
+              <input
+                className={`mt-1 w-full rounded-md border border-slate-300 ${themeClasses.surface.input} px-2 py-2 dark:border-slate-700`}
+                value={labelsText}
+                onChange={(event) => setLabelsText(event.target.value)}
+                placeholder="attachment, blob"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button disabled={!canAttach} onClick={() => void attachFile()}>
+              {uploading ? "Attaching…" : "Attach file"}
+            </Button>
+            <Text intent="muted" size="sm">
+              Parent: {selectedNode ? displayNodeLabel(selectedNode) : shortenId(effectiveParentNodeId) || "Select or paste a node"}
+            </Text>
+          </div>
+
+          {result && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-100">
+              Attached blob node <ResourceIdText value={(result.node as QueryGraphNode)?.nodeId} />.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function selectDefaultDomain(domains: DomainInfo[]): DomainInfo | undefined {
+  const sorted = [...domains].sort((left, right) =>
+    (left.name || left.key || left.domainId).localeCompare(
+      right.name || right.key || right.domainId,
+    ),
+  );
+  return sorted.find(
+    (domain) => domain.key === "default" || domain.name?.toLowerCase() === "default",
+  ) ?? sorted[0];
+}
+
+function extractNodesFromGqlResponse(response: unknown): QueryGraphNode[] {
+  const seen = new Set<string>();
+  const nodes: QueryGraphNode[] = [];
+  collectNodes(response, nodes, seen);
+  return nodes;
+}
+
+function collectNodes(value: unknown, nodes: QueryGraphNode[], seen: Set<string>) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectNodes(item, nodes, seen));
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.nodeId === "string" &&
+    (typeof record.domainId === "string" || Array.isArray(record.labels)) &&
+    !seen.has(record.nodeId)
+  ) {
+    seen.add(record.nodeId);
+    nodes.push(record as QueryGraphNode);
+  }
+  Object.values(record).forEach((item) => collectNodes(item, nodes, seen));
+}
+
+function searchableNodeText(node: QueryGraphNode): string {
+  return [
+    node.nodeId,
+    displayNodeLabel(node),
+    ...(node.labels ?? []),
+    JSON.stringify(node.properties ?? {}),
+    JSON.stringify(node.payload ?? {}),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
 function GraphQueryConsolePreview({

@@ -60,8 +60,10 @@ import type {
   PrincipalSession,
 } from "../types/auth";
 import type {
+  BlobAttachmentResponse,
   ClientQueryLoginInput,
   ClientQuerySessionInfo,
+  CreateBlobAttachmentInput,
   ExecuteGqlInput,
   ExecuteGqlResponse,
   ExecuteGqlScriptInput,
@@ -385,6 +387,14 @@ export async function executeGraphQuery(
     "admin_console_execute_graph_query",
     { input },
   );
+}
+
+export async function createBlobAttachment(
+  input: CreateBlobAttachmentInput,
+): Promise<BlobAttachmentResponse> {
+  return invoke<BlobAttachmentResponse>("admin_console_create_blob_attachment", {
+    input,
+  });
 }
 
 export async function whoAmI(): Promise<PrincipalSession | null> {

@@ -1,11 +1,14 @@
 use mycel_sdk::proto::client::v1::{
-    BeginTransactionRequest, CloseSessionRequest, CloseTransactionRequest,
-    CommitTransactionRequest, Edge, ExecuteGqlRequest, ExecuteGqlScriptRequest,
-    ExecuteQueryRequest, GraphPattern, GraphQuery, Node, NodePattern, OpenSessionRequest,
-    PathValue, QueryResult, QueryRow, ReturnProjection, ReturnProjectionKind, TransactionMode,
+    create_blob_node_request, BeginTransactionRequest, Blob, CloseSessionRequest,
+    CloseTransactionRequest, CommitTransactionRequest, CreateBlobNodeMetadata,
+    CreateBlobNodeRequest, CreateEdgeRequest, Edge, EdgeCreate, ExecuteGqlRequest,
+    ExecuteGqlScriptRequest, ExecuteQueryRequest, GetNodeRequest, GraphPattern, GraphQuery, Node,
+    NodePattern, OpenSessionRequest, PathValue, QueryResult, QueryRow, ReturnProjection,
+    ReturnProjectionKind, TransactionMode,
 };
 use mycel_sdk::Config;
-use serde_json::{json, Value};
+use prost_types::{value::Kind, ListValue, Struct, Value as ProstValue};
+use serde_json::{json, Map, Value};
 use tauri::State;
 
 use crate::state::{AppState, ClientQuerySession};
@@ -83,6 +86,32 @@ pub struct ExecuteGraphQueryInput {
 pub struct ExecuteGraphQueryResponseInfo {
     pub rows: Value,
     pub next_page_token: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateBlobAttachmentInput {
+    pub space_id: String,
+    pub domain_id: String,
+    pub parent_node_id: String,
+    pub file_name: String,
+    #[serde(default)]
+    pub mime_type: String,
+    pub content: Vec<u8>,
+    #[serde(default)]
+    pub labels: Vec<String>,
+    #[serde(default)]
+    pub properties: Map<String, Value>,
+    #[serde(default)]
+    pub meta: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateBlobAttachmentResponseInfo {
+    pub node: Value,
+    pub blob: Value,
+    pub edge: Value,
 }
 
 #[tauri::command]
@@ -361,6 +390,173 @@ pub async fn admin_console_execute_graph_query(
     execute_graph_query_with_client(&mut session._data_client, input, query).await
 }
 
+#[tauri::command]
+pub async fn admin_console_create_blob_attachment(
+    input: CreateBlobAttachmentInput,
+    state: State<'_, AppState>,
+) -> Result<CreateBlobAttachmentResponseInfo, String> {
+    if input.space_id.trim().is_empty()
+        || input.domain_id.trim().is_empty()
+        || input.parent_node_id.trim().is_empty()
+    {
+        return Err("Space, domain, and parent node are required".to_string());
+    }
+    if input.content.is_empty() {
+        return Err("Attachment file content is required".to_string());
+    }
+
+    let mut query_guard = state.client_query.write().await;
+    if let Some(session) = query_guard.as_mut() {
+        return create_blob_attachment_with_client(&mut session._client, input).await;
+    }
+    drop(query_guard);
+
+    let mut admin_guard = state.admin.write().await;
+    let session = admin_guard
+        .as_mut()
+        .ok_or_else(|| "Not authenticated".to_string())?;
+    create_blob_attachment_with_client(&mut session._data_client, input).await
+}
+
+async fn create_blob_attachment_with_client(
+    client: &mut mycel_sdk::Client,
+    input: CreateBlobAttachmentInput,
+) -> Result<CreateBlobAttachmentResponseInfo, String> {
+    let graph_session = client
+        .session
+        .open_session(tonic::Request::new(OpenSessionRequest {
+            space_id: input.space_id.trim().to_string(),
+            domain_id: input.domain_id.trim().to_string(),
+            requested_idle_timeout: None,
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .session
+        .ok_or_else(|| "OpenSession returned no session".to_string())?;
+    let tx = client
+        .transaction
+        .begin_transaction(tonic::Request::new(BeginTransactionRequest {
+            session_id: graph_session.session_id.clone(),
+            mode: TransactionMode::ReadWrite as i32,
+            operation_id: String::new(),
+        }))
+        .await
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .transaction
+        .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
+
+    let result = async {
+        client
+            .graph
+            .get_node(tonic::Request::new(GetNodeRequest {
+                transaction_id: tx.transaction_id.clone(),
+                node_id: input.parent_node_id.trim().to_string(),
+                read_options: None,
+            }))
+            .await
+            .map_err(|err| err.to_string())?;
+
+        let labels = attachment_labels(input.labels);
+        let mut payload = Map::new();
+        payload.insert(
+            "attached_to_node_id".to_string(),
+            json!(input.parent_node_id.trim()),
+        );
+        payload.insert("attachment_kind".to_string(), json!("file"));
+
+        let stream = tokio_stream::iter(vec![
+            CreateBlobNodeRequest {
+                part: Some(create_blob_node_request::Part::Metadata(
+                    CreateBlobNodeMetadata {
+                        transaction_id: tx.transaction_id.clone(),
+                        node_id: None,
+                        declared_mime_type: input.mime_type.trim().to_string(),
+                        original_filename: input.file_name.trim().to_string(),
+                        labels,
+                        properties: Some(struct_from_map(input.properties)),
+                        payload: Some(struct_from_map(payload)),
+                        meta: Some(struct_from_map(input.meta)),
+                    },
+                )),
+            },
+            CreateBlobNodeRequest {
+                part: Some(create_blob_node_request::Part::Chunk(input.content)),
+            },
+        ]);
+        let blob_response = client
+            .graph
+            .create_blob_node(tonic::Request::new(stream))
+            .await
+            .map_err(|err| err.to_string())?
+            .into_inner();
+        let node = blob_response
+            .node
+            .ok_or_else(|| "CreateBlobNode returned no node".to_string())?;
+        let blob = blob_response
+            .blob
+            .ok_or_else(|| "CreateBlobNode returned no blob".to_string())?;
+        let edge_response = client
+            .graph
+            .create_edge(tonic::Request::new(CreateEdgeRequest {
+                transaction_id: tx.transaction_id.clone(),
+                edge: Some(EdgeCreate {
+                    edge_id: None,
+                    from_node_id: input.parent_node_id.trim().to_string(),
+                    to_node_id: node.node_id.clone(),
+                    labels: vec!["contains".to_string(), "attachment".to_string()],
+                    properties: Some(struct_from_map(Map::from_iter([
+                        ("kind".to_string(), json!("blob_attachment")),
+                        (
+                            "original_filename".to_string(),
+                            json!(blob.original_filename.clone()),
+                        ),
+                    ]))),
+                    payload: None,
+                    meta: None,
+                }),
+            }))
+            .await
+            .map_err(|err| err.to_string())?
+            .into_inner()
+            .edge
+            .ok_or_else(|| "CreateEdge returned no edge".to_string())?;
+
+        client
+            .transaction
+            .commit_transaction(tonic::Request::new(CommitTransactionRequest {
+                transaction_id: tx.transaction_id.clone(),
+            }))
+            .await
+            .map_err(|err| err.to_string())?;
+
+        Ok(CreateBlobAttachmentResponseInfo {
+            node: node_json(&node),
+            blob: blob_json(&blob),
+            edge: edge_json(&edge_response),
+        })
+    }
+    .await;
+
+    if result.is_err() {
+        let _ = client
+            .transaction
+            .close_transaction(tonic::Request::new(CloseTransactionRequest {
+                transaction_id: tx.transaction_id,
+            }))
+            .await;
+    }
+    let _ = client
+        .session
+        .close_session(tonic::Request::new(CloseSessionRequest {
+            session_id: graph_session.session_id,
+        }))
+        .await;
+
+    result
+}
+
 async fn execute_graph_query_with_client(
     client: &mut mycel_sdk::Client,
     input: ExecuteGraphQueryInput,
@@ -497,6 +693,58 @@ fn edge_json(edge: &Edge) -> Value {
         "payload": edge.payload.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
         "meta": edge.meta.as_ref().map(struct_json).unwrap_or_else(|| json!({})),
     })
+}
+
+fn blob_json(blob: &Blob) -> Value {
+    json!({
+        "blobId": blob.blob_id,
+        "spaceId": blob.space_id,
+        "domainId": blob.domain_id,
+        "digest": blob.digest,
+        "sizeBytes": blob.size_bytes,
+        "mimeType": blob.mime_type,
+        "declaredMimeType": blob.declared_mime_type,
+        "originalFilename": blob.original_filename,
+        "createTime": blob.create_time.as_ref().map(|timestamp| timestamp.seconds.to_string()).unwrap_or_default(),
+    })
+}
+
+fn attachment_labels(labels: Vec<String>) -> Vec<String> {
+    let mut output: Vec<String> = labels
+        .into_iter()
+        .map(|label| label.trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect();
+    if !output.iter().any(|label| label == "blob") {
+        output.push("blob".to_string());
+    }
+    if !output.iter().any(|label| label == "attachment") {
+        output.push("attachment".to_string());
+    }
+    output
+}
+
+fn struct_from_map(map: Map<String, Value>) -> Struct {
+    Struct {
+        fields: map
+            .into_iter()
+            .map(|(key, value)| (key, prost_value(value)))
+            .collect(),
+    }
+}
+
+fn prost_value(value: Value) -> ProstValue {
+    let kind = match value {
+        Value::Null => Kind::NullValue(0),
+        Value::Bool(value) => Kind::BoolValue(value),
+        Value::Number(value) => Kind::NumberValue(value.as_f64().unwrap_or(0.0)),
+        Value::String(value) => Kind::StringValue(value),
+        Value::Array(values) => Kind::ListValue(ListValue {
+            values: values.into_iter().map(prost_value).collect(),
+        }),
+        Value::Object(map) => Kind::StructValue(struct_from_map(map)),
+    };
+    ProstValue { kind: Some(kind) }
 }
 
 fn struct_json(value: &prost_types::Struct) -> Value {

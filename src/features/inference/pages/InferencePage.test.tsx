@@ -252,31 +252,32 @@ test("creates credentials from pasted API keys", async () => {
 });
 
 test("revokes credentials from the credentials table", async () => {
-  const setInferenceCredentialStatusService = jest.fn().mockResolvedValue({});
-  const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
+  const credential = {
+    credentialId: "cred1",
+    key: "wrong-key",
+    displayName: "Wrong key",
+    modelEndpointId: "ep1",
+    modelEndpointKey: "openai",
+    ownerType: "system",
+    ownerId: "system",
+    authType: "api_key",
+    secretId: "sec1",
+    status: "active",
+    isDefault: false,
+    createTime: "",
+    updateTime: "",
+    lastUsedTime: "",
+    secretVersion: "",
+    secretSuffix: "bad1",
+    rotatedAt: "",
+  };
+  const setInferenceCredentialStatusService = jest.fn().mockResolvedValue({
+    credential: { ...credential, status: "revoked" },
+  });
+  const confirmSpy = jest.spyOn(window, "confirm");
   renderAccessPage({
     listInferenceCredentialsService: jest.fn().mockResolvedValue({
-      credentials: [
-        {
-          credentialId: "cred1",
-          key: "wrong-key",
-          displayName: "Wrong key",
-          modelEndpointId: "ep1",
-          modelEndpointKey: "openai",
-          ownerType: "system",
-          ownerId: "system",
-          authType: "api_key",
-          secretId: "sec1",
-          status: "active",
-          isDefault: false,
-          createTime: "",
-          updateTime: "",
-          lastUsedTime: "",
-          secretVersion: "",
-          secretSuffix: "bad1",
-          rotatedAt: "",
-        },
-      ],
+      credentials: [credential],
       nextPageToken: "",
     }),
     setInferenceCredentialStatusService,
@@ -286,9 +287,19 @@ test("revokes credentials from the credentials table", async () => {
   expect(await screen.findByText("wrong-key")).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("button", { name: "Revoke" }));
+  expect(confirmSpy).not.toHaveBeenCalled();
+  expect(
+    await screen.findByRole("heading", { name: "Revoke wrong-key?" }),
+  ).toBeInTheDocument();
+  expect(setInferenceCredentialStatusService).not.toHaveBeenCalled();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Revoke credential" }),
+  );
 
   await waitFor(() =>
     expect(setInferenceCredentialStatusService).toHaveBeenCalledWith({
+      credential: "wrong-key",
       credentialId: "cred1",
       status: "revoked",
     }),

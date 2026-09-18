@@ -6,6 +6,7 @@ import {
   Alert,
   ErrorGroup,
   errorMessage,
+  H2,
   Tabs,
   Text,
   themeClasses,
@@ -38,6 +39,7 @@ import type {
   CreateInferencePolicyInput,
   CreateInferenceProfileInput,
   CredentialGrantInfo,
+  CredentialResponse,
   CredentialStatusInput,
   InferenceCredentialInfo,
   InferenceModelInfo,
@@ -172,7 +174,7 @@ export type InferencePageProps = {
   ) => Promise<unknown>;
   setInferenceCredentialStatusService?: (
     input: CredentialStatusInput,
-  ) => Promise<unknown>;
+  ) => Promise<CredentialResponse>;
   listInferenceCredentialGrantsService?: (
     input: ListCredentialGrantsInput,
   ) => Promise<ListCredentialGrantsResponse>;
@@ -270,6 +272,8 @@ export function InferencePage({
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
   const [setupMessage, setSetupMessage] = useState("");
+  const [revokeCredential, setRevokeCredential] =
+    useState<InferenceCredentialInfo | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileDraft>({
     key: "summarize-page",
     displayName: "Summarize page",
@@ -808,23 +812,32 @@ export function InferencePage({
     }
   }
 
-  async function handleRevokeCredential(credential: InferenceCredentialInfo) {
+  function requestRevokeCredential(credential: InferenceCredentialInfo) {
+    setSetupError("");
+    setSetupMessage("");
+    setRevokeCredential(credential);
+  }
+
+  async function confirmRevokeCredential() {
+    if (!revokeCredential) return;
+    const credential = revokeCredential;
     const label = credential.key || credential.credentialId;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Revoke credential ${label}? Existing grants will no longer be able to use it.`,
-      )
-    )
-      return;
     setSetupLoading(true);
     setSetupError("");
     setSetupMessage("");
     try {
-      await setInferenceCredentialStatusService({
+      const response = await setInferenceCredentialStatusService({
+        credential: credential.key,
         credentialId: credential.credentialId,
         status: "revoked",
       });
+      const responseStatus = response.credential?.status?.toLowerCase();
+      if (responseStatus !== "revoked") {
+        throw new Error(
+          `Daemon did not confirm revoked status for credential ${label}.`,
+        );
+      }
+      setRevokeCredential(null);
       setSetupMessage(`Credential ${label} revoked.`);
       await loadSetupTab();
     } catch (err) {
@@ -1323,9 +1336,7 @@ export function InferencePage({
           canManagePolicies={canManagePolicies}
           onCreateProfile={() => void handleCreateProfile()}
           onCreateCredential={() => void handleCreateCredential()}
-          onRevokeCredential={(credential) =>
-            void handleRevokeCredential(credential)
-          }
+          onRevokeCredential={requestRevokeCredential}
           onStartCreateGrant={() => {
             setGrantDraft((current) => ({
               ...current,
@@ -1404,6 +1415,16 @@ export function InferencePage({
         />
       ) : null}
 
+      {revokeCredential && (
+        <ConfirmCredentialRevokeDialog
+          credential={revokeCredential}
+          loading={setupLoading}
+          error={setupError}
+          onCancel={() => setRevokeCredential(null)}
+          onConfirm={() => void confirmRevokeCredential()}
+        />
+      )}
+
       <ImportInferencePackageModal
         open={importOpen && canImportPackages}
         loading={importing}
@@ -1440,5 +1461,69 @@ export function InferencePage({
         }}
       />
     </section>
+  );
+}
+
+function ConfirmCredentialRevokeDialog({
+  credential,
+  loading,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  credential: InferenceCredentialInfo;
+  loading: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const label = credential.key || credential.credentialId;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
+      <div
+        className={`w-full max-w-md rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.elevated} p-6 shadow-xl`}
+      >
+        <Text
+          as="p"
+          size="sm"
+          className="font-medium uppercase tracking-[0.2em] text-red-500 dark:text-red-300"
+        >
+          Revoke credential
+        </Text>
+        <H2
+          className={`mt-2 text-xl ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+        >
+          Revoke {label}?
+        </H2>
+        <Text intent="muted" size="sm" className="mt-3">
+          Existing grants will no longer be able to use this credential. Secret
+          values are not displayed or logged.
+        </Text>
+        <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-950/60">
+          <div>
+            <strong>Credential:</strong> {label}
+          </div>
+          <div>
+            <strong>Status:</strong> {credential.status || "—"}
+          </div>
+          <div>
+            <strong>ID:</strong> {credential.credentialId}
+          </div>
+        </div>
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+            {error}
+          </div>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={onConfirm} disabled={loading}>
+            {loading ? "Revoking…" : "Revoke credential"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

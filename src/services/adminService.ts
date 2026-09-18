@@ -1150,6 +1150,13 @@ export async function setInferenceCredentialStatus(
   });
 }
 
+export async function debugInferenceLog(
+  event: string,
+  details: Record<string, unknown>,
+): Promise<void> {
+  return invoke<void>("debug_inference_log", { event, details });
+}
+
 export async function rotateInferenceCredential(
   input: RotateCredentialInput,
 ): Promise<CredentialResponse> {

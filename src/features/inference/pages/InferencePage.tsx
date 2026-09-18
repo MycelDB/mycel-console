@@ -17,6 +17,7 @@ import {
   createInferenceCredentialGrant as defaultCreateInferenceCredentialGrant,
   createInferencePolicy as defaultCreateInferencePolicy,
   createInferenceProfile as defaultCreateInferenceProfile,
+  debugInferenceLog as defaultDebugInferenceLog,
   setInferenceCredentialStatus as defaultSetInferenceCredentialStatus,
   expireInferenceCredentialGrant as defaultExpireInferenceCredentialGrant,
   expireInferencePolicy as defaultExpireInferencePolicy,
@@ -38,6 +39,7 @@ import type {
   CreateInferencePolicyInput,
   CreateInferenceProfileInput,
   CredentialGrantInfo,
+  CredentialResponse,
   CredentialStatusInput,
   InferenceCredentialInfo,
   InferenceModelInfo,
@@ -172,7 +174,11 @@ export type InferencePageProps = {
   ) => Promise<unknown>;
   setInferenceCredentialStatusService?: (
     input: CredentialStatusInput,
-  ) => Promise<unknown>;
+  ) => Promise<CredentialResponse>;
+  debugInferenceLogService?: (
+    event: string,
+    details: Record<string, unknown>,
+  ) => Promise<void>;
   listInferenceCredentialGrantsService?: (
     input: ListCredentialGrantsInput,
   ) => Promise<ListCredentialGrantsResponse>;
@@ -212,6 +218,7 @@ export function InferencePage({
   listInferenceCredentialsService = defaultListInferenceCredentials,
   createInferenceCredentialService = defaultCreateInferenceCredential,
   setInferenceCredentialStatusService = defaultSetInferenceCredentialStatus,
+  debugInferenceLogService = defaultDebugInferenceLog,
   listInferenceCredentialGrantsService = defaultListInferenceCredentialGrants,
   createInferenceCredentialGrantService = defaultCreateInferenceCredentialGrant,
   expireInferenceCredentialGrantService = defaultExpireInferenceCredentialGrant,
@@ -355,6 +362,18 @@ export function InferencePage({
   const canManagePolicies =
     canUseCapability(principalContext, "inference.policy.manage") ||
     canUseCapability(principalContext, "inference.admin");
+
+  function logInferenceDebug(
+    event: string,
+    details: Record<string, unknown>,
+  ): void {
+    void debugInferenceLogService(event, details).catch((err) => {
+      console.warn("[mycel-console] failed to write inference debug log", {
+        event,
+        err,
+      });
+    });
+  }
 
   useEffect(() => {
     if (!availableTabs.some((tab) => tab.id === activeTab)) {
@@ -810,24 +829,89 @@ export function InferencePage({
 
   async function handleRevokeCredential(credential: InferenceCredentialInfo) {
     const label = credential.key || credential.credentialId;
+    console.info("[mycel-console] revoke credential requested", {
+      credentialId: credential.credentialId,
+      key: credential.key,
+      status: credential.status,
+    });
+    logInferenceDebug("revoke credential requested", {
+      credentialId: credential.credentialId,
+      key: credential.key,
+      status: credential.status,
+    });
     if (
       typeof window !== "undefined" &&
       !window.confirm(
         `Revoke credential ${label}? Existing grants will no longer be able to use it.`,
       )
-    )
+    ) {
+      console.info("[mycel-console] revoke credential cancelled", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
+      logInferenceDebug("revoke credential cancelled", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
       return;
+    }
     setSetupLoading(true);
     setSetupError("");
     setSetupMessage("");
     try {
-      await setInferenceCredentialStatusService({
+      console.info("[mycel-console] sending revoke credential request", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
+      logInferenceDebug("sending revoke credential request", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
+      const response = await setInferenceCredentialStatusService({
         credentialId: credential.credentialId,
         status: "revoked",
       });
+      console.info("[mycel-console] revoke credential response", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+        responseStatus: response.credential?.status,
+        responseCredentialId: response.credential?.credentialId,
+      });
+      logInferenceDebug("revoke credential response", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+        responseStatus: response.credential?.status,
+        responseCredentialId: response.credential?.credentialId,
+      });
       setSetupMessage(`Credential ${label} revoked.`);
+      console.info("[mycel-console] refreshing credentials after revoke", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
+      logInferenceDebug("refreshing credentials after revoke", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
       await loadSetupTab();
+      console.info("[mycel-console] credential refresh after revoke completed", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
+      logInferenceDebug("credential refresh after revoke completed", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+      });
     } catch (err) {
+      console.error("[mycel-console] revoke credential failed", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+        err,
+      });
+      logInferenceDebug("revoke credential failed", {
+        credentialId: credential.credentialId,
+        key: credential.key,
+        error: errorMessage(err, "Failed to revoke credential"),
+      });
       setSetupError(errorMessage(err, "Failed to revoke credential"));
     } finally {
       setSetupLoading(false);

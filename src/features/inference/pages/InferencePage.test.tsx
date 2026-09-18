@@ -103,6 +103,7 @@ function renderPage(
       ],
       nextPageToken: "",
     }),
+    debugInferenceLogService: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   render(

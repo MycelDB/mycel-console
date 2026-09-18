@@ -1,4 +1,9 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::Write,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use mycel_sdk::proto::admin::v1::{
     AdminInferenceCatalogServiceApplyInferencePackageRequest,
@@ -44,6 +49,36 @@ use serde_json::Map;
 use tauri::State;
 
 use crate::state::AppState;
+
+const INFERENCE_DEBUG_LOG_PATH: &str = "/tmp/mycel-console-inference-debug.log";
+
+fn append_inference_debug_log(event: &str, details: serde_json::Value) {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    let record = serde_json::json!({
+        "timestamp_ms": timestamp,
+        "event": event,
+        "details": details,
+    });
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(INFERENCE_DEBUG_LOG_PATH)
+    {
+        let _ = writeln!(file, "{}", record);
+    }
+}
+
+#[tauri::command]
+pub async fn debug_inference_log(
+    event: String,
+    details: serde_json::Value,
+) -> Result<(), String> {
+    append_inference_debug_log(&event, details);
+    Ok(())
+}
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1400,26 +1435,73 @@ pub async fn admin_set_inference_credential_status(
     input: CredentialStatusInput,
     state: State<'_, AppState>,
 ) -> Result<CredentialResponse, String> {
+    let request_credential = input.credential.clone();
+    let request_credential_id = input.credential_id.clone();
+    let request_status = input.status.clone();
+    eprintln!(
+        "[mycel-console] admin_set_inference_credential_status request credential={} credential_id={} status={}",
+        request_credential, request_credential_id, request_status
+    );
+    append_inference_debug_log(
+        "tauri credential status request",
+        serde_json::json!({
+            "credential": request_credential,
+            "credentialId": request_credential_id,
+            "status": request_status,
+        }),
+    );
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
+    let request = AdminIntelligenceAccessCredentialServiceSetCredentialStatusRequest {
+        credential: input.credential,
+        credential_id: input.credential_id,
+        status: input.status,
+    };
+    let response = match session
         ._client
         .inference_credentials
-        .set_credential_status(tonic::Request::new(
-            AdminIntelligenceAccessCredentialServiceSetCredentialStatusRequest {
-                credential: input.credential,
-                credential_id: input.credential_id,
-                status: input.status,
-            },
-        ))
+        .set_credential_status(tonic::Request::new(request))
         .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
-    Ok(CredentialResponse {
-        credential: response.credential.map(credential_info),
-    })
+    {
+        Ok(response) => response.into_inner(),
+        Err(err) => {
+            let error = err.to_string();
+            eprintln!(
+                "[mycel-console] admin_set_inference_credential_status failed: {}",
+                error
+            );
+            append_inference_debug_log(
+                "tauri credential status failed",
+                serde_json::json!({ "error": error }),
+            );
+            return Err(error);
+        }
+    };
+    let credential = response.credential.map(credential_info);
+    let response_credential_id = credential
+        .as_ref()
+        .map(|item| item.credential_id.as_str())
+        .unwrap_or("");
+    let response_key = credential.as_ref().map(|item| item.key.as_str()).unwrap_or("");
+    let response_status = credential
+        .as_ref()
+        .map(|item| item.status.as_str())
+        .unwrap_or("");
+    eprintln!(
+        "[mycel-console] admin_set_inference_credential_status response credential_id={} key={} status={}",
+        response_credential_id, response_key, response_status
+    );
+    append_inference_debug_log(
+        "tauri credential status response",
+        serde_json::json!({
+            "credentialId": response_credential_id,
+            "key": response_key,
+            "status": response_status,
+        }),
+    );
+    Ok(CredentialResponse { credential })
 }
 
 #[tauri::command]

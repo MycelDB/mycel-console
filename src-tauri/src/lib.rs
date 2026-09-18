@@ -42,7 +42,7 @@ use commands::inference::{
     admin_list_model_endpoint_capabilities, admin_list_model_endpoints, admin_list_models,
     admin_list_vector_stores, admin_rotate_inference_credential,
     admin_set_inference_credential_status, admin_set_inference_profile_enabled,
-    admin_summarize_inference_usage,
+    admin_summarize_inference_usage, debug_inference_log,
 };
 use commands::lexical::{
     admin_rebuild_lexical_index, client_get_lexical_index_status, client_lexical_search,
@@ -176,6 +176,7 @@ pub fn run() {
             admin_delete_inference_profile,
             admin_list_inference_credentials,
             admin_create_inference_credential,
+            debug_inference_log,
             admin_set_inference_credential_status,
             admin_rotate_inference_credential,
             admin_delete_inference_credential,

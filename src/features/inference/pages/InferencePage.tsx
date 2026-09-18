@@ -4,9 +4,9 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
+  ConfirmationDialog,
   ErrorGroup,
   errorMessage,
-  H2,
   Tabs,
   Text,
   themeClasses,
@@ -1479,27 +1479,11 @@ function ConfirmCredentialRevokeDialog({
 }) {
   const label = credential.key || credential.credentialId;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
-      <div
-        className={`w-full max-w-md rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.elevated} p-6 shadow-xl`}
-      >
-        <Text
-          as="p"
-          size="sm"
-          className="font-medium uppercase tracking-[0.2em] text-red-500 dark:text-red-300"
-        >
-          Revoke credential
-        </Text>
-        <H2
-          className={`mt-2 text-xl ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-        >
-          Revoke {label}?
-        </H2>
-        <Text intent="muted" size="sm" className="mt-3">
-          Existing grants will no longer be able to use this credential. Secret
-          values are not displayed or logged.
-        </Text>
-        <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-950/60">
+    <ConfirmationDialog
+      eyebrow="Revoke credential"
+      title={`Revoke ${label}?`}
+      details={
+        <>
           <div>
             <strong>Credential:</strong> {label}
           </div>
@@ -1509,21 +1493,18 @@ function ConfirmCredentialRevokeDialog({
           <div>
             <strong>ID:</strong> {credential.credentialId}
           </div>
-        </div>
-        {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-            {error}
-          </div>
-        )}
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={loading}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={onConfirm} disabled={loading}>
-            {loading ? "Revoking…" : "Revoke credential"}
-          </Button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+      error={error}
+      loading={loading}
+      confirmLabel="Revoke credential"
+      loadingLabel="Revoking…"
+      intent="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    >
+      Existing grants will no longer be able to use this credential. Secret
+      values are not displayed or logged.
+    </ConfirmationDialog>
   );
 }

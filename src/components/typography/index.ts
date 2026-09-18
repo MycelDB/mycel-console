@@ -1,5 +1,7 @@
 export { Button } from "./Button";
 export { Alert } from "./Alert";
+export { ConfirmationDialog } from "./ConfirmationDialog";
+export type { ConfirmationDialogProps } from "./ConfirmationDialog";
 export type { AlertProps, AlertVariant } from "./Alert";
 export { ErrorGroup, errorMessage, useErrorGroup } from "./ErrorGroup";
 export type {

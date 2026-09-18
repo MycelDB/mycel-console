@@ -38,7 +38,6 @@ import type {
   CreateInferencePolicyInput,
   CreateInferenceProfileInput,
   CredentialGrantInfo,
-  CredentialResponse,
   CredentialStatusInput,
   InferenceCredentialInfo,
   InferenceModelInfo,
@@ -173,7 +172,7 @@ export type InferencePageProps = {
   ) => Promise<unknown>;
   setInferenceCredentialStatusService?: (
     input: CredentialStatusInput,
-  ) => Promise<CredentialResponse>;
+  ) => Promise<unknown>;
   listInferenceCredentialGrantsService?: (
     input: ListCredentialGrantsInput,
   ) => Promise<ListCredentialGrantsResponse>;
@@ -822,17 +821,10 @@ export function InferencePage({
     setSetupError("");
     setSetupMessage("");
     try {
-      const response = await setInferenceCredentialStatusService({
-        credential: credential.key,
+      await setInferenceCredentialStatusService({
         credentialId: credential.credentialId,
         status: "revoked",
       });
-      const responseStatus = response.credential?.status?.toLowerCase();
-      if (responseStatus !== "revoked") {
-        throw new Error(
-          `Daemon did not confirm revoked status for credential ${label}.`,
-        );
-      }
       setSetupMessage(`Credential ${label} revoked.`);
       await loadSetupTab();
     } catch (err) {

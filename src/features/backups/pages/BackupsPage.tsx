@@ -3,9 +3,9 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
+  ConfirmationDialog,
   FieldHint,
   formatEnumLabel,
-  H2,
   Input,
   Tabs,
   Text,
@@ -605,42 +605,25 @@ function DeleteBackupDialog({
   if (!backup) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-sm dark:bg-slate-950/80">
-      <div
-        className={`w-full max-w-md rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.elevated} p-6 shadow-xl`}
+    <ConfirmationDialog
+      eyebrow="Delete backup"
+      title="Confirm delete"
+      loading={deleting}
+      confirmLabel="Delete backup"
+      loadingLabel="Deleting…"
+      intent="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    >
+      Delete{" "}
+      <span
+        className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
       >
-        <Text
-          as="p"
-          size="sm"
-          className="font-medium uppercase tracking-[0.2em] text-red-500 dark:text-red-300"
-        >
-          Delete backup
-        </Text>
-        <H2
-          className={`mt-2 text-xl ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-        >
-          Confirm delete
-        </H2>
-        <Text intent="muted" className="mt-3">
-          Delete{" "}
-          <span
-            className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-          >
-            {backup.archiveName || backup.backupId}
-          </span>
-          ? This removes the backup archive and manifest from the daemon backup
-          directory.
-        </Text>
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button onClick={onConfirm} disabled={deleting}>
-            {deleting ? "Deleting…" : "Delete backup"}
-          </Button>
-        </div>
-      </div>
-    </div>
+        {backup.archiveName || backup.backupId}
+      </span>
+      ? This removes the backup archive and manifest from the daemon backup
+      directory.
+    </ConfirmationDialog>
   );
 }
 

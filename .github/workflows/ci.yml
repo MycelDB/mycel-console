@@ -33,12 +33,12 @@ jobs:
         if: steps.checkout-rust-sdk.outcome == 'failure'
         run: rm -rf mycel-rust-sdk
 
-      - name: Checkout Rust SDK at develop fallback
+      - name: Checkout Rust SDK at main fallback
         if: steps.checkout-rust-sdk.outcome == 'failure'
         uses: actions/checkout@v4
         with:
           repository: MycelDB/mycel-rust-sdk
-          ref: develop
+          ref: main
           path: mycel-rust-sdk
 
       - name: Install Tauri Linux dependencies

@@ -6,6 +6,12 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.15.2] - 2026-09-19
+
+### Fixed
+
+- Pinned the macOS DMG release workflow to the coordinated `mycel-rust-sdk` `v0.15.0` tag instead of requiring a matching Console patch tag in the SDK repository.
+
 ## [v0.15.1] - 2026-09-18
 
 ### Fixed

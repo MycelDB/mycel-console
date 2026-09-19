@@ -6,6 +6,12 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.15.1] - 2026-09-18
+
+### Fixed
+
+- Updated Console cluster readiness test fixtures for the v0.15.0 Rust SDK dimensioned readiness fields so tag CI passes.
+
 ## [v0.15.0] - 2026-09-18
 
 ### Added

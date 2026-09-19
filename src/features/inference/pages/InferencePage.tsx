@@ -4,6 +4,7 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
+  ConfirmationDialog,
   ErrorGroup,
   errorMessage,
   Tabs,
@@ -38,6 +39,7 @@ import type {
   CreateInferencePolicyInput,
   CreateInferenceProfileInput,
   CredentialGrantInfo,
+  CredentialResponse,
   CredentialStatusInput,
   InferenceCredentialInfo,
   InferenceModelInfo,
@@ -172,7 +174,7 @@ export type InferencePageProps = {
   ) => Promise<unknown>;
   setInferenceCredentialStatusService?: (
     input: CredentialStatusInput,
-  ) => Promise<unknown>;
+  ) => Promise<CredentialResponse>;
   listInferenceCredentialGrantsService?: (
     input: ListCredentialGrantsInput,
   ) => Promise<ListCredentialGrantsResponse>;
@@ -270,6 +272,8 @@ export function InferencePage({
   const [setupLoading, setSetupLoading] = useState(false);
   const [setupError, setSetupError] = useState("");
   const [setupMessage, setSetupMessage] = useState("");
+  const [revokeCredential, setRevokeCredential] =
+    useState<InferenceCredentialInfo | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileDraft>({
     key: "summarize-page",
     displayName: "Summarize page",
@@ -808,23 +812,32 @@ export function InferencePage({
     }
   }
 
-  async function handleRevokeCredential(credential: InferenceCredentialInfo) {
+  function requestRevokeCredential(credential: InferenceCredentialInfo) {
+    setSetupError("");
+    setSetupMessage("");
+    setRevokeCredential(credential);
+  }
+
+  async function confirmRevokeCredential() {
+    if (!revokeCredential) return;
+    const credential = revokeCredential;
     const label = credential.key || credential.credentialId;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Revoke credential ${label}? Existing grants will no longer be able to use it.`,
-      )
-    )
-      return;
     setSetupLoading(true);
     setSetupError("");
     setSetupMessage("");
     try {
-      await setInferenceCredentialStatusService({
+      const response = await setInferenceCredentialStatusService({
+        credential: credential.key,
         credentialId: credential.credentialId,
         status: "revoked",
       });
+      const responseStatus = response.credential?.status?.toLowerCase();
+      if (responseStatus !== "revoked") {
+        throw new Error(
+          `Daemon did not confirm revoked status for credential ${label}.`,
+        );
+      }
+      setRevokeCredential(null);
       setSetupMessage(`Credential ${label} revoked.`);
       await loadSetupTab();
     } catch (err) {
@@ -1323,9 +1336,7 @@ export function InferencePage({
           canManagePolicies={canManagePolicies}
           onCreateProfile={() => void handleCreateProfile()}
           onCreateCredential={() => void handleCreateCredential()}
-          onRevokeCredential={(credential) =>
-            void handleRevokeCredential(credential)
-          }
+          onRevokeCredential={requestRevokeCredential}
           onStartCreateGrant={() => {
             setGrantDraft((current) => ({
               ...current,
@@ -1404,6 +1415,16 @@ export function InferencePage({
         />
       ) : null}
 
+      {revokeCredential && (
+        <ConfirmCredentialRevokeDialog
+          credential={revokeCredential}
+          loading={setupLoading}
+          error={setupError}
+          onCancel={() => setRevokeCredential(null)}
+          onConfirm={() => void confirmRevokeCredential()}
+        />
+      )}
+
       <ImportInferencePackageModal
         open={importOpen && canImportPackages}
         loading={importing}
@@ -1440,5 +1461,50 @@ export function InferencePage({
         }}
       />
     </section>
+  );
+}
+
+function ConfirmCredentialRevokeDialog({
+  credential,
+  loading,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  credential: InferenceCredentialInfo;
+  loading: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const label = credential.key || credential.credentialId;
+  return (
+    <ConfirmationDialog
+      eyebrow="Revoke credential"
+      title={`Revoke ${label}?`}
+      details={
+        <>
+          <div>
+            <strong>Credential:</strong> {label}
+          </div>
+          <div>
+            <strong>Status:</strong> {credential.status || "—"}
+          </div>
+          <div>
+            <strong>ID:</strong> {credential.credentialId}
+          </div>
+        </>
+      }
+      error={error}
+      loading={loading}
+      confirmLabel="Revoke credential"
+      loadingLabel="Revoking…"
+      intent="danger"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    >
+      Existing grants will no longer be able to use this credential. Secret
+      values are not displayed or logged.
+    </ConfirmationDialog>
   );
 }

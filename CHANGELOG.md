@@ -6,6 +6,17 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.15.0] - 2026-09-18
+
+### Added
+
+- Added a searchable node-picker flow for attaching blobs to existing graph nodes (#19).
+- Added a shared in-app confirmation dialog component and migrated initial destructive confirmation flows (#26).
+
+### Fixed
+
+- Replaced the inference credential revoke `window.confirm` prompt with a reliable in-app confirmation modal and verified daemon revoke responses before showing success (#21).
+
 ## [v0.13.0] - 2026-09-12
 
 ### Changed

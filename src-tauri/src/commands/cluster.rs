@@ -72,6 +72,11 @@ pub struct ClusterReadinessInfo {
     pub metadata_applied: bool,
     pub metadata_validated: bool,
     pub partition_groups_started: bool,
+    pub process_ready: bool,
+    pub metadata_ready: bool,
+    pub raft_ready: bool,
+    pub read_ready: bool,
+    pub write_ready: bool,
     pub authoritative_cluster_id: Option<String>,
     pub local_cluster_id: Option<String>,
     pub expected_member_count: i32,
@@ -629,6 +634,11 @@ fn readiness_info(readiness: ClusterReadiness) -> ClusterReadinessInfo {
         metadata_applied: readiness.metadata_applied,
         metadata_validated: readiness.metadata_validated,
         partition_groups_started: readiness.partition_groups_started,
+        process_ready: readiness.process_ready,
+        metadata_ready: readiness.metadata_ready,
+        raft_ready: readiness.raft_ready,
+        read_ready: readiness.read_ready,
+        write_ready: readiness.write_ready,
         authoritative_cluster_id: optional(readiness.authoritative_cluster_id),
         local_cluster_id: optional(readiness.local_cluster_id),
         expected_member_count: readiness.expected_member_count,
@@ -925,6 +935,11 @@ mod tests {
             metadata_applied: true,
             metadata_validated: false,
             partition_groups_started: false,
+            process_ready: true,
+            metadata_ready: false,
+            raft_ready: true,
+            read_ready: false,
+            write_ready: false,
             authoritative_cluster_id: "cluster-a".to_string(),
             local_cluster_id: "cluster-b".to_string(),
             expected_member_count: 3,
@@ -935,6 +950,11 @@ mod tests {
         assert!(info.metadata_applied);
         assert!(!info.metadata_validated);
         assert!(!info.partition_groups_started);
+        assert!(info.process_ready);
+        assert!(!info.metadata_ready);
+        assert!(info.raft_ready);
+        assert!(!info.read_ready);
+        assert!(!info.write_ready);
         assert_eq!(info.authoritative_cluster_id.as_deref(), Some("cluster-a"));
         assert_eq!(info.local_cluster_id.as_deref(), Some("cluster-b"));
         assert_eq!(info.expected_member_count, 3);

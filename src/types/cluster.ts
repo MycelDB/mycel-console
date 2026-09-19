@@ -11,6 +11,11 @@ export type ClusterReadinessInfo = {
   metadataApplied: boolean;
   metadataValidated: boolean;
   partitionGroupsStarted: boolean;
+  processReady: boolean;
+  metadataReady: boolean;
+  raftReady: boolean;
+  readReady: boolean;
+  writeReady: boolean;
   authoritativeClusterId?: string;
   localClusterId?: string;
   expectedMemberCount: number;

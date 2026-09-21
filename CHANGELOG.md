@@ -6,6 +6,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Changed
+
+- Updated generated app icon assets with a padded rounded source icon for macOS visual polish (#28).
+
 ## [v0.15.2] - 2026-09-19
 
 ### Fixed

@@ -45,6 +45,27 @@ test("renders script returned rows instead of statement status in rows view", ()
   expect(screen.queryByText("Statement")).not.toBeInTheDocument();
 });
 
+test("renders direct Tauri row objects in rows view", () => {
+  render(
+    <QueryResultView
+      view="rows"
+      result={{
+        result: {
+          rows: [
+            { "c.name": { scalar: "Iris Vale" }, "c.role": { scalar: "cartographer" } },
+            { "c.name": { scalar: "Mina Quill" }, "c.role": { scalar: "librarian" } },
+          ],
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText(/Iris Vale/)).toBeInTheDocument();
+  expect(screen.getByText(/cartographer/)).toBeInTheDocument();
+  expect(screen.getByText(/Mina Quill/)).toBeInTheDocument();
+  expect(screen.queryByText(/\{\}/)).not.toBeInTheDocument();
+});
+
 test("renders statement results and per-statement errors", () => {
   render(
     <QueryResultView

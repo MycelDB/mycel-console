@@ -102,6 +102,34 @@ test("extracts aggregate scalar rows", () => {
   expect(rows).toEqual([{ role: "reader", total: 2, avg: 10.5 }]);
 });
 
+test("extracts aggregate scalar rows from direct Tauri row objects", () => {
+  const rows = aggregateRowsFromQueryResponse({
+    result: {
+      rows: [
+        { "c.name": { scalar: "Iris Vale" }, "c.role": { scalar: "cartographer" } },
+        { "c.name": { scalar: "Professor Brass" }, "c.role": { scalar: "clockmaker" } },
+      ],
+    },
+  });
+
+  expect(rows).toEqual([
+    { "c.name": "Iris Vale", "c.role": "cartographer" },
+    { "c.name": "Professor Brass", "c.role": "clockmaker" },
+  ]);
+});
+
+test("extracts aggregate scalar rows from capitalized backend payloads", () => {
+  const rows = aggregateRowsFromQueryResponse({
+    result: {
+      Rows: [
+        { Fields: { "c.name": { scalar: "Mina Quill" }, "c.role": { scalar: "librarian" } } },
+      ],
+    },
+  });
+
+  expect(rows).toEqual([{ "c.name": "Mina Quill", "c.role": "librarian" }]);
+});
+
 test("preserves shaped distinct offset row order", () => {
   const rows = aggregateRowsFromQueryResponse({
     result: {

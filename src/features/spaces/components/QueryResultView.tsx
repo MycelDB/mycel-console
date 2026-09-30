@@ -78,13 +78,15 @@ export function QueryResultView({
             returned rows.
           </div>
         ) : null}
-        <pre
-          className={`max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs ${themeClasses.text.parts.bodyLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
-        >
-          {renderedRows.length
-            ? JSON.stringify(renderedRows, null, 2)
-            : "No rows returned."}
-        </pre>
+        {renderedRows.length ? (
+          <RowsTable rows={renderedRows as Array<Record<string, unknown>>} />
+        ) : (
+          <div
+            className={`rounded-lg border border-dashed border-slate-300 p-4 text-sm ${themeClasses.text.parts.subtleLight} dark:border-slate-700 ${themeClasses.text.parts.darkMuted}`}
+          >
+            No rows returned.
+          </div>
+        )}
       </div>
     );
   }
@@ -98,6 +100,61 @@ export function QueryResultView({
       </pre>
     </div>
   );
+}
+
+function RowsTable({ rows }: { rows: Array<Record<string, unknown>> }) {
+  const columns = rows.reduce<string[]>((out, row) => {
+    for (const column of Object.keys(row)) {
+      if (!out.includes(column)) out.push(column);
+    }
+    return out;
+  }, []);
+
+  if (columns.length === 0) {
+    return (
+      <div
+        className={`rounded-lg border border-dashed border-slate-300 p-4 text-sm ${themeClasses.text.parts.subtleLight} dark:border-slate-700 ${themeClasses.text.parts.darkMuted}`}
+      >
+        Rows returned, but no columns were available.
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-96 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
+      <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+        <thead
+          className={`sticky top-0 bg-slate-100 text-left text-xs uppercase tracking-wide ${themeClasses.text.parts.subtleLight} dark:bg-slate-950 ${themeClasses.text.parts.darkMuted}`}
+        >
+          <tr>
+            {columns.map((column) => (
+              <TableHead key={column} className="px-4 py-3">
+                {column}
+              </TableHead>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+          {rows.map((row, index) => (
+            <tr key={index}>
+              {columns.map((column) => (
+                <td key={column} className="px-4 py-3 align-top">
+                  {formatCellValue(row[column])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function formatCellValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
 }
 
 function StatementResultsTable({ statements }: { statements: any[] }) {

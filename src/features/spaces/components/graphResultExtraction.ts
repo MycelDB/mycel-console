@@ -104,7 +104,14 @@ function queryRowsFromResponse(response: unknown): Array<Record<string, unknown>
   const root = asRecord(response);
   if (!root) return [];
   const payload = asRecord(root.result) ?? root;
-  return Array.isArray(payload.rows) ? payload.rows.filter((row): row is Record<string, unknown> => Boolean(asRecord(row))) : [];
+  const directRows = rowsFromPayload(payload);
+  if (directRows.length > 0) return directRows;
+  const statements = Array.isArray(payload.statements) ? payload.statements : Array.isArray(root.statements) ? root.statements : [];
+  return statements.flatMap((statement) => rowsFromPayload(asRecord(asRecord(statement)?.result)));
+}
+
+function rowsFromPayload(payload: Record<string, unknown> | null): Array<Record<string, unknown>> {
+  return Array.isArray(payload?.rows) ? payload.rows.filter((row): row is Record<string, unknown> => Boolean(asRecord(row))) : [];
 }
 
 function graphFromUnknown(value: unknown): QueryGraphResult {

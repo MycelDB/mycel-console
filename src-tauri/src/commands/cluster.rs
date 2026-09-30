@@ -922,9 +922,14 @@ mod tests {
     fn readiness_mapping_preserves_fail_closed_fields() {
         let info = readiness_info(ClusterReadiness {
             client_ready: false,
+            process_ready: true,
             metadata_applied: true,
             metadata_validated: false,
+            metadata_ready: false,
             partition_groups_started: false,
+            raft_ready: false,
+            read_ready: false,
+            write_ready: false,
             authoritative_cluster_id: "cluster-a".to_string(),
             local_cluster_id: "cluster-b".to_string(),
             expected_member_count: 3,

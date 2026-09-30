@@ -41,44 +41,11 @@ export function QueryResultView({
         {diagnosticsBanner}
       </>
     );
-  if (Array.isArray(statements)) {
+  if (Array.isArray(statements) && view !== "rows") {
     return (
       <div className="mt-3 space-y-3">
         {diagnosticsBanner}
-        <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead
-              className={`bg-slate-100 text-left text-xs uppercase tracking-wide ${themeClasses.text.parts.subtleLight} dark:bg-slate-950/60 ${themeClasses.text.parts.darkMuted}`}
-            >
-              <tr>
-                <TableHead className="px-4 py-3">#</TableHead>
-                <TableHead className="px-4 py-3">Status</TableHead>
-                <TableHead className="px-4 py-3">Statement</TableHead>
-                <TableHead className="px-4 py-3">Error</TableHead>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {statements.map((statement: any) => (
-                <tr key={statement.index}>
-                  <td className="px-4 py-3">{statement.index}</td>
-                  <td className="px-4 py-3">{statement.success ? "✓" : "✗"}</td>
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {statement.statement}
-                  </td>
-                  <td className="px-4 py-3">
-                    {statement.error ? (
-                      <Alert icon={false} className="py-2">
-                        {statement.error}
-                      </Alert>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <StatementResultsTable statements={statements} />
         {view === "raw" ? (
           <pre
             className={`max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs ${themeClasses.text.parts.bodyLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
@@ -94,6 +61,14 @@ export function QueryResultView({
     const aggregateRows = aggregateRowsFromQueryResponse(result);
     const pathCount = pathGraphsFromQueryResponse(result).length;
     const renderedRows = aggregateRows.length ? aggregateRows : rows;
+    if (renderedRows.length === 0 && Array.isArray(statements)) {
+      return (
+        <div className="mt-3 space-y-3">
+          {diagnosticsBanner}
+          <StatementResultsTable statements={statements} />
+        </div>
+      );
+    }
     return (
       <div className="mt-3 space-y-3">
         {diagnosticsBanner}
@@ -121,6 +96,45 @@ export function QueryResultView({
       >
         {JSON.stringify(result, null, 2)}
       </pre>
+    </div>
+  );
+}
+
+function StatementResultsTable({ statements }: { statements: any[] }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+      <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+        <thead
+          className={`bg-slate-100 text-left text-xs uppercase tracking-wide ${themeClasses.text.parts.subtleLight} dark:bg-slate-950/60 ${themeClasses.text.parts.darkMuted}`}
+        >
+          <tr>
+            <TableHead className="px-4 py-3">#</TableHead>
+            <TableHead className="px-4 py-3">Status</TableHead>
+            <TableHead className="px-4 py-3">Statement</TableHead>
+            <TableHead className="px-4 py-3">Error</TableHead>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+          {statements.map((statement: any) => (
+            <tr key={statement.index}>
+              <td className="px-4 py-3">{statement.index}</td>
+              <td className="px-4 py-3">{statement.success ? "✓" : "✗"}</td>
+              <td className="px-4 py-3 font-mono text-xs">
+                {statement.statement}
+              </td>
+              <td className="px-4 py-3">
+                {statement.error ? (
+                  <Alert icon={false} className="py-2">
+                    {statement.error}
+                  </Alert>
+                ) : (
+                  "—"
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

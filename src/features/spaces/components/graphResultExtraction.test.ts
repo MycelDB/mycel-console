@@ -69,6 +69,29 @@ test("extracts path values from shaped rows", () => {
   expect(paths[0]?.edges?.map((edge) => edge.edgeId)).toEqual(["ab"]);
 });
 
+test("extracts aggregate scalar rows from script statement results", () => {
+  const rows = aggregateRowsFromQueryResponse({
+    statements: [
+      {
+        index: 1,
+        success: true,
+        statement: "MATCH (c:Character) RETURN c.name, c.role",
+        result: {
+          rows: [
+            {
+              fields: {
+                "c.name": { scalar: "Iris Vale" },
+                "c.role": { scalar: "cartographer" },
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  expect(rows).toEqual([{ "c.name": "Iris Vale", "c.role": "cartographer" }]);
+});
+
 test("extracts aggregate scalar rows", () => {
   const rows = aggregateRowsFromQueryResponse({
     result: {

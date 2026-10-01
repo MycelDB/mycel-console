@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  MYCEL_RUST_SDK_REF: v0.15.0
+
 jobs:
   build-macos-dmg:
     name: Build ${{ matrix.arch }} DMG
@@ -29,11 +32,11 @@ jobs:
         with:
           path: mycel-console
 
-      - name: Checkout Rust SDK at matching tag
+      - name: Checkout Rust SDK at pinned release ref
         uses: actions/checkout@v4
         with:
           repository: MycelDB/mycel-rust-sdk
-          ref: ${{ github.ref_name }}
+          ref: ${{ env.MYCEL_RUST_SDK_REF }}
           path: mycel-rust-sdk
 
       - name: Install Rust

@@ -927,7 +927,9 @@ mod tests {
             metadata_validated: false,
             metadata_ready: false,
             partition_groups_started: false,
+
             raft_ready: false,
+
             read_ready: false,
             write_ready: false,
             authoritative_cluster_id: "cluster-a".to_string(),

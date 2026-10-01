@@ -12,6 +12,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 - Consolidated GQL query result tabs into `Result` and `Raw JSON`; `Result` now automatically renders graph visualizations, row tables, or statement status based on the response payload (#41).
 - Rendered GQL row results as a table with returned columns instead of formatted JSON (#39).
+- Updated generated app icon assets with a padded rounded source icon for macOS visual polish (#28).
 
 ### Fixed
 
@@ -21,6 +22,18 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 ### Compatibility
 
 - Best used with Mycel daemon/API/SDK v0.17.0 for matching graph checkpoint/index status and query-result behavior.
+
+## [v0.15.2] - 2026-09-19
+
+### Fixed
+
+- Pinned the macOS DMG release workflow to the coordinated `mycel-rust-sdk` `v0.15.0` tag instead of requiring a matching Console patch tag in the SDK repository.
+
+## [v0.15.1] - 2026-09-18
+
+### Fixed
+
+- Updated Console cluster readiness test fixtures for the v0.15.0 Rust SDK dimensioned readiness fields so tag CI passes.
 
 ## [v0.15.0] - 2026-09-18
 

@@ -1790,8 +1790,8 @@ function GraphQueryConsolePreview({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<unknown>(null);
-  const [resultView, setResultView] = useState<"rows" | "graph" | "raw">(
-    "rows",
+  const [resultView, setResultView] = useState<"result" | "raw">(
+    "result",
   );
   const readWrite = true;
   const [confirmWrite, setConfirmWrite] = useState(false);
@@ -1983,8 +1983,7 @@ function GraphQueryConsolePreview({
           ariaLabel="Query result views"
           className="mt-4"
           tabs={[
-            { id: "rows", label: "Rows" },
-            { id: "graph", label: "Graph" },
+            { id: "result", label: "Result" },
             { id: "raw", label: "Raw JSON" },
           ]}
           active={resultView}

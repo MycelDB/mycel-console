@@ -6,6 +6,22 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.17.0] - 2026-09-30
+
+### Changed
+
+- Consolidated GQL query result tabs into `Result` and `Raw JSON`; `Result` now automatically renders graph visualizations, row tables, or statement status based on the response payload (#41).
+- Rendered GQL row results as a table with returned columns instead of formatted JSON (#39).
+
+### Fixed
+
+- Fixed GQL script row extraction so Rows/Result displays returned data instead of statement execution metadata (#35).
+- Fixed direct Tauri GQL row object rendering so scalar cell values no longer appear as empty objects (#37).
+
+### Compatibility
+
+- Best used with Mycel daemon/API/SDK v0.17.0 for matching graph checkpoint/index status and query-result behavior.
+
 ## [v0.15.0] - 2026-09-18
 
 ### Added

@@ -2,14 +2,14 @@ import { render, screen } from "@testing-library/react";
 import { QueryResultView } from "./QueryResultView";
 
 test("renders empty query state", () => {
-  render(<QueryResultView result={null} view="rows" />);
+  render(<QueryResultView result={null} view="result" />);
   expect(screen.getByText("No query run yet.")).toBeInTheDocument();
 });
 
 test("renders script returned rows instead of statement status in rows view", () => {
   render(
     <QueryResultView
-      view="rows"
+      view="result"
       result={{
         statements: [
           {
@@ -48,7 +48,7 @@ test("renders script returned rows instead of statement status in rows view", ()
 test("renders direct Tauri row objects as a table in rows view", () => {
   render(
     <QueryResultView
-      view="rows"
+      view="result"
       result={{
         result: {
           rows: [
@@ -69,10 +69,31 @@ test("renders direct Tauri row objects as a table in rows view", () => {
   expect(screen.queryByText(/\{\}/)).not.toBeInTheDocument();
 });
 
+test("renders graph payloads as graph in result view", () => {
+  render(
+    <QueryResultView
+      view="result"
+      result={{
+        result: {
+          rows: [{ "c.name": { scalar: "Iris Vale" } }],
+          graph: {
+            nodes: [{ nodeId: "character-iris", labels: ["Character"], properties: { name: "Iris Vale" } }],
+            edges: [],
+          },
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText("Graph visualization")).toBeInTheDocument();
+  expect(screen.getByText("1 nodes · 0 edges")).toBeInTheDocument();
+  expect(screen.queryByRole("columnheader", { name: "c.name" })).not.toBeInTheDocument();
+});
+
 test("renders statement results and per-statement errors", () => {
   render(
     <QueryResultView
-      view="rows"
+      view="result"
       result={{
         statements: [
           { index: 1, success: true, statement: "MATCH n", error: "" },
@@ -89,7 +110,7 @@ test("renders statement results and per-statement errors", () => {
 
 test("renders row table and raw JSON separately", () => {
   const result = { result: { rows: [{ role: { scalar: "reader" }, total: { scalar: 2 } }] }, marker: "Ada" };
-  const { rerender } = render(<QueryResultView result={result} view="rows" />);
+  const { rerender } = render(<QueryResultView result={result} view="result" />);
 
   expect(screen.getByRole("table")).toBeInTheDocument();
   expect(screen.getByRole("columnheader", { name: "role" })).toBeInTheDocument();
@@ -104,7 +125,7 @@ test("renders row table and raw JSON separately", () => {
 
 test("renders empty row payloads and raw JSON", () => {
   const result = { result: { rows: [] }, marker: "Ada" };
-  const { rerender } = render(<QueryResultView result={result} view="rows" />);
+  const { rerender } = render(<QueryResultView result={result} view="result" />);
 
   expect(screen.getByText("No rows returned.")).toBeInTheDocument();
 

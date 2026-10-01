@@ -8,7 +8,7 @@ import {
   pathGraphsFromQueryResponse,
 } from "./graphResultExtraction";
 
-export type QueryResultDisplayMode = "rows" | "graph" | "raw";
+export type QueryResultDisplayMode = "result" | "raw";
 
 export function QueryResultView({
   result,
@@ -34,14 +34,7 @@ export function QueryResultView({
       {message}
     </div>
   ) : null;
-  if (view === "graph")
-    return (
-      <>
-        <GraphResultCanvas graph={graphFromQueryResponse(result)} />
-        {diagnosticsBanner}
-      </>
-    );
-  if (Array.isArray(statements) && view !== "rows") {
+  if (Array.isArray(statements) && view !== "result") {
     return (
       <div className="mt-3 space-y-3">
         {diagnosticsBanner}
@@ -56,8 +49,18 @@ export function QueryResultView({
       </div>
     );
   }
-  if (view === "rows") {
-    const rows = payload?.rows ?? [];
+  if (view === "result") {
+    const graph = graphFromQueryResponse(result);
+    if ((graph?.nodes?.length ?? 0) > 0 || (graph?.edges?.length ?? 0) > 0) {
+      return (
+        <>
+          <GraphResultCanvas graph={graph} />
+          {diagnosticsBanner}
+        </>
+      );
+    }
+
+    const rows = payload?.rows ?? payload?.Rows ?? [];
     const aggregateRows = aggregateRowsFromQueryResponse(result);
     const pathCount = pathGraphsFromQueryResponse(result).length;
     const renderedRows = aggregateRows.length ? aggregateRows : rows;

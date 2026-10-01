@@ -46,7 +46,7 @@ export function pathGraphsFromQueryResponse(response: unknown): QueryGraphResult
   const rows = queryRowsFromResponse(response);
   const paths: QueryGraphResult[] = [];
   for (const row of rows) {
-    const fields = asRecord(row.fields);
+    const fields = rowFields(row);
     if (!fields) continue;
     for (const value of Object.values(fields)) {
       const path = asRecord(asRecord(value)?.path);
@@ -63,7 +63,7 @@ export function pathGraphsFromQueryResponse(response: unknown): QueryGraphResult
 export function aggregateRowsFromQueryResponse(response: unknown): Array<Record<string, unknown>> {
   return queryRowsFromResponse(response).map((row) => {
     const out: Record<string, unknown> = {};
-    const fields = asRecord(row.fields);
+    const fields = rowFields(row);
     if (!fields) return out;
     for (const [name, value] of Object.entries(fields)) {
       const record = asRecord(value);
@@ -104,7 +104,21 @@ function queryRowsFromResponse(response: unknown): Array<Record<string, unknown>
   const root = asRecord(response);
   if (!root) return [];
   const payload = asRecord(root.result) ?? root;
-  return Array.isArray(payload.rows) ? payload.rows.filter((row): row is Record<string, unknown> => Boolean(asRecord(row))) : [];
+  const directRows = rowsFromPayload(payload);
+  if (directRows.length > 0) return directRows;
+  const statements = Array.isArray(payload.statements) ? payload.statements : Array.isArray(root.statements) ? root.statements : [];
+  return statements.flatMap((statement) => rowsFromPayload(asRecord(asRecord(statement)?.result)));
+}
+
+function rowsFromPayload(payload: Record<string, unknown> | null): Array<Record<string, unknown>> {
+  const rows = payload?.rows ?? payload?.Rows;
+  return Array.isArray(rows) ? rows.filter((row): row is Record<string, unknown> => Boolean(asRecord(row))) : [];
+}
+
+function rowFields(row: Record<string, unknown>): Record<string, unknown> | null {
+  const nested = asRecord(row.fields ?? row.Fields);
+  if (nested) return nested;
+  return row;
 }
 
 function graphFromUnknown(value: unknown): QueryGraphResult {

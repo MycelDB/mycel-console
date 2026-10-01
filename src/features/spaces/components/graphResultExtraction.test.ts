@@ -69,6 +69,29 @@ test("extracts path values from shaped rows", () => {
   expect(paths[0]?.edges?.map((edge) => edge.edgeId)).toEqual(["ab"]);
 });
 
+test("extracts aggregate scalar rows from script statement results", () => {
+  const rows = aggregateRowsFromQueryResponse({
+    statements: [
+      {
+        index: 1,
+        success: true,
+        statement: "MATCH (c:Character) RETURN c.name, c.role",
+        result: {
+          rows: [
+            {
+              fields: {
+                "c.name": { scalar: "Iris Vale" },
+                "c.role": { scalar: "cartographer" },
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  expect(rows).toEqual([{ "c.name": "Iris Vale", "c.role": "cartographer" }]);
+});
+
 test("extracts aggregate scalar rows", () => {
   const rows = aggregateRowsFromQueryResponse({
     result: {
@@ -77,6 +100,34 @@ test("extracts aggregate scalar rows", () => {
   });
 
   expect(rows).toEqual([{ role: "reader", total: 2, avg: 10.5 }]);
+});
+
+test("extracts aggregate scalar rows from direct Tauri row objects", () => {
+  const rows = aggregateRowsFromQueryResponse({
+    result: {
+      rows: [
+        { "c.name": { scalar: "Iris Vale" }, "c.role": { scalar: "cartographer" } },
+        { "c.name": { scalar: "Professor Brass" }, "c.role": { scalar: "clockmaker" } },
+      ],
+    },
+  });
+
+  expect(rows).toEqual([
+    { "c.name": "Iris Vale", "c.role": "cartographer" },
+    { "c.name": "Professor Brass", "c.role": "clockmaker" },
+  ]);
+});
+
+test("extracts aggregate scalar rows from capitalized backend payloads", () => {
+  const rows = aggregateRowsFromQueryResponse({
+    result: {
+      Rows: [
+        { Fields: { "c.name": { scalar: "Mina Quill" }, "c.role": { scalar: "librarian" } } },
+      ],
+    },
+  });
+
+  expect(rows).toEqual([{ "c.name": "Mina Quill", "c.role": "librarian" }]);
 });
 
 test("preserves shaped distinct offset row order", () => {

@@ -6,6 +6,9 @@ import type {
   BackupStatusResponse,
   ListBackupsInput,
   ListBackupsResponse,
+  ListClusterBackupsInput,
+  ListClusterBackupsResponse,
+  ValidateClusterBackupSetResponse,
 } from "../../../types/backups";
 
 const policy: BackupPolicyInfo = {
@@ -59,6 +62,28 @@ const backupsResponse: ListBackupsResponse = {
   nextPageToken: "",
 };
 
+const clusterBackupsResponse: ListClusterBackupsResponse = {
+  backupSets: [
+    {
+      backupSetId: "backup-set-1",
+      state: "succeeded",
+      clusterId: "cluster-1",
+      createdAt: "2026-07-06T20:00:00Z",
+      completedAt: "2026-07-06T20:00:10Z",
+      expectedNodes: 3,
+      manifestUri: "file:///backups/backup-set-1/backup-set.json",
+      nodes: [],
+    },
+  ],
+  nextPageToken: "",
+};
+
+const validateResponse: ValidateClusterBackupSetResponse = {
+  valid: true,
+  errors: [],
+  backupSet: clusterBackupsResponse.backupSets[0],
+};
+
 function renderPage(
   overrides: Partial<Parameters<typeof BackupsPage>[0]> = {},
 ) {
@@ -79,6 +104,39 @@ function renderPage(
       .fn()
       .mockResolvedValue({ status: null, backup: null }),
     deleteBackupService: jest.fn().mockResolvedValue({ backupId: "backup-1" }),
+    startClusterBackupService: jest.fn().mockResolvedValue({
+      status: {
+        backupSetId: "backup-set-2",
+        state: "pending",
+        stateCode: "CLUSTER_BACKUP_STATE_PENDING",
+        clusterId: "cluster-1",
+        reason: "Triggered from Mycel Console",
+        createdAt: "2026-07-06T21:00:00Z",
+        updatedAt: "2026-07-06T21:00:00Z",
+        completedAt: "",
+        expectedNodes: 3,
+        manifestUri: "",
+        nodes: [],
+        failedPhase: "",
+        error: "",
+        raftBarriers: {},
+        blockers: [],
+        cancelRequested: false,
+        currentPhase: "pending",
+        retryAfterSeconds: 1,
+      },
+      backupSet: null,
+    }),
+    getClusterBackupStatusService: jest
+      .fn()
+      .mockResolvedValue({ status: null }),
+    cancelClusterBackupService: jest.fn().mockResolvedValue({ status: null }),
+    listClusterBackupsService: jest
+      .fn<Promise<ListClusterBackupsResponse>, [ListClusterBackupsInput | undefined]>()
+      .mockResolvedValue(clusterBackupsResponse),
+    validateClusterBackupSetService: jest
+      .fn()
+      .mockResolvedValue(validateResponse),
     ...overrides,
   };
   render(<BackupsPage {...services} />);
@@ -104,6 +162,7 @@ test("renders overview and policy tabs", async () => {
     "aria-selected",
     "true",
   );
+  expect(screen.getByRole("tab", { name: "Cluster backups" })).toBeInTheDocument();
   expect(screen.queryByRole("tab", { name: "Files" })).not.toBeInTheDocument();
   expect(screen.getByText("backup-1.tar.zst")).toBeInTheDocument();
   expect(screen.getByText("2.0 KB")).toBeInTheDocument();
@@ -215,7 +274,7 @@ test("triggers a manual backup and refreshes", async () => {
 
   await screen.findByText("Succeeded");
   await userEvent.click(
-    screen.getByRole("button", { name: /trigger backup/i }),
+    screen.getByRole("button", { name: /trigger local backup/i }),
   );
 
   await waitFor(() =>
@@ -224,6 +283,38 @@ test("triggers a manual backup and refreshes", async () => {
     }),
   );
   expect(services.listBackupsService).toHaveBeenCalledTimes(2);
+});
+
+test("starts and validates cluster backups", async () => {
+  const services = renderPage();
+
+  await screen.findByText("Succeeded");
+  await userEvent.click(screen.getByRole("tab", { name: "Cluster backups" }));
+  expect(screen.getByText("backup-set-1")).toBeInTheDocument();
+
+  const startButtons = screen.getAllByRole("button", {
+    name: /start cluster backup/i,
+  });
+  await userEvent.click(startButtons[startButtons.length - 1]);
+  await waitFor(() =>
+    expect(services.startClusterBackupService).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputDir: "/data/mycel/backups",
+        reason: "Triggered from Mycel Console",
+      }),
+    ),
+  );
+  expect(await screen.findByText(/cluster backup started/i)).toBeInTheDocument();
+
+  const textboxes = screen.getAllByRole("textbox");
+  await userEvent.type(textboxes[textboxes.length - 1], "/mnt/backups/backup-set-1");
+  await userEvent.click(screen.getByRole("button", { name: /^validate$/i }));
+  await waitFor(() =>
+    expect(services.validateClusterBackupSetService).toHaveBeenCalledWith({
+      backupSetPath: "/mnt/backups/backup-set-1",
+    }),
+  );
+  expect(await screen.findByText(/cluster backup set is valid/i)).toBeInTheDocument();
 });
 
 test("opens a delete confirmation dialog", async () => {

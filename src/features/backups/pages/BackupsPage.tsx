@@ -51,6 +51,58 @@ import type {
   ValidateClusterBackupSetResponse,
 } from "../../../types/backups";
 
+type RestoreConfirmationKey =
+  | "offline"
+  | "stopped"
+  | "emptyTargets"
+  | "ordinalMapping"
+  | "secretsReady";
+
+type RestoreConfirmations = Record<RestoreConfirmationKey, boolean>;
+
+const RESTORE_CONFIRMATION_ITEMS: Array<{
+  key: RestoreConfirmationKey;
+  label: string;
+  hint: string;
+}> = [
+  {
+    key: "offline",
+    label: "Restore is offline",
+    hint: "Do not run restore against a live Mycel cluster; stop daemons before restoring data directories or PVCs.",
+  },
+  {
+    key: "stopped",
+    label: "Target cluster is stopped",
+    hint: "Scale the StatefulSet to zero or otherwise ensure no myceld process is writing to the target volumes.",
+  },
+  {
+    key: "emptyTargets",
+    label: "Target data dirs/PVCs are fresh and empty",
+    hint: "The restore CLI refuses non-empty target data directories by default; do not overwrite divergent volumes.",
+  },
+  {
+    key: "ordinalMapping",
+    label: "Ordinal mapping has been reviewed",
+    hint: "Restore each archive only to the matching StatefulSet ordinal/PVC shown in the plan.",
+  },
+  {
+    key: "secretsReady",
+    label: "Required secrets and external storage are available",
+    hint: "Recreate backend auth, TLS/mTLS, encryption KEK provider material, and external blob/object-store payloads separately as needed. Do not paste secret values here.",
+  },
+];
+
+function initialRestoreConfirmations(): RestoreConfirmations {
+  return RESTORE_CONFIRMATION_ITEMS.reduce(
+    (acc, item) => ({ ...acc, [item.key]: false }),
+    {} as RestoreConfirmations,
+  );
+}
+
+function restoreConfirmationsComplete(confirmations: RestoreConfirmations): boolean {
+  return RESTORE_CONFIRMATION_ITEMS.every((item) => confirmations[item.key]);
+}
+
 export type BackupsPageProps = {
   getBackupPolicyService?: () => Promise<BackupPolicyInfo>;
   updateBackupPolicyService?: (
@@ -117,6 +169,8 @@ export function BackupsPage({
   const [validatePath, setValidatePath] = useState("");
   const [validateResult, setValidateResult] =
     useState<ValidateClusterBackupSetResponse | null>(null);
+  const [restoreConfirmations, setRestoreConfirmations] =
+    useState<RestoreConfirmations>(() => initialRestoreConfirmations());
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingClusterMore, setLoadingClusterMore] = useState(false);
@@ -299,6 +353,7 @@ export function BackupsPage({
     setError("");
     setNotice("");
     setValidateResult(null);
+    setRestoreConfirmations(initialRestoreConfirmations());
     setValidatingClusterBackup(true);
     try {
       const response = await validateClusterBackupSetService({
@@ -310,6 +365,7 @@ export function BackupsPage({
           ? "Cluster backup set is valid."
           : "Cluster backup set validation failed.",
       );
+      if (!response.valid) setRestoreConfirmations(initialRestoreConfirmations());
     } catch (err) {
       setError(
         err instanceof Error
@@ -461,6 +517,13 @@ export function BackupsPage({
               validatePath={validatePath}
               validateResult={validateResult}
               validating={validatingClusterBackup}
+              restoreConfirmations={restoreConfirmations}
+              onRestoreConfirmationChange={(key, checked) =>
+                setRestoreConfirmations((current) => ({
+                  ...current,
+                  [key]: checked,
+                }))
+              }
               onOutputDirChange={setClusterOutputDir}
               onReasonChange={setClusterReason}
               onArchiveFormatChange={setClusterArchiveFormat}
@@ -561,6 +624,8 @@ function ClusterBackupsPanel({
   onRefresh,
   onLoadMore,
   onValidatePathChange,
+  restoreConfirmations,
+  onRestoreConfirmationChange,
   onValidate,
 }: {
   current: ClusterBackupStatusInfo | null;
@@ -577,6 +642,8 @@ function ClusterBackupsPanel({
   validatePath: string;
   validateResult: ValidateClusterBackupSetResponse | null;
   validating: boolean;
+  restoreConfirmations: RestoreConfirmations;
+  onRestoreConfirmationChange: (key: RestoreConfirmationKey, checked: boolean) => void;
   onOutputDirChange: (value: string) => void;
   onReasonChange: (value: string) => void;
   onArchiveFormatChange: (value: BackupArchiveFormat) => void;
@@ -676,6 +743,8 @@ function ClusterBackupsPanel({
         validating={validating}
         canManage={canManage}
         onPathChange={onValidatePathChange}
+        restoreConfirmations={restoreConfirmations}
+        onRestoreConfirmationChange={onRestoreConfirmationChange}
         onValidate={onValidate}
       />
     </div>
@@ -806,6 +875,7 @@ function ClusterBackupNodes({
               <TableHead className="px-4 py-3">Archive</TableHead>
               <TableHead className="px-4 py-3">Size</TableHead>
               <TableHead className="px-4 py-3">Checksum</TableHead>
+              <TableHead className="px-4 py-3">Raft evidence</TableHead>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
@@ -816,6 +886,9 @@ function ClusterBackupNodes({
                 <td className="px-4 py-3">{formatBytes(node.sizeBytes)}</td>
                 <td className="px-4 py-3 font-mono text-xs">
                   {shortChecksum(node.checksumSha256)}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  {formatAppliedIndexes(node.appliedIndexes)}
                 </td>
               </tr>
             ))}
@@ -905,15 +978,20 @@ function ClusterBackupValidationPanel({
   validating,
   canManage,
   onPathChange,
+  restoreConfirmations,
+  onRestoreConfirmationChange,
   onValidate,
 }: {
   path: string;
   result: ValidateClusterBackupSetResponse | null;
   validating: boolean;
   canManage: boolean;
+  restoreConfirmations: RestoreConfirmations;
   onPathChange: (value: string) => void;
+  onRestoreConfirmationChange: (key: RestoreConfirmationKey, checked: boolean) => void;
   onValidate: () => void;
 }) {
+  const restoreReady = restoreConfirmationsComplete(restoreConfirmations);
   return (
     <article
       className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-5`}
@@ -948,7 +1026,107 @@ function ClusterBackupValidationPanel({
             : result.errors.join("; ") || "Backup set validation failed."}
         </Alert>
       )}
+      {result?.valid && result.backupSet && (
+        <ClusterBackupRestoreGuide
+          path={path}
+          backupSet={result.backupSet}
+          confirmations={restoreConfirmations}
+          commandsVisible={restoreReady}
+          onConfirmationChange={onRestoreConfirmationChange}
+        />
+      )}
     </article>
+  );
+}
+
+function ClusterBackupRestoreGuide({
+  path,
+  backupSet,
+  confirmations,
+  commandsVisible,
+  onConfirmationChange,
+}: {
+  path: string;
+  backupSet: ClusterBackupSetSummaryInfo;
+  confirmations: RestoreConfirmations;
+  commandsVisible: boolean;
+  onConfirmationChange: (key: RestoreConfirmationKey, checked: boolean) => void;
+}) {
+  const planCommand = clusterRestorePlanCommand(path);
+  return (
+    <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/20">
+      <Text as="p" className="font-semibold text-amber-950 dark:text-amber-100">
+        Guided offline restore plan
+      </Text>
+      <Text intent="muted" className="mt-2">
+        Phase 1 is read-only and operator-driven. Console validates and displays
+        the backup-set plan, then generates CLI commands for your restore pod or
+        terminal. It does not execute destructive restore operations.
+      </Text>
+      <dl className="mt-4 grid gap-3 md:grid-cols-4">
+        <Metric label="Backup set" value={backupSet.backupSetId || "Unknown"} />
+        <Metric label="Cluster" value={backupSet.clusterId || "Unknown"} />
+        <Metric label="Expected nodes" value={String(backupSet.expectedNodes || backupSet.nodes.length)} />
+        <Metric label="Completed" value={formatTimestamp(backupSet.completedAt)} />
+      </dl>
+      <div className="mt-5">
+        <Text as="p" className="font-medium">
+          Ordinal to archive mapping
+        </Text>
+        <ClusterBackupNodes nodes={backupSet.nodes} />
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {RESTORE_CONFIRMATION_ITEMS.map((item) => (
+          <CheckboxField
+            key={item.key}
+            label={item.label}
+            checked={confirmations[item.key]}
+            onChange={(checked) => onConfirmationChange(item.key, checked)}
+            hint={item.hint}
+          />
+        ))}
+      </div>
+      {!commandsVisible ? (
+        <Alert className="mt-4">
+          Confirm every restore prerequisite before using generated restore
+          commands. This avoids accidental live-cluster or wrong-ordinal restore
+          workflows.
+        </Alert>
+      ) : (
+        <div className="mt-5 space-y-4">
+          <Alert variant="success">
+            Confirmations complete. Run these commands only in the stopped,
+            prepared restore environment.
+          </Alert>
+          <CommandBlock label="Restore plan command" command={planCommand} />
+          {backupSet.nodes.map((node) => (
+            <CommandBlock
+              key={`${node.ordinal}-${node.archiveName}`}
+              label={`Restore ordinal ${node.ordinal} (${node.podName || node.nodeId || "node"})`}
+              command={clusterRestoreLocalCommand(path, node.ordinal)}
+            />
+          ))}
+          <Text intent="muted" size="sm">
+            After restoring every ordinal, restart the cluster and verify cluster
+            health, principal login, graph queries, and external blob/object
+            storage separately.
+          </Text>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommandBlock({ label, command }: { label: string; command: string }) {
+  return (
+    <div>
+      <Text as="p" size="sm" className="font-medium">
+        {label}
+      </Text>
+      <pre className={`mt-2 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs ${themeClasses.text.parts.inverseSoft}`}>
+        <code>{command}</code>
+      </pre>
+    </div>
   );
 }
 
@@ -1535,6 +1713,27 @@ function isActiveClusterBackupState(state?: string): boolean {
     "cluster_backup_state_failed",
     "cluster_backup_state_canceled",
   ].includes(normalized);
+}
+
+function clusterRestorePlanCommand(path: string): string {
+  return `mycel --output json admin backup cluster restore-plan --backup-set ${shellQuote(path)}`;
+}
+
+function clusterRestoreLocalCommand(path: string, ordinal: number): string {
+  return `mycel --output json admin backup cluster restore-local --backup-set ${shellQuote(path)} --ordinal ${ordinal} --data-dir /data/mycel`;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function formatAppliedIndexes(indexes: Record<string, number>): string {
+  const entries = Object.entries(indexes || {});
+  if (entries.length === 0) return "—";
+  return entries
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([group, index]) => `${group}:${index}`)
+    .join(", ");
 }
 
 function shortChecksum(value: string): string {

@@ -92,3 +92,123 @@ export type TriggerBackupResponse = {
 export type DeleteBackupResponse = {
   backupId: string;
 };
+
+export type ClusterBackupState =
+  | "CLUSTER_BACKUP_STATE_UNSPECIFIED"
+  | "CLUSTER_BACKUP_STATE_PENDING"
+  | "CLUSTER_BACKUP_STATE_WAITING_FOR_CLUSTER_CONVERGENCE"
+  | "CLUSTER_BACKUP_STATE_READY"
+  | "CLUSTER_BACKUP_STATE_QUIESCING"
+  | "CLUSTER_BACKUP_STATE_CAPTURING"
+  | "CLUSTER_BACKUP_STATE_VALIDATING"
+  | "CLUSTER_BACKUP_STATE_SUCCEEDED"
+  | "CLUSTER_BACKUP_STATE_FAILED"
+  | "CLUSTER_BACKUP_STATE_CANCELING"
+  | "CLUSTER_BACKUP_STATE_CANCELED";
+
+export type ClusterBackupNodeArtifactInfo = {
+  podName: string;
+  nodeId: string;
+  ordinal: number;
+  raftNodeId: number;
+  archiveName: string;
+  archiveUri: string;
+  manifestName: string;
+  manifestUri: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  appliedIndexes: Record<string, number>;
+};
+
+export type ClusterBackupBlockerInfo = {
+  nodeName: string;
+  nodeId: string;
+  raftNodeId: number;
+  raftGroup: string;
+  reason: string;
+  appliedIndex: number;
+  commitIndex: number;
+  detail: string;
+};
+
+export type ClusterBackupStatusInfo = {
+  backupSetId: string;
+  state: string;
+  clusterId: string;
+  reason: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string;
+  expectedNodes: number;
+  manifestUri: string;
+  nodes: ClusterBackupNodeArtifactInfo[];
+  failedPhase: string;
+  error: string;
+  raftBarriers: Record<string, number>;
+  stateCode: ClusterBackupState;
+  blockers: ClusterBackupBlockerInfo[];
+  cancelRequested: boolean;
+  currentPhase: string;
+  retryAfterSeconds: number;
+};
+
+export type ClusterBackupSetSummaryInfo = {
+  backupSetId: string;
+  state: string;
+  clusterId: string;
+  createdAt: string;
+  completedAt: string;
+  expectedNodes: number;
+  manifestUri: string;
+  nodes: ClusterBackupNodeArtifactInfo[];
+};
+
+export type StartClusterBackupInput = {
+  reason?: string;
+  outputDir: string;
+  archiveFormat?: BackupArchiveFormat;
+  idempotencyKey?: string;
+  convergenceTimeoutSeconds?: number;
+};
+
+export type StartClusterBackupResponse = {
+  status?: ClusterBackupStatusInfo | null;
+  backupSet?: ClusterBackupSetSummaryInfo | null;
+};
+
+export type GetClusterBackupStatusInput = {
+  backupSetId?: string;
+};
+
+export type GetClusterBackupStatusResponse = {
+  status?: ClusterBackupStatusInfo | null;
+};
+
+export type CancelClusterBackupInput = {
+  backupSetId: string;
+  reason?: string;
+};
+
+export type CancelClusterBackupResponse = {
+  status?: ClusterBackupStatusInfo | null;
+};
+
+export type ListClusterBackupsInput = {
+  pageSize?: number;
+  pageToken?: string;
+};
+
+export type ListClusterBackupsResponse = {
+  backupSets: ClusterBackupSetSummaryInfo[];
+  nextPageToken: string;
+};
+
+export type ValidateClusterBackupSetInput = {
+  backupSetPath: string;
+};
+
+export type ValidateClusterBackupSetResponse = {
+  valid: boolean;
+  errors: string[];
+  backupSet?: ClusterBackupSetSummaryInfo | null;
+};

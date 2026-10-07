@@ -15,8 +15,10 @@ use commands::automations::{
     admin_validate_automation,
 };
 use commands::backups::{
-    admin_delete_backup, admin_get_backup_policy, admin_get_backup_status, admin_list_backups,
-    admin_trigger_backup, admin_update_backup_policy,
+    admin_cancel_cluster_backup, admin_delete_backup, admin_get_backup_policy,
+    admin_get_backup_status, admin_get_cluster_backup_status, admin_list_backups,
+    admin_list_cluster_backups, admin_start_cluster_backup, admin_trigger_backup,
+    admin_update_backup_policy, admin_validate_cluster_backup_set,
 };
 use commands::client_query::{
     admin_console_client_query_login, admin_console_client_query_logout,
@@ -155,6 +157,11 @@ pub fn run() {
             admin_list_backups,
             admin_trigger_backup,
             admin_delete_backup,
+            admin_start_cluster_backup,
+            admin_get_cluster_backup_status,
+            admin_cancel_cluster_backup,
+            admin_list_cluster_backups,
+            admin_validate_cluster_backup_set,
             admin_get_cluster_status,
             admin_get_cluster_health,
             admin_get_cluster_runtime_status,

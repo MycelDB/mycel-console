@@ -6,6 +6,22 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.18.0] - 2026-10-07
+
+### Added
+
+- Added Console support for asynchronous cluster backup operations, including start/status/cancel flow, readiness blockers, operation state display, and backup-set validation (#47).
+- Added a guided cluster backup restore workflow that validates backup-set plans and generates explicit offline restore commands without executing destructive restore actions from the UI (#49).
+
+### Changed
+
+- Aligned package, Tauri, and Rust bridge versions with the coordinated MycelDB v0.18.0 release train.
+
+### Compatibility
+
+- Best used with Mycel daemon/API/SDK v0.18.0 for matching async cluster backup and guided restore semantics.
+- Restore remains an offline operator workflow; Console guides validation and command generation but does not perform live-cluster restore.
+
 ## [v0.17.0] - 2026-09-30
 
 ### Changed

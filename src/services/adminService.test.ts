@@ -2,12 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   AUTH_EXPIRED_EVENT,
   applyInferencePackage,
+  cancelClusterBackup,
   connectionDiagnostics,
   createSpace,
   deleteBackup,
   deleteSpace,
   getBackupPolicy,
   getBackupStatus,
+  getClusterBackupStatus,
   getClusterHealth,
   getClusterRuntimeStatus,
   getClusterStatus,
@@ -24,6 +26,7 @@ import {
   getLexicalIndexStatus,
   rebuildLexicalIndex,
   listBackups,
+  listClusterBackups,
   listPrincipalCapabilities,
   listPrincipalRoles,
   listPrincipalSessions,
@@ -46,8 +49,10 @@ import {
   setPrincipalCapabilitiesForScope,
   setPrincipalRolesForScope,
   listVectorStores,
+  startClusterBackup,
   triggerBackup,
   updateBackupPolicy,
+  validateClusterBackupSet,
   login,
   normalizeAppError,
 } from "./adminService";
@@ -378,6 +383,59 @@ test("deleteBackup sends backup id", async () => {
   await expect(deleteBackup("backup-1")).resolves.toEqual(response);
 
   expect(invokeMock).toHaveBeenCalledWith("admin_delete_backup", { backupId: "backup-1" });
+});
+
+test("startClusterBackup sends async cluster backup input", async () => {
+  const input = {
+    outputDir: "/mnt/mycel-backups",
+    reason: "release backup",
+    archiveFormat: "BACKUP_ARCHIVE_FORMAT_TAR_ZST" as const,
+    convergenceTimeoutSeconds: 120,
+  };
+  const response = { status: { backupSetId: "backup-set-1" }, backupSet: null };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(startClusterBackup(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_start_cluster_backup", { input });
+});
+
+test("getClusterBackupStatus sends optional backup set id", async () => {
+  const response = { status: { backupSetId: "backup-set-1" } };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getClusterBackupStatus({ backupSetId: "backup-set-1" })).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_cluster_backup_status", { input: { backupSetId: "backup-set-1" } });
+});
+
+test("cancelClusterBackup sends cancel reason", async () => {
+  const input = { backupSetId: "backup-set-1", reason: "operator requested" };
+  const response = { status: { backupSetId: "backup-set-1", state: "canceled" } };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(cancelClusterBackup(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_cancel_cluster_backup", { input });
+});
+
+test("listClusterBackups sends pagination input", async () => {
+  const response = { backupSets: [], nextPageToken: "next" };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(listClusterBackups({ pageSize: 10, pageToken: "cursor" })).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_cluster_backups", { input: { pageSize: 10, pageToken: "cursor" } });
+});
+
+test("validateClusterBackupSet sends manifest path", async () => {
+  const input = { backupSetPath: "/mnt/backups/backup-set-1" };
+  const response = { valid: true, errors: [], backupSet: { backupSetId: "backup-set-1" } };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(validateClusterBackupSet(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_validate_cluster_backup_set", { input });
 });
 
 test("getPrincipal sends principal id", async () => {

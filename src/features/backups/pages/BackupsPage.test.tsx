@@ -84,6 +84,35 @@ const validateResponse: ValidateClusterBackupSetResponse = {
   backupSet: clusterBackupsResponse.backupSets[0],
 };
 
+const restorePlanValidateResponse: ValidateClusterBackupSetResponse = {
+  valid: true,
+  errors: [],
+  backupSet: {
+    ...clusterBackupsResponse.backupSets[0],
+    nodes: [
+      {
+        podName: "myceld-0",
+        nodeId: "node_1",
+        ordinal: 0,
+        raftNodeId: 1,
+        archiveName: "mycel-system-20261007T100000Z-myceld-0-backup-set-1.tar.zst",
+        archiveUri: "file:///backups/backup-set-1/myceld-0.tar.zst",
+        manifestName: "myceld-0.manifest.json",
+        manifestUri: "file:///backups/backup-set-1/myceld-0.manifest.json",
+        sizeBytes: 4096,
+        checksumSha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        appliedIndexes: { system: 42 },
+      },
+    ],
+  },
+};
+
+const invalidValidateResponse: ValidateClusterBackupSetResponse = {
+  valid: false,
+  errors: ["checksum mismatch", "missing myceld-1 archive"],
+  backupSet: null,
+};
+
 function renderPage(
   overrides: Partial<Parameters<typeof BackupsPage>[0]> = {},
 ) {
@@ -315,6 +344,63 @@ test("starts and validates cluster backups", async () => {
     }),
   );
   expect(await screen.findByText(/cluster backup set is valid/i)).toBeInTheDocument();
+});
+
+test("renders guided restore plan and gates generated commands behind confirmations", async () => {
+  const services = renderPage({
+    validateClusterBackupSetService: jest
+      .fn()
+      .mockResolvedValue(restorePlanValidateResponse),
+  });
+
+  await screen.findByText("Succeeded");
+  await userEvent.click(screen.getByRole("tab", { name: "Cluster backups" }));
+  const textboxes = screen.getAllByRole("textbox");
+  await userEvent.type(textboxes[textboxes.length - 1], "/backups/backup-set-1");
+  await userEvent.click(screen.getByRole("button", { name: /^validate$/i }));
+
+  await waitFor(() =>
+    expect(services.validateClusterBackupSetService).toHaveBeenCalledWith({
+      backupSetPath: "/backups/backup-set-1",
+    }),
+  );
+  expect(await screen.findByText(/guided offline restore plan/i)).toBeInTheDocument();
+  expect(screen.getByText("myceld-0")).toBeInTheDocument();
+  expect(screen.getByText("system:42")).toBeInTheDocument();
+  expect(screen.getByText(/confirm every restore prerequisite/i)).toBeInTheDocument();
+  expect(screen.queryByText(/restore-local --backup-set/i)).not.toBeInTheDocument();
+
+  for (const label of [
+    /restore is offline/i,
+    /target cluster is stopped/i,
+    /target data dirs\/pvcs are fresh and empty/i,
+    /ordinal mapping has been reviewed/i,
+    /required secrets and external storage are available/i,
+  ]) {
+    await userEvent.click(screen.getByRole("checkbox", { name: label }));
+  }
+
+  expect(
+    await screen.findByText(/mycel --output json admin backup cluster restore-plan/),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/restore-local --backup-set '\/backups\/backup-set-1' --ordinal 0 --data-dir \/data\/mycel/)).toBeInTheDocument();
+});
+
+test("renders invalid cluster backup set errors without restore actions", async () => {
+  renderPage({
+    validateClusterBackupSetService: jest
+      .fn()
+      .mockResolvedValue(invalidValidateResponse),
+  });
+
+  await screen.findByText("Succeeded");
+  await userEvent.click(screen.getByRole("tab", { name: "Cluster backups" }));
+  const textboxes = screen.getAllByRole("textbox");
+  await userEvent.type(textboxes[textboxes.length - 1], "/backups/bad-set");
+  await userEvent.click(screen.getByRole("button", { name: /^validate$/i }));
+
+  expect(await screen.findByText(/checksum mismatch/i)).toBeInTheDocument();
+  expect(screen.queryByText(/guided offline restore plan/i)).not.toBeInTheDocument();
 });
 
 test("opens a delete confirmation dialog", async () => {

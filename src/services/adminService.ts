@@ -27,11 +27,21 @@ import type {
 import type {
   BackupPolicyInfo,
   BackupStatusResponse,
+  CancelClusterBackupInput,
+  CancelClusterBackupResponse,
   DeleteBackupResponse,
+  GetClusterBackupStatusInput,
+  GetClusterBackupStatusResponse,
   ListBackupsInput,
   ListBackupsResponse,
+  ListClusterBackupsInput,
+  ListClusterBackupsResponse,
+  StartClusterBackupInput,
+  StartClusterBackupResponse,
   TriggerBackupInput,
   TriggerBackupResponse,
+  ValidateClusterBackupSetInput,
+  ValidateClusterBackupSetResponse,
 } from "../types/backups";
 import type {
   GetMyAccessInput,
@@ -1041,6 +1051,48 @@ export async function deleteBackup(
   backupId: string,
 ): Promise<DeleteBackupResponse> {
   return invoke<DeleteBackupResponse>("admin_delete_backup", { backupId });
+}
+
+export async function startClusterBackup(
+  input: StartClusterBackupInput,
+): Promise<StartClusterBackupResponse> {
+  return invoke<StartClusterBackupResponse>("admin_start_cluster_backup", {
+    input,
+  });
+}
+
+export async function getClusterBackupStatus(
+  input: GetClusterBackupStatusInput = {},
+): Promise<GetClusterBackupStatusResponse> {
+  return invoke<GetClusterBackupStatusResponse>(
+    "admin_get_cluster_backup_status",
+    { input },
+  );
+}
+
+export async function cancelClusterBackup(
+  input: CancelClusterBackupInput,
+): Promise<CancelClusterBackupResponse> {
+  return invoke<CancelClusterBackupResponse>("admin_cancel_cluster_backup", {
+    input,
+  });
+}
+
+export async function listClusterBackups(
+  input: ListClusterBackupsInput = {},
+): Promise<ListClusterBackupsResponse> {
+  return invoke<ListClusterBackupsResponse>("admin_list_cluster_backups", {
+    input,
+  });
+}
+
+export async function validateClusterBackupSet(
+  input: ValidateClusterBackupSetInput,
+): Promise<ValidateClusterBackupSetResponse> {
+  return invoke<ValidateClusterBackupSetResponse>(
+    "admin_validate_cluster_backup_set",
+    { input },
+  );
 }
 
 export async function listInferencePackages(

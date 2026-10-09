@@ -31,6 +31,7 @@ import {
   executeGqlScript,
   getAutomation as defaultGetAutomation,
   getAutomationRun as defaultGetAutomationRun,
+  getClientQuerySession as defaultGetClientQuerySession,
   getDomainSchema as defaultGetDomainSchema,
   getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus,
   getSpace as defaultGetSpace,
@@ -65,6 +66,7 @@ import type {
 import type { PrincipalSession } from "../../../types/auth";
 import type {
   BlobAttachmentResponse,
+  ClientQuerySessionInfo,
   CreateBlobAttachmentInput,
 } from "../../../types/clientQuery";
 import type {
@@ -194,6 +196,7 @@ export type SpaceDetailPageProps = {
   createBlobAttachmentService?: (
     input: CreateBlobAttachmentInput,
   ) => Promise<BlobAttachmentResponse>;
+  getClientQuerySessionService?: () => Promise<ClientQuerySessionInfo | null>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
@@ -223,6 +226,7 @@ export function SpaceDetailPage({
   listInferenceProfilesService = defaultListInferenceProfiles,
   listPrincipalsService = defaultListPrincipals,
   createBlobAttachmentService = defaultCreateBlobAttachment,
+  getClientQuerySessionService = defaultGetClientQuerySession,
   principalContext,
 }: SpaceDetailPageProps) {
   const { spaceId = "" } = useParams();
@@ -908,6 +912,10 @@ export function SpaceDetailPage({
                 link={Boolean(space.owner?.id)}
               />
             </DetailRow>
+            <Text intent="muted" size="sm" className="mt-3">
+              Ownership is the space owner field. Delegated access is managed
+              separately with identity scoped roles and capabilities.
+            </Text>
           </DetailCard>
 
           <DetailCard title="Raft placement">
@@ -950,6 +958,10 @@ export function SpaceDetailPage({
           </DetailCard>
 
           <DetailCard title="Caller access">
+            <Text intent="muted" size="sm" className="mb-3">
+              Effective identity access for the signed-in principal; this is not
+              ownership transfer.
+            </Text>
             <DetailList label="Roles" values={space.callerAccess?.roles} />
             <DetailList
               label="Capabilities"
@@ -1021,6 +1033,7 @@ export function SpaceDetailPage({
             spaceId={spaceId}
             domains={domains}
             currentPrincipal={principalContext?.session}
+            getClientQuerySessionService={getClientQuerySessionService}
           />
         </div>
       )}
@@ -1779,10 +1792,12 @@ function GraphQueryConsolePreview({
   spaceId,
   domains,
   currentPrincipal,
+  getClientQuerySessionService,
 }: {
   spaceId: string;
   domains: DomainInfo[];
   currentPrincipal?: PrincipalSession;
+  getClientQuerySessionService: () => Promise<ClientQuerySessionInfo | null>;
 }) {
   const [domainId, setDomainId] = useState("");
   const exampleQuery = "MATCH (n) RETURN n";
@@ -1800,6 +1815,26 @@ function GraphQueryConsolePreview({
       localStorage.getItem("mycelConsole.gql.alwaysConfirmWrite") !== "false",
   );
   const [stopOnError, setStopOnError] = useState(true);
+  const [querySession, setQuerySession] = useState<ClientQuerySessionInfo | null>(null);
+  const [querySessionError, setQuerySessionError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setQuerySessionError("");
+    void getClientQuerySessionService()
+      .then((session) => {
+        if (!cancelled) setQuerySession(session);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setQuerySession(null);
+          setQuerySessionError(errorMessage(err, "Query principal unavailable"));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getClientQuerySessionService]);
 
   useEffect(() => {
     if (domainId || domains.length === 0) return;
@@ -1867,6 +1902,23 @@ function GraphQueryConsolePreview({
   }
 
   const canRun = Boolean(domainId && queryText.trim() && !loading);
+  const effectivePrincipal = querySession
+    ? {
+        username: querySession.username,
+        addr: querySession.addr,
+        source: "Dedicated Query Console session",
+      }
+    : currentPrincipal
+      ? {
+          username: currentPrincipal.username,
+          addr: currentPrincipal.addr,
+          source: "Signed-in admin data client",
+        }
+      : {
+          username: "Current console principal",
+          addr: "Not reported",
+          source: "Signed-in admin data client",
+        };
 
   return (
     <div
@@ -1881,8 +1933,10 @@ function GraphQueryConsolePreview({
             Graph query console
           </Text>
           <Text intent="muted" size="sm" className="mt-1 max-w-3xl">
-            Execute GQL against this space using the currently logged-in console
-            principal.
+            Execute GQL against this space. If a dedicated Query Console client
+            session is active, queries run as that principal; otherwise they use
+            the signed-in admin data client. Daemon authorization remains
+            authoritative.
           </Text>
         </div>
       </div>
@@ -1894,11 +1948,18 @@ function GraphQueryConsolePreview({
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/40">
           <div>
-            <span className="font-medium">Principal:</span>{" "}
-            {currentPrincipal
-              ? `${currentPrincipal.username} @ ${currentPrincipal.addr}`
-              : "Current console principal"}
+            <span className="font-medium">Effective query principal:</span>{" "}
+            {effectivePrincipal.username} @ {effectivePrincipal.addr}
           </div>
+          <div>
+            <span className="font-medium">Query identity source:</span>{" "}
+            {effectivePrincipal.source}
+          </div>
+          {querySessionError && (
+            <Text intent="danger" size="sm">
+              {querySessionError}
+            </Text>
+          )}
           <div>
             <span className="font-medium">Space:</span>{" "}
             <ResourceIdText value={spaceId} />

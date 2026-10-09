@@ -15,7 +15,25 @@ impl Default for AppState {
 }
 
 pub struct ClientQuerySession {
+    pub addr: String,
+    pub username: String,
     pub _client: mycel_sdk::Client,
+}
+
+impl ClientQuerySession {
+    pub fn summary(&self) -> ClientQuerySessionInfo {
+        ClientQuerySessionInfo {
+            addr: self.addr.clone(),
+            username: self.username.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientQuerySessionInfo {
+    pub addr: String,
+    pub username: String,
 }
 
 pub struct AdminSession {

@@ -6,11 +6,18 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.19.0] - 2026-10-09
+
 ### Changed
 
+- Aligned package, Tauri, and Rust bridge versions with the coordinated MycelDB v0.19.0 release train.
 - Aligned space access UI with daemon identity scoped grants: actual space ownership is shown separately from delegated roles/capabilities, `space.owner` is no longer offered as a grantable role, and the graph query console identifies the effective query principal (#55).
 - Constrained long signed-in usernames in the sidebar session card with truncation and a full-value tooltip (#54).
 - Added vertical scrolling to the left sidebar so navigation and session actions remain reachable in short windows (#53).
+
+### Compatibility
+
+- Best used with Mycel daemon/API/SDK v0.19.0 for matching identity scoped space access semantics.
 
 ## [v0.18.0] - 2026-10-07
 

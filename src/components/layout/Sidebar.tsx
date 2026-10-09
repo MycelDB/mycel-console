@@ -117,7 +117,7 @@ export function Sidebar({
   );
   const nextTheme = theme === "dark" ? "light" : "dark";
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-[#d6cdb8] bg-[#f7efd9] p-4 dark:border-[#164b35] dark:bg-[#062719]">
+    <aside className="flex h-full min-h-0 w-64 shrink-0 flex-col overflow-y-auto border-r border-[#d6cdb8] bg-[#f7efd9] p-4 dark:border-[#164b35] dark:bg-[#062719]">
       <div className="flex items-center gap-3">
         <img
           src="/mycel-branding.png"

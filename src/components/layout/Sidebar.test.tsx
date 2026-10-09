@@ -177,6 +177,14 @@ test("shows cluster navigation for raft runtimes", () => {
   expect(screen.getByRole("link", { name: "Cluster" })).toBeInTheDocument();
 });
 
+test("makes the sidebar vertically scrollable when content exceeds the viewport", () => {
+  renderSidebar();
+
+  const sidebar = screen.getByRole("complementary");
+  expect(sidebar).toHaveClass("min-h-0");
+  expect(sidebar).toHaveClass("overflow-y-auto");
+});
+
 test("renders session controls at the bottom", async () => {
   const { onToggleTheme, onLogout } = renderSidebar();
 

@@ -10,6 +10,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 - Aligned space access UI with daemon identity scoped grants: actual space ownership is shown separately from delegated roles/capabilities, `space.owner` is no longer offered as a grantable role, and the graph query console identifies the effective query principal (#55).
 - Constrained long signed-in usernames in the sidebar session card with truncation and a full-value tooltip (#54).
+- Added vertical scrolling to the left sidebar so navigation and session actions remain reachable in short windows (#53).
 
 ## [v0.18.0] - 2026-10-07
 

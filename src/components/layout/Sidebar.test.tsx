@@ -194,3 +194,23 @@ test("renders session controls at the bottom", async () => {
   expect(onToggleTheme).toHaveBeenCalledTimes(1);
   expect(onLogout).toHaveBeenCalledTimes(1);
 });
+
+test("constrains long signed-in usernames in the session card", () => {
+  const longUsername = "pkm-4196d571a49f43898c42b3b2e71712e0";
+
+  renderSidebar({
+    session: {
+      ...session,
+      username: longUsername,
+    },
+  });
+
+  const username = screen.getByText(longUsername);
+  expect(username).toHaveClass("truncate");
+  expect(username).toHaveAttribute("title", longUsername);
+  expect(username.closest("a")).toHaveClass("overflow-hidden");
+  expect(screen.getByRole("link", { name: /signed in as/i })).toHaveAttribute(
+    "href",
+    "/me",
+  );
+});

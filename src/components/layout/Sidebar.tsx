@@ -180,7 +180,7 @@ export function Sidebar({
       </nav>
       <div className="mt-auto space-y-3 pt-8">
         <NavLink
-          className={`block rounded-lg border ${themeClasses.border.input} ${themeClasses.surface.sunken} p-3 transition hover:bg-slate-50 dark:hover:bg-slate-900`}
+          className={`block min-w-0 overflow-hidden rounded-lg border ${themeClasses.border.input} ${themeClasses.surface.sunken} p-3 transition hover:bg-slate-50 dark:hover:bg-slate-900`}
           to="/me"
         >
           <Text
@@ -194,11 +194,12 @@ export function Sidebar({
           <Text
             as="p"
             size="sm"
-            className={`mt-1 ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}
+            className={`mt-1 min-w-0 ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkSecondary}`}
           >
-            Signed in as{" "}
+            <span className="block">Signed in as</span>
             <span
-              className={`font-medium ${themeClasses.text.parts.headingLight} ${themeClasses.text.parts.darkPrimary}`}
+              className={`block max-w-full truncate font-medium ${themeClasses.text.parts.headingLight} ${themeClasses.text.parts.darkPrimary}`}
+              title={session.username}
             >
               {session.username}
             </span>

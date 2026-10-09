@@ -376,6 +376,10 @@ export async function clientQueryLogout(): Promise<void> {
   return invoke<void>("admin_console_client_query_logout");
 }
 
+export async function getClientQuerySession(): Promise<ClientQuerySessionInfo | null> {
+  return invoke<ClientQuerySessionInfo | null>("admin_console_client_query_session");
+}
+
 export async function executeGql(
   input: ExecuteGqlInput,
 ): Promise<ExecuteGqlResponse> {

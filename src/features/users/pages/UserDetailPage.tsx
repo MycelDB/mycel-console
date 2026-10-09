@@ -128,7 +128,6 @@ const ROLE_OPTIONS = [
   "inference.admin",
   "semantic.admin",
   "space.admin",
-  "space.owner",
   "space.editor",
   "space.viewer",
   "identity.admin",
@@ -235,25 +234,6 @@ const ROLE_CAPABILITIES: Record<string, string[]> = {
   ],
   "backup.operator": ["CAPABILITY_SYSTEM_BACKUP_SPACE"],
   "cluster.operator": ["CAPABILITY_CLUSTER_READ", "CAPABILITY_MESH_MANAGE"],
-  "space.owner": [
-    "CAPABILITY_SPACE_READ",
-    "CAPABILITY_SPACE_UPDATE",
-    "CAPABILITY_SPACE_MANAGE_ACCESS",
-    "CAPABILITY_DOMAIN_READ",
-    "CAPABILITY_DOMAIN_CREATE",
-    "CAPABILITY_DOMAIN_UPDATE",
-    "CAPABILITY_DOMAIN_DELETE",
-    "CAPABILITY_GRAPH_READ",
-    "CAPABILITY_GRAPH_WRITE",
-    "CAPABILITY_GRAPH_DELETE",
-    "CAPABILITY_QUERY_RUN",
-    "CAPABILITY_BLOB_READ",
-    "CAPABILITY_BLOB_WRITE",
-    "CAPABILITY_BLOB_DELETE",
-    "CAPABILITY_METADATA_READ",
-    "CAPABILITY_METADATA_WRITE",
-    "CAPABILITY_SEMANTIC_SEARCH",
-  ],
   "space.editor": [
     "CAPABILITY_SPACE_READ",
     "CAPABILITY_DOMAIN_READ",
@@ -731,9 +711,12 @@ function AccessCheckboxEditor({
 
   useEffect(() => {
     setSelectedRoles(
-      roles.grants
-        .filter((grant) => scopeKey(grant.scope) === key)
-        .map((grant) => grant.role),
+      uniqueValues(
+        roles.grants
+          .filter((grant) => scopeKey(grant.scope) === key)
+          .map((grant) => normalizeGrantableRole(grant.role))
+          .filter((role) => ROLE_OPTIONS.includes(role)),
+      ),
     );
     setSelectedCapabilities(
       capabilities.grants
@@ -787,8 +770,10 @@ function AccessCheckboxEditor({
             Edit selected scope
           </Text>
           <Text intent="muted" size="sm" className="mt-1">
-            Direct roles and direct capabilities for the selected scope.
-            Inherited capabilities are locked.
+            Direct identity roles and capabilities for the selected scope.
+            Space ownership is not grantable here; actual ownership remains the
+            space owner field. Use space.admin, space.editor, or space.viewer
+            for delegated access.
           </Text>
         </div>
         <Button disabled={disabled} onClick={() => void save()}>
@@ -923,7 +908,7 @@ function RoleGrantTable({
       empty="No direct role grants"
       headers={["Role", "Scope", "Reason", "Actions"]}
       rows={grants.map((grant) => [
-        grant.role,
+        displayRoleGrant(grant.role),
         scopeLabel(grant.scope),
         grant.reason || "—",
         canManage ? (
@@ -1437,12 +1422,31 @@ function scopeKey(
 function inheritedCapabilitiesForRoles(roles: string[]) {
   const inherited = new Set<string>();
   for (const role of roles) {
-    const caps = ROLE_CAPABILITIES[role] || [];
+    const caps = ROLE_CAPABILITIES[normalizeGrantableRole(role)] || [];
     if (caps.includes("*"))
       CAPABILITY_OPTIONS.forEach((capability) => inherited.add(capability));
     else caps.forEach((capability) => inherited.add(capability));
   }
   return inherited;
+}
+
+function normalizeGrantableRole(role: string) {
+  const normalized = role.trim().toLowerCase();
+  return normalized === "space.owner" || normalized === "space_owner"
+    ? "space.admin"
+    : role;
+}
+
+function displayRoleGrant(role: string) {
+  const normalized = role.trim().toLowerCase();
+  if (normalized === "space.owner" || normalized === "space_owner") {
+    return "space.owner (legacy alias; grants space.admin, not ownership)";
+  }
+  return role;
+}
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values));
 }
 
 function toggleValue(values: string[], value: string) {

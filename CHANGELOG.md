@@ -6,6 +6,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Changed
+
+- Aligned space access UI with daemon identity scoped grants: actual space ownership is shown separately from delegated roles/capabilities, `space.owner` is no longer offered as a grantable role, and the graph query console identifies the effective query principal (#55).
+
 ## [v0.18.0] - 2026-10-07
 
 ### Added

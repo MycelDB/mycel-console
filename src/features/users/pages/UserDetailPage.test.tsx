@@ -116,7 +116,7 @@ test("sets exact-scope roles and direct capabilities with checkboxes", async () 
   await userEvent.click(screen.getByLabelText("CAPABILITY_AUTOMATION_MANAGE"));
   await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
 
-  await waitFor(() => expect(services.setPrincipalRolesForScopeService).toHaveBeenCalledWith({ principalId: "prn_alice", scope: { type: "space", spaceId: "sp_owned" }, roles: ["space.owner", "space.editor"], reason: "bulk update" }));
+  await waitFor(() => expect(services.setPrincipalRolesForScopeService).toHaveBeenCalledWith({ principalId: "prn_alice", scope: { type: "space", spaceId: "sp_owned" }, roles: ["space.admin", "space.editor"], reason: "bulk update" }));
   await waitFor(() => expect(services.setPrincipalCapabilitiesForScopeService).toHaveBeenCalledWith({ principalId: "prn_alice", scope: { type: "space", spaceId: "sp_owned" }, capabilities: ["CAPABILITY_GRAPH_READ", "CAPABILITY_AUTOMATION_MANAGE"], reason: "bulk update" }));
 });
 

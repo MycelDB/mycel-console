@@ -11,7 +11,7 @@ use prost_types::{value::Kind, ListValue, Struct, Value as ProstValue};
 use serde_json::{json, Map, Value};
 use tauri::State;
 
-use crate::state::{AppState, ClientQuerySession};
+use crate::state::{AppState, ClientQuerySession, ClientQuerySessionInfo};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,13 +19,6 @@ pub struct ClientQueryLoginInput {
     pub addr: String,
     pub username: String,
     pub password: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientQuerySessionInfo {
-    pub addr: String,
-    pub username: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -133,8 +126,23 @@ pub async fn admin_console_client_query_login(
     };
     let client = mycel_sdk::dial(cfg).await.map_err(|err| err.to_string())?;
     let mut guard = state.client_query.write().await;
-    *guard = Some(ClientQuerySession { _client: client });
-    Ok(ClientQuerySessionInfo { addr, username })
+    *guard = Some(ClientQuerySession {
+        addr,
+        username,
+        _client: client,
+    });
+    Ok(guard
+        .as_ref()
+        .expect("client query session just stored")
+        .summary())
+}
+
+#[tauri::command]
+pub async fn admin_console_client_query_session(
+    state: State<'_, AppState>,
+) -> Result<Option<ClientQuerySessionInfo>, String> {
+    let guard = state.client_query.read().await;
+    Ok(guard.as_ref().map(ClientQuerySession::summary))
 }
 
 #[tauri::command]

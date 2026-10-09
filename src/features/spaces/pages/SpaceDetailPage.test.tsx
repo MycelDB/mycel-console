@@ -47,6 +47,7 @@ function renderDetail(
     replicaNodeIds: [1, 2, 3],
   }),
   principalContext: ConsolePrincipalContext | undefined = undefined,
+  getClientQuerySessionService = jest.fn().mockResolvedValue(null),
 ) {
   render(
     <MemoryRouter initialEntries={["/spaces/sp_main"]}>
@@ -66,6 +67,7 @@ function renderDetail(
                 listSemanticMaintenanceWorkService
               }
               lookupSpaceRouteService={lookupSpaceRouteService}
+              getClientQuerySessionService={getClientQuerySessionService}
               principalContext={principalContext}
             />
           }
@@ -471,6 +473,52 @@ test("renders load errors", async () => {
   renderDetail(jest.fn().mockRejectedValue(new Error("space unavailable")));
 
   expect(await screen.findByText("space unavailable")).toBeInTheDocument();
+});
+
+test("identifies dedicated query console principal when active", async () => {
+  const listDomainsService = jest.fn().mockResolvedValue({
+    domains: [
+      {
+        spaceId: "sp_main",
+        domainId: "dom_default",
+        key: "default",
+        name: "default",
+      },
+    ],
+    nextPageToken: "",
+  });
+  const getClientQuerySessionService = jest.fn().mockResolvedValue({
+    addr: "127.0.0.1:19092",
+    username: "query-user",
+  });
+
+  renderDetail(
+    undefined,
+    listDomainsService,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      session: {
+        addr: "127.0.0.1:19091",
+        principalId: "admin_1",
+        username: "admin",
+      },
+      roles: [],
+      capabilities: ["*"],
+      capabilityState: { kind: "complete", capabilities: [{ capability: "*" }] },
+      warnings: [],
+    },
+    getClientQuerySessionService,
+  );
+
+  await screen.findByRole("heading", { name: "Main" });
+  await userEvent.click(screen.getByRole("tab", { name: "Graph query" }));
+
+  expect(await screen.findByText(/query-user @ 127\.0\.0\.1:19092/)).toBeInTheDocument();
+  expect(screen.getByText("Dedicated Query Console session")).toBeInTheDocument();
 });
 
 test("links the space owner name instead of an id when principal details are available", async () => {

@@ -22,8 +22,8 @@ use commands::backups::{
 };
 use commands::client_query::{
     admin_console_client_query_login, admin_console_client_query_logout,
-    admin_console_create_blob_attachment, admin_console_execute_gql,
-    admin_console_execute_gql_script, admin_console_execute_graph_query,
+    admin_console_client_query_session, admin_console_create_blob_attachment,
+    admin_console_execute_gql, admin_console_execute_gql_script, admin_console_execute_graph_query,
 };
 use commands::cluster::{
     admin_get_cluster_health, admin_get_cluster_runtime_status, admin_get_cluster_status,
@@ -88,6 +88,7 @@ pub fn run() {
             admin_get_activity_event,
             admin_console_client_query_login,
             admin_console_client_query_logout,
+            admin_console_client_query_session,
             admin_console_create_blob_attachment,
             admin_console_execute_graph_query,
             admin_console_execute_gql,

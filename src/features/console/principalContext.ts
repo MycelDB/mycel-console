@@ -150,8 +150,6 @@ export function roleCapabilities(role: string): string[] {
       return ["cluster.read", "cluster.manage"];
     case "audit.reader":
       return ["audit.read"];
-    case "space.owner":
-      return ["space.read", "space.update", "space.manage_access", "domain.read", "domain.create", "domain.update", "domain.delete", "graph.read", "graph.write", "graph.delete", "query.run", "blob.read", "blob.write", "blob.delete", "metadata.read", "metadata.write", "semantic.search"];
     case "space.editor":
       return ["space.read", "domain.read", "graph.read", "graph.write", "query.run", "blob.read", "blob.write", "metadata.read", "metadata.write", "semantic.search"];
     case "space.viewer":
@@ -193,7 +191,7 @@ export function canonicalRole(role: string): string {
       return "automation.worker";
     case "space_owner":
     case "space.owner":
-      return "space.owner";
+      return "space.admin";
     case "space_editor":
     case "space.editor":
       return "space.editor";

@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  MYCEL_RUST_SDK_REF: v0.15.0
+  MYCEL_RUST_SDK_REF: v0.20.1
 
 jobs:
   build-macos-dmg:

@@ -6,6 +6,19 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.20.0] - 2026-10-20
+
+### Changed
+
+- Aligned package and Tauri versions with the coordinated MycelDB v0.20.0 release train.
+- Updated macOS DMG builds to use the GitHub-source-only `mycel-rust-sdk v0.20.1` correction release.
+- Updated the Rust command bridge for the v0.20 commit request fields while preserving the existing non-idempotent Console commit behavior.
+
+### Compatibility
+
+- Best used with Mycel daemon v0.20.0 and API/SDK v0.20.1 for matching repeatable-read contract documentation and durable graph transaction commit idempotency.
+- macOS DMGs remain unsigned and unnotarized; Gatekeeper may require explicit operator approval.
+
 ## [v0.19.0] - 2026-10-09
 
 ### Changed

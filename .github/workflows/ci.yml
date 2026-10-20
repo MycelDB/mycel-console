@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  MYCEL_RUST_SDK_REF: v0.20.1
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,13 +23,13 @@ jobs:
         with:
           path: mycel-console
 
-      - name: Checkout Rust SDK at matching ref
+      - name: Checkout Rust SDK at matching or release-pinned ref
         id: checkout-rust-sdk
         uses: actions/checkout@v4
         continue-on-error: true
         with:
           repository: MycelDB/mycel-rust-sdk
-          ref: ${{ github.ref_type == 'tag' && github.ref_name || (github.head_ref || github.ref_name) }}
+          ref: ${{ github.ref_type == 'tag' && env.MYCEL_RUST_SDK_REF || (github.head_ref || github.ref_name) }}
           path: mycel-rust-sdk
 
       - name: Remove incomplete Rust SDK checkout

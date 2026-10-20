@@ -231,6 +231,9 @@ async fn execute_gql_with_client(
             .transaction
             .commit_transaction(tonic::Request::new(CommitTransactionRequest {
                 transaction_id: tx.transaction_id,
+                idempotency_key: String::new(),
+                space_id: String::new(),
+                domain_id: String::new(),
             }))
             .await
             .map_err(|err| err.to_string())?;
@@ -338,6 +341,9 @@ async fn execute_gql_script_with_client(
             .transaction
             .commit_transaction(tonic::Request::new(CommitTransactionRequest {
                 transaction_id: tx.transaction_id,
+                idempotency_key: String::new(),
+                space_id: String::new(),
+                domain_id: String::new(),
             }))
             .await
             .map_err(|err| err.to_string())?;
@@ -535,6 +541,9 @@ async fn create_blob_attachment_with_client(
             .transaction
             .commit_transaction(tonic::Request::new(CommitTransactionRequest {
                 transaction_id: tx.transaction_id.clone(),
+                idempotency_key: String::new(),
+                space_id: String::new(),
+                domain_id: String::new(),
             }))
             .await
             .map_err(|err| err.to_string())?;

@@ -11,7 +11,8 @@ const draft: RuleDraft = {
   description: "Index notes",
   enabled: true,
   labels: "note, page",
-  triggerEvents: "changed, created",
+  triggerEvents: ["changed", "node.created"],
+  triggerEventProblem: "",
   dirtyCooldown: "30s",
   selectorMode: "node_type",
   selectorGql: "",
@@ -38,12 +39,48 @@ test("draftToRule maps draft fields without backend interaction", () => {
 
   expect(rule.semanticRuleId).toBe("rule_1");
   expect(rule.selector?.labels).toEqual(["note", "page"]);
-  expect(rule.trigger?.events).toEqual(["changed", "created"]);
+  expect(rule.trigger?.events).toEqual(["changed", "node.created"]);
+  expect(rule.trigger?.eventTypes).toEqual(["changed", "node.created"]);
   expect(rule.embeddings[0]).toMatchObject({
     key: "body",
     intelligenceProfile: "embed-small",
     vectorStore: "mycel-file",
   });
+});
+
+test("ruleToDraft prefers typed events and accepts equivalent legacy events", () => {
+  const rule = draftToRule(draft);
+  expect(ruleToDraft(rule)).toMatchObject({
+    triggerEvents: ["changed", "node.created"],
+    triggerEventProblem: "",
+  });
+});
+
+test("ruleToDraft exposes conflicting and unknown trigger projections", () => {
+  const conflicting = draftToRule(draft);
+  conflicting.trigger = {
+    events: ["node.created"],
+    eventTypes: ["node.updated"],
+    labels: [],
+    debounce: "30s",
+  };
+  expect(ruleToDraft(conflicting).triggerEventProblem).toMatch(/conflict/i);
+
+  conflicting.trigger.eventTypes = ["unsupported:99"];
+  expect(ruleToDraft(conflicting)).toMatchObject({
+    triggerEvents: ["unsupported:99"],
+  });
+  expect(ruleToDraft(conflicting).triggerEventProblem).toMatch(/unsupported/i);
+});
+
+test("draftToRule fails closed for unresolved trigger events", () => {
+  expect(() =>
+    draftToRule({
+      ...draft,
+      triggerEvents: ["unsupported:99"],
+      triggerEventProblem: "Unsupported trigger event values: unsupported:99",
+    }),
+  ).toThrow(/unsupported/i);
 });
 
 test("ruleToDraft and summaryToRule preserve editable fields", () => {

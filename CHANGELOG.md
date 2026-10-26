@@ -6,6 +6,14 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Added
+
+- Added an accessible semantic trigger-event checkbox group backed by typed API values, with equivalent legacy dual-write for older daemons and fail-closed handling of conflicting or unknown projections (#75).
+
+### Compatibility
+
+- Semantic rule responses from newer daemons may contain typed and deprecated legacy trigger representations. Console verifies their equivalence and preserves explicit diagnostics instead of silently discarding unsupported values.
+
 ## [v0.20.0] - 2026-10-20
 
 ### Changed

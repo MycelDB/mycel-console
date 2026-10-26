@@ -6,12 +6,24 @@ import {
   themeClasses,
 } from "../../../../components/typography";
 import type { DomainInfo } from "../../../../types/domains";
-import type {
-  SemanticRuleValidationDiagnostic,
-  ValidateSemanticRuleResponse,
+import {
+  semanticTriggerEvents,
+  type SemanticRuleValidationDiagnostic,
+  type ValidateSemanticRuleResponse,
 } from "../../../../types/semantic";
 import type { SpaceInfo } from "../../../../types/spaces";
 import type { DraftMode, ProfileOption, RuleDraft } from "../model/pageTypes";
+
+const triggerEventLabels: Record<string, string> = {
+  changed: "Any event",
+  "node.created": "Node created",
+  "node.updated": "Node updated",
+  "node.deleted": "Node deleted",
+  "edge.changed": "Edge changed",
+  "edge.created": "Edge created",
+  "edge.updated": "Edge updated",
+  "edge.deleted": "Edge deleted",
+};
 
 export function RuleEditor({
   mode,
@@ -40,6 +52,23 @@ export function RuleEditor({
 }) {
   const update = (key: keyof RuleDraft, value: string | boolean) =>
     setDraft({ ...draft, [key]: value });
+  const toggleTriggerEvent = (eventName: string, checked: boolean) => {
+    const next = checked
+      ? eventName === "changed"
+        ? ["changed"]
+        : [
+            ...new Set([
+              ...draft.triggerEvents.filter((event) => event !== "changed"),
+              eventName,
+            ]),
+          ]
+      : draft.triggerEvents.filter((event) => event !== eventName);
+    setDraft({
+      ...draft,
+      triggerEvents: next.length > 0 ? next : ["changed"],
+      triggerEventProblem: "",
+    });
+  };
   const updateSelectorMode = (value: string) =>
     setDraft({
       ...draft,
@@ -131,11 +160,68 @@ export function RuleEditor({
           value={draft.labels}
           onChange={(value) => update("labels", value)}
         />
-        <Field
-          label="Trigger events"
-          value={draft.triggerEvents}
-          onChange={(value) => update("triggerEvents", value)}
-        />
+        <fieldset
+          className={`rounded-md border border-slate-300 p-3 text-sm dark:border-slate-700 ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+        >
+          <legend className="px-1 font-medium">Trigger events</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {semanticTriggerEvents.map((eventName) => (
+              <label key={eventName} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={draft.triggerEvents.includes(eventName)}
+                  onChange={(event) =>
+                    toggleTriggerEvent(eventName, event.target.checked)
+                  }
+                />
+                {triggerEventLabels[eventName]}
+              </label>
+            ))}
+            {draft.triggerEvents
+              .filter(
+                (eventName) =>
+                  !(semanticTriggerEvents as readonly string[]).includes(
+                    eventName,
+                  ),
+              )
+              .map((eventName) => (
+                <label
+                  key={eventName}
+                  className="flex items-center gap-2 text-amber-700 dark:text-amber-300"
+                >
+                  <input
+                    type="checkbox"
+                    checked
+                    onChange={() => toggleTriggerEvent(eventName, false)}
+                  />
+                  Unsupported: {eventName}
+                </label>
+              ))}
+          </div>
+          <Text intent="muted" size="xs" className="mt-2">
+            Labels narrow matching changes. Dirty cooldown coalesces rapid
+            changes before semantic maintenance runs.
+          </Text>
+          {draft.triggerEventProblem && (
+            <div
+              role="alert"
+              className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300"
+            >
+              {draft.triggerEventProblem}
+              {draft.triggerEventProblem.startsWith("Typed and legacy") && (
+                <button
+                  type="button"
+                  className="ml-2 underline underline-offset-2"
+                  onClick={() =>
+                    setDraft({ ...draft, triggerEventProblem: "" })
+                  }
+                >
+                  Use typed values
+                </button>
+              )}
+            </div>
+          )}
+        </fieldset>
         <Field
           label="Dirty cooldown"
           value={draft.dirtyCooldown}
@@ -250,10 +336,17 @@ export function RuleEditor({
       </div>
       {validation && <ValidationPanel validation={validation} />}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={loading} onClick={onValidate}>
+        <Button
+          variant="secondary"
+          disabled={loading || Boolean(draft.triggerEventProblem)}
+          onClick={onValidate}
+        >
           Validate
         </Button>
-        <Button disabled={loading} onClick={onSave}>
+        <Button
+          disabled={loading || Boolean(draft.triggerEventProblem)}
+          onClick={onSave}
+        >
           {mode === "create" ? "Create rule" : "Save rule"}
         </Button>
       </div>

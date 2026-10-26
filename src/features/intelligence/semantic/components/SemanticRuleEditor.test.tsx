@@ -16,7 +16,8 @@ const draft: RuleDraft = {
   description: "",
   enabled: true,
   labels: "note",
-  triggerEvents: "changed",
+  triggerEvents: ["changed"],
+  triggerEventProblem: "",
   dirtyCooldown: "30s",
   selectorMode: "node_type",
   selectorGql: "",
@@ -86,6 +87,54 @@ test("RuleEditor renders controlled fields and forwards save", async () => {
 
   await user.click(screen.getByRole("button", { name: "Create rule" }));
   expect(onSave).toHaveBeenCalledTimes(1);
+});
+
+test("RuleEditor presents typed trigger events as an accessible checkbox group", async () => {
+  const user = userEvent.setup();
+  render(<RuleEditorHarness />);
+
+  expect(
+    screen.getByRole("group", { name: "Trigger events" }),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText("Any event")).toBeChecked();
+  await user.click(screen.getByLabelText("Node updated"));
+  expect(screen.getByLabelText("Node updated")).toBeChecked();
+  expect(screen.getByLabelText("Any event")).not.toBeChecked();
+});
+
+test("RuleEditor blocks unresolved trigger projections until the operator resolves them", async () => {
+  const user = userEvent.setup();
+  function ProblemHarness() {
+    const [value, setValue] = useState({
+      ...draft,
+      triggerEvents: ["unsupported:99"],
+      triggerEventProblem: "Unsupported trigger event values: unsupported:99",
+    });
+    return (
+      <RuleEditor
+        mode="edit"
+        draft={value}
+        setDraft={setValue}
+        spaces={spaces}
+        domains={domains}
+        profiles={profiles}
+        validation={null}
+        loading={false}
+        onValidate={jest.fn()}
+        onSave={jest.fn()}
+        onCancel={jest.fn()}
+      />
+    );
+  }
+
+  render(<ProblemHarness />);
+  expect(screen.getByRole("alert")).toHaveTextContent(/unsupported/i);
+  expect(screen.getByRole("button", { name: "Save rule" })).toBeDisabled();
+
+  await user.click(screen.getByLabelText("Unsupported: unsupported:99"));
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Any event")).toBeChecked();
+  expect(screen.getByRole("button", { name: "Save rule" })).toBeEnabled();
 });
 
 test("RuleEditor renders validation diagnostics", () => {

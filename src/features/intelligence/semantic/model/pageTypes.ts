@@ -48,7 +48,8 @@ export type RuleDraft = {
   description: string;
   enabled: boolean;
   labels: string;
-  triggerEvents: string;
+  triggerEvents: string[];
+  triggerEventProblem: string;
   dirtyCooldown: string;
   selectorMode: string;
   selectorGql: string;

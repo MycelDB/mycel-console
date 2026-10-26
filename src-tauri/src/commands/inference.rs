@@ -1696,6 +1696,9 @@ pub async fn admin_create_inference_policy(
                 require_local_endpoint: input.require_local_endpoint,
                 reason: input.reason,
                 expires_at: input.expires_at.map(timestamp_from_input),
+                endpoint_refs: Vec::new(),
+                model_refs: Vec::new(),
+                capability_refs: Vec::new(),
             },
         ))
         .await
@@ -1965,6 +1968,12 @@ fn processing_scope(input: IntelligenceAccessScopeInput) -> IntelligenceAccessSc
         embedding_binding_key: input.embedding_binding_key,
         node_id: input.node_id,
         include_descendants: input.include_descendants,
+        procedure_id: String::new(),
+        procedure_version: 0,
+        binding_id: String::new(),
+        binding_version: 0,
+        invocation_id: String::new(),
+        run_id: String::new(),
     }
 }
 
@@ -1976,6 +1985,12 @@ fn inference_scope(input: IntelligenceAccessScopeInput) -> IntelligenceAccessSco
         embedding_binding_key: input.embedding_binding_key,
         node_id: input.node_id,
         include_descendants: input.include_descendants,
+        procedure_id: String::new(),
+        procedure_version: 0,
+        binding_id: String::new(),
+        binding_version: 0,
+        invocation_id: String::new(),
+        run_id: String::new(),
     }
 }
 

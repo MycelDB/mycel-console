@@ -2,8 +2,8 @@ use mycel_sdk::proto::admin::v1::{
     CreateSemanticRuleRequest, DeleteSemanticRuleRequest, GetSemanticRuleRequest,
     ListSemanticRulesRequest, SemanticEmbeddingBinding, SemanticGenerationRule,
     SemanticMaintenancePolicy, SemanticSourceAssemblyPolicy, SemanticStoragePolicy,
-    SemanticTargetSelector, SemanticTriggerPolicy, SetSemanticRuleEnabledRequest,
-    UpdateSemanticRuleRequest, ValidateSemanticRuleRequest,
+    SemanticTargetSelector, SemanticTriggerEventType, SemanticTriggerPolicy,
+    SetSemanticRuleEnabledRequest, UpdateSemanticRuleRequest, ValidateSemanticRuleRequest,
 };
 use mycel_sdk::proto::client::v1::{
     Node, SearchIndexState, SearchIndexStatus, SemanticEmbeddingBindingSummary,
@@ -149,6 +149,8 @@ pub struct SemanticGenerationRuleInfo {
 pub struct SemanticTriggerPolicyInfo {
     #[serde(default)]
     pub events: Vec<String>,
+    #[serde(default)]
+    pub event_types: Vec<String>,
     #[serde(default)]
     pub labels: Vec<String>,
     #[serde(default)]
@@ -387,6 +389,8 @@ pub async fn client_semantic_search(
             query,
             limit: input.limit.unwrap_or(10),
             min_score: input.min_score,
+            page_token: None,
+            filter: None,
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -453,7 +457,7 @@ pub async fn admin_validate_semantic_rule(
         ._client
         .semantic
         .validate_semantic_rule(tonic::Request::new(ValidateSemanticRuleRequest {
-            rule: Some(rule_proto(input.rule)),
+            rule: Some(rule_proto(input.rule)?),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -486,7 +490,7 @@ pub async fn admin_create_semantic_rule(
         ._client
         .semantic
         .create_semantic_rule(tonic::Request::new(CreateSemanticRuleRequest {
-            rule: Some(rule_proto(input.rule)),
+            rule: Some(rule_proto(input.rule)?),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -512,7 +516,7 @@ pub async fn admin_update_semantic_rule(
         .update_semantic_rule(tonic::Request::new(UpdateSemanticRuleRequest {
             space_id: input.space_id,
             semantic_rule_id: input.semantic_rule_id,
-            rule: Some(rule_proto(input.rule)),
+            rule: Some(rule_proto(input.rule)?),
         }))
         .await
         .map_err(|err| err.to_string())?
@@ -577,8 +581,10 @@ pub async fn admin_delete_semantic_rule(
     })
 }
 
-fn rule_proto(rule: SemanticGenerationRuleInfo) -> SemanticGenerationRule {
-    SemanticGenerationRule {
+#[allow(deprecated)]
+fn rule_proto(rule: SemanticGenerationRuleInfo) -> Result<SemanticGenerationRule, String> {
+    let trigger = rule.trigger.map(trigger_policy_proto).transpose()?;
+    Ok(SemanticGenerationRule {
         semantic_rule_id: rule.semantic_rule_id,
         space_id: rule.space_id,
         domain_id: rule.domain_id,
@@ -586,11 +592,7 @@ fn rule_proto(rule: SemanticGenerationRuleInfo) -> SemanticGenerationRule {
         display_name: rule.display_name,
         description: rule.description,
         enabled: rule.enabled,
-        trigger: rule.trigger.map(|item| SemanticTriggerPolicy {
-            events: item.events,
-            labels: item.labels,
-            debounce: item.debounce,
-        }),
+        trigger,
         selector: rule.selector.map(|item| SemanticTargetSelector {
             mode: item.mode,
             labels: item.labels,
@@ -619,6 +621,7 @@ fn rule_proto(rule: SemanticGenerationRuleInfo) -> SemanticGenerationRule {
                 vector_store_id: item.vector_store_id,
                 enabled: item.enabled,
                 metadata: None,
+                provider_budget: None,
             })
             .collect(),
         maintenance: rule.maintenance.map(|item| SemanticMaintenancePolicy {
@@ -634,9 +637,63 @@ fn rule_proto(rule: SemanticGenerationRuleInfo) -> SemanticGenerationRule {
         created_by_principal_id: rule.created_by_principal_id,
         created_at: rule.created_at,
         updated_at: rule.updated_at,
+    })
+}
+
+#[allow(deprecated)]
+fn trigger_policy_proto(item: SemanticTriggerPolicyInfo) -> Result<SemanticTriggerPolicy, String> {
+    let event_types = item
+        .event_types
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            semantic_trigger_event_from_name(value).ok_or_else(|| {
+                format!("Unsupported semantic trigger event at eventTypes[{index}]: {value}")
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(SemanticTriggerPolicy {
+        events: item.events,
+        labels: item.labels,
+        debounce: item.debounce,
+        event_types,
+    })
+}
+
+fn semantic_trigger_event_from_name(value: &str) -> Option<i32> {
+    match value.trim() {
+        "changed" => Some(SemanticTriggerEventType::Changed as i32),
+        "node.created" => Some(SemanticTriggerEventType::NodeCreated as i32),
+        "node.updated" => Some(SemanticTriggerEventType::NodeUpdated as i32),
+        "node.deleted" => Some(SemanticTriggerEventType::NodeDeleted as i32),
+        "edge.changed" => Some(SemanticTriggerEventType::EdgeChanged as i32),
+        "edge.created" => Some(SemanticTriggerEventType::EdgeCreated as i32),
+        "edge.updated" => Some(SemanticTriggerEventType::EdgeUpdated as i32),
+        "edge.deleted" => Some(SemanticTriggerEventType::EdgeDeleted as i32),
+        _ => None,
     }
 }
 
+fn semantic_trigger_event_name(value: i32) -> String {
+    SemanticTriggerEventType::try_from(value)
+        .ok()
+        .filter(|event| *event != SemanticTriggerEventType::Unspecified)
+        .map(|event| match event {
+            SemanticTriggerEventType::Changed => "changed",
+            SemanticTriggerEventType::NodeCreated => "node.created",
+            SemanticTriggerEventType::NodeUpdated => "node.updated",
+            SemanticTriggerEventType::NodeDeleted => "node.deleted",
+            SemanticTriggerEventType::EdgeChanged => "edge.changed",
+            SemanticTriggerEventType::EdgeCreated => "edge.created",
+            SemanticTriggerEventType::EdgeUpdated => "edge.updated",
+            SemanticTriggerEventType::EdgeDeleted => "edge.deleted",
+            SemanticTriggerEventType::Unspecified => unreachable!(),
+        })
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("unsupported:{value}"))
+}
+
+#[allow(deprecated)]
 fn rule_info(rule: SemanticGenerationRule) -> SemanticGenerationRuleInfo {
     SemanticGenerationRuleInfo {
         semantic_rule_id: rule.semantic_rule_id,
@@ -648,6 +705,11 @@ fn rule_info(rule: SemanticGenerationRule) -> SemanticGenerationRuleInfo {
         enabled: rule.enabled,
         trigger: rule.trigger.map(|item| SemanticTriggerPolicyInfo {
             events: item.events,
+            event_types: item
+                .event_types
+                .into_iter()
+                .map(semantic_trigger_event_name)
+                .collect(),
             labels: item.labels,
             debounce: item.debounce,
         }),
@@ -799,5 +861,50 @@ fn prost_value_json(value: &prost_types::Value) -> Value {
         Some(prost_types::value::Kind::ListValue(value)) => {
             Value::Array(value.values.iter().map(prost_value_json).collect())
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(deprecated)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trigger_policy_proto_maps_typed_events_without_dropping_legacy_compatibility() {
+        let got = trigger_policy_proto(SemanticTriggerPolicyInfo {
+            events: vec!["node.updated".to_string(), "edge.deleted".to_string()],
+            event_types: vec!["node.updated".to_string(), "edge.deleted".to_string()],
+            labels: vec!["Note".to_string()],
+            debounce: "30s".to_string(),
+        })
+        .expect("typed trigger policy");
+
+        assert_eq!(got.events, vec!["node.updated", "edge.deleted"]);
+        assert_eq!(
+            got.event_types,
+            vec![
+                SemanticTriggerEventType::NodeUpdated as i32,
+                SemanticTriggerEventType::EdgeDeleted as i32,
+            ]
+        );
+    }
+
+    #[test]
+    fn trigger_policy_proto_rejects_unknown_event_name() {
+        let err = trigger_policy_proto(SemanticTriggerPolicyInfo {
+            event_types: vec!["unsupported:99".to_string()],
+            ..Default::default()
+        })
+        .expect_err("unknown event must fail closed");
+        assert!(err.contains("eventTypes[0]"), "error = {err}");
+    }
+
+    #[test]
+    fn semantic_trigger_event_name_preserves_unknown_numeric_value() {
+        assert_eq!(semantic_trigger_event_name(99), "unsupported:99");
+        assert_eq!(
+            semantic_trigger_event_name(SemanticTriggerEventType::NodeCreated as i32),
+            "node.created"
+        );
     }
 }

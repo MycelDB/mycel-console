@@ -1,6 +1,8 @@
-import type {
-  SemanticGenerationRule,
-  SemanticGenerationRuleSummary,
+import {
+  semanticTriggerEvents,
+  type SemanticGenerationRule,
+  type SemanticGenerationRuleSummary,
+  type SemanticTriggerEvent,
 } from "../../../../types/semantic";
 import type { RuleDraft } from "./pageTypes";
 
@@ -10,8 +12,74 @@ export function csv(value: string) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+const triggerEventSet = new Set<string>(semanticTriggerEvents);
+
+function normalizeLegacyTriggerEvent(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized.replace("node_", "node.").replace("edge_", "edge.");
+}
+
+function canonicalTriggerEvents(values: string[]): SemanticTriggerEvent[] {
+  const unique = new Set(values.map(normalizeLegacyTriggerEvent));
+  return semanticTriggerEvents.filter((event) => unique.has(event));
+}
+
+function sameTriggerEventSet(left: string[], right: string[]) {
+  return (
+    left.length === right.length && left.every((event) => right.includes(event))
+  );
+}
+
+export function resolveTriggerEvents(
+  trigger: SemanticGenerationRule["trigger"],
+): { events: string[]; problem: string } {
+  const typed = trigger?.eventTypes || [];
+  const legacyRaw = trigger?.events || [];
+  const legacy = canonicalTriggerEvents(legacyRaw);
+  const unsupportedTyped = typed.filter((event) => !triggerEventSet.has(event));
+  const unsupportedLegacy = legacyRaw
+    .map(normalizeLegacyTriggerEvent)
+    .filter((event) => !triggerEventSet.has(event));
+  const selected =
+    typed.length > 0 ? [...typed] : legacy.length > 0 ? legacy : ["changed"];
+  if (unsupportedTyped.length > 0 || unsupportedLegacy.length > 0) {
+    return {
+      events: selected,
+      problem: `Unsupported trigger event values: ${[
+        ...unsupportedTyped,
+        ...unsupportedLegacy,
+      ].join(", ")}`,
+    };
+  }
+  const canonicalTyped = canonicalTriggerEvents(typed);
+  if (
+    typed.length > 0 &&
+    legacyRaw.length > 0 &&
+    !sameTriggerEventSet(canonicalTyped, legacy)
+  ) {
+    return {
+      events: canonicalTyped,
+      problem:
+        "Typed and legacy trigger event representations conflict. Select the intended events before saving.",
+    };
+  }
+  return { events: canonicalTriggerEvents(selected), problem: "" };
+}
+
 export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
+  const unsupported = draft.triggerEvents.filter(
+    (event) => !triggerEventSet.has(event),
+  );
+  if (draft.triggerEventProblem || unsupported.length > 0) {
+    throw new Error(
+      draft.triggerEventProblem ||
+        `Unsupported trigger event values: ${unsupported.join(", ")}`,
+    );
+  }
   const labels = csv(draft.labels);
+  const triggerEvents: SemanticTriggerEvent[] = draft.triggerEvents.length
+    ? canonicalTriggerEvents(draft.triggerEvents)
+    : ["changed"];
   const selectorMode = draft.selectorMode || "node_type";
   const maxResults = Number(draft.maxResults) || 0;
   const selector =
@@ -50,9 +118,9 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
     description: draft.description,
     enabled: draft.enabled,
     trigger: {
-      events: csv(draft.triggerEvents).length
-        ? csv(draft.triggerEvents)
-        : ["changed"],
+      // Dual-write equivalent forms until older daemon support is retired.
+      events: triggerEvents,
+      eventTypes: triggerEvents,
       labels,
       debounce: draft.dirtyCooldown,
     },
@@ -89,6 +157,7 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
 }
 export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
   const binding = rule.embeddings[0];
+  const trigger = resolveTriggerEvents(rule.trigger);
   return {
     semanticRuleId: rule.semanticRuleId || "",
     spaceId: rule.spaceId,
@@ -98,7 +167,8 @@ export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
     description: rule.description,
     enabled: rule.enabled,
     labels: (rule.selector?.labels || rule.trigger?.labels || []).join(","),
-    triggerEvents: (rule.trigger?.events || ["changed"]).join(","),
+    triggerEvents: trigger.events,
+    triggerEventProblem: trigger.problem,
     dirtyCooldown:
       rule.maintenance?.dirtyCooldown || rule.trigger?.debounce || "30s",
     selectorMode: rule.selector?.mode || "node_type",

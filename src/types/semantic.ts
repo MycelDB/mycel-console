@@ -55,7 +55,29 @@ export type SemanticGenerationRuleSummary = {
   status?: SemanticRuleStatus | null;
 };
 
-export type SemanticTriggerPolicy = { events: string[]; labels: string[]; debounce: string };
+export const semanticTriggerEvents = [
+  "changed",
+  "node.created",
+  "node.updated",
+  "node.deleted",
+  "edge.changed",
+  "edge.created",
+  "edge.updated",
+  "edge.deleted",
+] as const;
+export type SemanticTriggerEvent = (typeof semanticTriggerEvents)[number];
+export type UnsupportedSemanticTriggerEvent = `unsupported:${number}`;
+export type SemanticTriggerEventValue =
+  | SemanticTriggerEvent
+  | UnsupportedSemanticTriggerEvent;
+export type SemanticTriggerPolicy = {
+  /** Deprecated compatibility projection populated for older clients. */
+  events: string[];
+  /** Canonical names mapped to the API enum by the Tauri boundary. */
+  eventTypes: SemanticTriggerEventValue[];
+  labels: string[];
+  debounce: string;
+};
 export type SemanticTargetSelector = { mode: string; labels: string[]; gql: string; targetAlias: string; maxResults: number; nodeIds: string[] };
 export type SemanticSourceAssemblyPolicy = { mode: string; includeProperties: string[]; excludeProperties: string[]; maxDepth?: number | null; minimumTextLength: number; contextGql: string };
 export type SemanticEmbeddingBinding = { key: string; purpose: string; intelligenceProfile: string; intelligenceProfileId: string; vectorStore: string; vectorStoreId: string; enabled: boolean; metadata?: Record<string, unknown> | null };

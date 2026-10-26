@@ -158,6 +158,7 @@ pub struct RebuildLexicalIndexResponseInfo {
     pub warnings: Vec<String>,
 }
 
+#[allow(deprecated)] // Keep the shared query populated for pre-v0.21 daemon compatibility.
 #[tauri::command]
 pub async fn client_lexical_search(
     input: LexicalSearchInput,
@@ -186,7 +187,7 @@ pub async fn client_lexical_search(
             space_id,
             domain_id,
             mode,
-            query,
+            query: query.clone(),
             filters,
             page_size: input.page_size.unwrap_or(20),
             page_token: if is_hybrid {
@@ -213,12 +214,14 @@ pub async fn client_lexical_search(
                     embedding_binding_key: trim_optional(input.embedding_binding_key),
                     min_score: input.semantic_min_score,
                     candidate_count: input.semantic_candidates.unwrap_or(0),
+                    query: Some(query.clone()),
                 })
             } else {
                 None
             },
             lexical: Some(LexicalSearchOptions {
                 candidate_count: input.lexical_candidates.unwrap_or(0),
+                query: Some(query),
             }),
         }))
         .await

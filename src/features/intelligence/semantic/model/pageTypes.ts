@@ -39,6 +39,14 @@ export type ProfileOption = {
 
 export type DraftMode = "create" | "edit";
 
+export type VectorStoreCatalogState =
+  | { kind: "loading"; message: string }
+  | { kind: "ready"; message: string }
+  | { kind: "empty"; message: string }
+  | { kind: "unauthorized"; message: string }
+  | { kind: "unsupported"; message: string }
+  | { kind: "error"; message: string };
+
 export type RuleDraft = {
   semanticRuleId: string;
   spaceId: string;
@@ -62,7 +70,8 @@ export type RuleDraft = {
   bindingKey: string;
   purpose: string;
   intelligenceProfile: string;
-  vectorStore: string;
+  vectorStoreId: string;
+  vectorStoreLegacyRef: string;
   searchable: boolean;
   physicalIndex: string;
 };

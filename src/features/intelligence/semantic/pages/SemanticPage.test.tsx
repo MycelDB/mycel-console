@@ -49,6 +49,27 @@ function renderPage(
       ],
       nextPageToken: "",
     }),
+    listVectorStoresService: jest.fn().mockResolvedValue({
+      vectorStores: [
+        {
+          vectorStoreId: "store1",
+          key: "mycel-file",
+          name: "Embedded vectors",
+          type: "mycel-file",
+          privacyClass: "local_only",
+          enabled: true,
+        },
+        {
+          vectorStoreId: "store-disabled",
+          key: "disabled",
+          name: "Disabled vectors",
+          type: "mycel-file",
+          privacyClass: "local_only",
+          enabled: false,
+        },
+      ],
+      nextPageToken: "",
+    }),
     listSemanticRulesService: jest.fn().mockResolvedValue({
       rules: [
         {
@@ -176,10 +197,13 @@ function renderPage(
         principalContext={{
           session: { addr: "", principalId: "alice", username: "alice" },
           roles: ["semantic.admin"],
-          capabilities: ["semantic.manage"],
+          capabilities: ["semantic.manage", "inference.catalog.read"],
           capabilityState: {
             kind: "complete",
-            capabilities: [{ capability: "semantic.manage" }],
+            capabilities: [
+              { capability: "semantic.manage" },
+              { capability: "inference.catalog.read" },
+            ],
           },
           warnings: [],
         }}
@@ -237,6 +261,37 @@ test("uses an Intelligence profile dropdown in the rule editor", async () => {
   );
 });
 
+test("selects an enabled vector store by UUID and marks disabled stores unavailable", async () => {
+  renderPage();
+
+  await screen.findByText("Page summary");
+  await userEvent.click(screen.getByRole("button", { name: /new rule/i }));
+
+  const selector = screen.getByLabelText("Vector store");
+  expect(selector).toHaveDisplayValue("Select vector store");
+  expect(
+    screen.getByRole("option", { name: /Disabled vectors.*Disabled/i }),
+  ).toBeDisabled();
+  await userEvent.selectOptions(selector, "store1");
+  expect(selector).toHaveValue("store1");
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeEnabled();
+});
+
+test("shows an explicit older-daemon state and blocks new UUID-less rules", async () => {
+  renderPage({
+    listVectorStoresService: jest
+      .fn()
+      .mockRejectedValue(new Error("12 UNIMPLEMENTED: unknown method ListVectorStores")),
+  });
+
+  await screen.findByText("Page summary");
+  await userEvent.click(screen.getByRole("button", { name: /new rule/i }));
+
+  expect(screen.getByText(/does not support vector-store catalog selection/i)).toBeInTheDocument();
+  expect(screen.getByLabelText("Vector store")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeDisabled();
+});
+
 test("omits GQL-only selector fields for node type semantic rules", async () => {
   const validateSemanticRuleService = jest
     .fn()
@@ -248,6 +303,7 @@ test("omits GQL-only selector fields for node type semantic rules", async () => 
 
   expect(screen.queryByLabelText(/gql selector/i)).not.toBeInTheDocument();
   expect(screen.queryByLabelText(/target alias/i)).not.toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText("Vector store"), "store1");
   await userEvent.click(screen.getByRole("button", { name: /validate/i }));
 
   expect(validateSemanticRuleService).toHaveBeenCalledWith(

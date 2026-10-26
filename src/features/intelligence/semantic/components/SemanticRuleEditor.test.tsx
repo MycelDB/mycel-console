@@ -1,10 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { MemoryRouter } from "react-router-dom";
 import type { DomainInfo } from "../../../../types/domains";
+import type { VectorStoreInfo } from "../../../../types/inference";
 import type { ValidateSemanticRuleResponse } from "../../../../types/semantic";
 import type { SpaceInfo } from "../../../../types/spaces";
-import type { RuleDraft } from "../model/pageTypes";
+import type {
+  DraftMode,
+  RuleDraft,
+  VectorStoreCatalogState,
+} from "../model/pageTypes";
 import { RuleEditor } from "./SemanticRuleEditor";
 
 const draft: RuleDraft = {
@@ -30,7 +36,8 @@ const draft: RuleDraft = {
   bindingKey: "body",
   purpose: "search",
   intelligenceProfile: "embed-small",
-  vectorStore: "mycel-file",
+  vectorStoreId: "store_1",
+  vectorStoreLegacyRef: "",
   searchable: true,
   physicalIndex: "exact",
 };
@@ -48,28 +55,51 @@ const profiles = [
   },
 ];
 
+const vectorStores: VectorStoreInfo[] = [
+  {
+    vectorStoreId: "store_1",
+    key: "mycel-file",
+    name: "Embedded vectors",
+    type: "mycel-file",
+    privacyClass: "local_only",
+    enabled: true,
+  },
+];
+
 function RuleEditorHarness({
   validation = null,
   onSave = jest.fn(),
+  mode = "create",
+  initialDraft = draft,
+  stores = vectorStores,
+  catalog = { kind: "ready", message: "" },
 }: {
   validation?: ValidateSemanticRuleResponse | null;
   onSave?: () => void;
+  mode?: DraftMode;
+  initialDraft?: RuleDraft;
+  stores?: VectorStoreInfo[];
+  catalog?: VectorStoreCatalogState;
 }) {
-  const [value, setValue] = useState(draft);
+  const [value, setValue] = useState(initialDraft);
   return (
-    <RuleEditor
-      mode="create"
+    <MemoryRouter>
+      <RuleEditor
+      mode={mode}
       draft={value}
       setDraft={setValue}
       spaces={spaces}
       domains={domains}
       profiles={profiles}
+      vectorStores={stores}
+      vectorStoreCatalog={catalog}
       validation={validation}
       loading={false}
       onValidate={jest.fn()}
       onSave={onSave}
       onCancel={jest.fn()}
-    />
+      />
+    </MemoryRouter>
   );
 }
 
@@ -111,30 +141,114 @@ test("RuleEditor blocks unresolved trigger projections until the operator resolv
       triggerEventProblem: "Unsupported trigger event values: unsupported:99",
     });
     return (
-      <RuleEditor
+      <MemoryRouter>
+        <RuleEditor
         mode="edit"
         draft={value}
         setDraft={setValue}
         spaces={spaces}
         domains={domains}
         profiles={profiles}
+        vectorStores={[]}
+        vectorStoreCatalog={{
+          kind: "unsupported",
+          message: "Catalog unsupported; preserving existing references.",
+        }}
         validation={null}
         loading={false}
         onValidate={jest.fn()}
         onSave={jest.fn()}
         onCancel={jest.fn()}
-      />
+        />
+      </MemoryRouter>
     );
   }
 
   render(<ProblemHarness />);
-  expect(screen.getByRole("alert")).toHaveTextContent(/unsupported/i);
+  expect(
+    screen.getByText(/Unsupported trigger event values/i),
+  ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Save rule" })).toBeDisabled();
 
   await user.click(screen.getByLabelText("Unsupported: unsupported:99"));
-  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/Unsupported trigger event values/i),
+  ).not.toBeInTheDocument();
   expect(screen.getByLabelText("Any event")).toBeChecked();
   expect(screen.getByRole("button", { name: "Save rule" })).toBeEnabled();
+});
+
+test("RuleEditor disambiguates legacy duplicate display names with key and UUID", () => {
+  render(
+    <RuleEditorHarness
+      stores={[
+        { ...vectorStores[0], name: "Shared name" },
+        {
+          ...vectorStores[0],
+          vectorStoreId: "store_2",
+          key: "other",
+          name: " shared name ",
+        },
+      ]}
+    />,
+  );
+
+  expect(
+    screen.getByRole("option", {
+      name: /Shared name.*mycel-file.*store_1/i,
+    }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    /duplicate display names/i,
+  );
+});
+
+test("RuleEditor preserves unavailable UUID and legacy references during edits", () => {
+  render(
+    <RuleEditorHarness
+      mode="edit"
+      initialDraft={{
+        ...draft,
+        vectorStoreId: "deleted-store",
+        vectorStoreLegacyRef: "",
+      }}
+      stores={[]}
+      catalog={{ kind: "error", message: "Catalog request failed" }}
+    />,
+  );
+
+  expect(screen.getByLabelText("Vector store")).toHaveValue("deleted-store");
+  expect(screen.getByRole("alert")).toHaveTextContent(/UUID will be preserved/i);
+  expect(screen.getByRole("button", { name: "Save rule" })).toBeEnabled();
+});
+
+test("RuleEditor provides catalog search and an empty management route", async () => {
+  const manyStores = Array.from({ length: 10 }, (_, index) => ({
+    ...vectorStores[0],
+    vectorStoreId: `store_${index}`,
+    key: `key-${index}`,
+    name: `Vector store ${index}`,
+  }));
+  const user = userEvent.setup();
+  const { unmount } = render(<RuleEditorHarness stores={manyStores} />);
+
+  await user.type(screen.getByLabelText("Search vector stores"), "store 9");
+  expect(screen.getByRole("option", { name: "Vector store 9" })).toBeInTheDocument();
+  unmount();
+
+  render(
+    <RuleEditorHarness
+      initialDraft={{ ...draft, vectorStoreId: "" }}
+      stores={[]}
+      catalog={{ kind: "empty", message: "No vector stores are available." }}
+    />,
+  );
+  expect(screen.getByLabelText("Vector store")).toBeDisabled();
+  expect(screen.getByRole("link", { name: "Manage vector stores" })).toHaveAttribute(
+    "href",
+    "/intelligence/vector-stores",
+  );
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeDisabled();
 });
 
 test("RuleEditor renders validation diagnostics", () => {

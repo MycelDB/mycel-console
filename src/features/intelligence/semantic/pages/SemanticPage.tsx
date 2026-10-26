@@ -33,6 +33,7 @@ import {
   listDomains as defaultListDomains,
   listInferenceProfiles as defaultListInferenceProfiles,
   listSemanticRules as defaultListSemanticRules,
+  listVectorStores as defaultListVectorStores,
   listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork,
   listSpaces as defaultListSpaces,
   processSemanticDirtyWork as defaultProcessSemanticDirtyWork,
@@ -52,8 +53,11 @@ import type {
   InferenceProfileInfo,
   ListInferenceProfilesInput,
   ListInferenceProfilesResponse,
+  ListVectorStoresInput,
+  ListVectorStoresResponse,
   SummarizeUsageInput,
   SummarizeUsageResponse,
+  VectorStoreInfo,
 } from "../../../../types/inference";
 import type {
   CreateSemanticRuleInput,
@@ -103,6 +107,7 @@ import type {
   SemanticTab,
   SpaceMaintenance,
   UsageByRule,
+  VectorStoreCatalogState,
 } from "../model/pageTypes";
 import { Field, RuleEditor } from "../components/SemanticRuleEditor";
 import { draftToRule, ruleToDraft, summaryToRule } from "../model/ruleDraft";
@@ -129,6 +134,9 @@ export type SemanticPageProps = {
   listInferenceProfilesService?: (
     input?: ListInferenceProfilesInput,
   ) => Promise<ListInferenceProfilesResponse>;
+  listVectorStoresService?: (
+    input?: ListVectorStoresInput,
+  ) => Promise<ListVectorStoresResponse>;
   listSemanticRulesService?: (
     input: ListSemanticRulesInput,
   ) => Promise<ListSemanticRulesResponse>;
@@ -212,10 +220,41 @@ function defaultDraft(spaceId = "", domainId = ""): RuleDraft {
     bindingKey: "search",
     purpose: "search",
     intelligenceProfile: "",
-    vectorStore: "mycel-file",
+    vectorStoreId: "",
+    vectorStoreLegacyRef: "",
     searchable: true,
     physicalIndex: "exact",
   };
+}
+
+function vectorStoreCatalogFailure(error: unknown): VectorStoreCatalogState {
+  const message = errorMessage(error, "Failed to load vector-store catalog");
+  const normalized = message.toLocaleLowerCase();
+  if (
+    normalized.includes("unimplemented") ||
+    normalized.includes("unknown service") ||
+    normalized.includes("unknown method") ||
+    normalized.includes("not supported")
+  ) {
+    return {
+      kind: "unsupported",
+      message:
+        "This daemon does not support vector-store catalog selection. Existing rule references remain preserved.",
+    };
+  }
+  if (
+    normalized.includes("permission denied") ||
+    normalized.includes("permission_denied") ||
+    normalized.includes("not authorized") ||
+    normalized.includes("capability")
+  ) {
+    return {
+      kind: "unauthorized",
+      message:
+        "You are not authorized to read the vector-store catalog. Existing rule references remain preserved.",
+    };
+  }
+  return { kind: "error", message };
 }
 
 function defaultSearchDraft(spaceId = "", domainId = ""): SearchDraft {
@@ -234,6 +273,7 @@ export function SemanticPage({
   listSpacesService = defaultListSpaces,
   listDomainsService = defaultListDomains,
   listInferenceProfilesService = defaultListInferenceProfiles,
+  listVectorStoresService = defaultListVectorStores,
   listSemanticRulesService = defaultListSemanticRules,
   getSemanticRuleService = defaultGetSemanticRule,
   validateSemanticRuleService = defaultValidateSemanticRule,
@@ -256,6 +296,12 @@ export function SemanticPage({
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [domains, setDomains] = useState<DomainInfo[]>([]);
   const [profiles, setProfiles] = useState<InferenceProfileInfo[]>([]);
+  const [vectorStores, setVectorStores] = useState<VectorStoreInfo[]>([]);
+  const [vectorStoreCatalog, setVectorStoreCatalog] =
+    useState<VectorStoreCatalogState>({
+      kind: "loading",
+      message: "Loading vector-store catalog…",
+    });
   const [rows, setRows] = useState<SemanticRow[]>([]);
   const [maintenanceBySpace, setMaintenanceBySpace] = useState<
     Record<string, SpaceMaintenance>
@@ -287,6 +333,10 @@ export function SemanticPage({
   const includeDisabled = searchParams.get("includeDisabled") === "true";
   const activeTab = semanticTab(searchParams.get("tab"));
   const canManage = canUseCapability(principalContext, "semantic.manage");
+  const canReadVectorStores = canUseCapability(
+    principalContext,
+    "inference.catalog.read",
+  );
 
   const setTab = useCallback(
     (tab: SemanticTab) => {
@@ -312,6 +362,45 @@ export function SemanticPage({
     setLoading(true);
     setError("");
     setUsageError("");
+    if (!canReadVectorStores) {
+      setVectorStores([]);
+      setVectorStoreCatalog({
+        kind: "unauthorized",
+        message:
+          "The authenticated principal does not have inference.catalog.read. Existing rule references remain preserved.",
+      });
+    } else {
+      setVectorStoreCatalog({
+        kind: "loading",
+        message: "Loading vector-store catalog…",
+      });
+      try {
+        const catalog: VectorStoreInfo[] = [];
+        let pageToken: string | undefined;
+        do {
+          const response = await listVectorStoresService({
+            pageSize: 500,
+            pageToken,
+            includeDisabled: true,
+          });
+          catalog.push(...response.vectorStores);
+          pageToken = response.nextPageToken || undefined;
+        } while (pageToken);
+        setVectorStores(catalog);
+        setVectorStoreCatalog(
+          catalog.length > 0
+            ? { kind: "ready", message: "" }
+            : {
+                kind: "empty",
+                message:
+                  "No vector stores are available. Create or import one before creating a semantic rule.",
+              },
+        );
+      } catch (catalogError) {
+        setVectorStores([]);
+        setVectorStoreCatalog(vectorStoreCatalogFailure(catalogError));
+      }
+    }
     try {
       const spaceResponse = await listSpacesService({
         pageSize: 100,
@@ -462,6 +551,7 @@ export function SemanticPage({
       setLoading(false);
     }
   }, [
+    canReadVectorStores,
     getSemanticMaintenanceStatusService,
     includeDisabled,
     listDomainsService,
@@ -469,6 +559,7 @@ export function SemanticPage({
     listSemanticMaintenanceWorkService,
     listSemanticRulesService,
     listSpacesService,
+    listVectorStoresService,
     selectedDomainId,
     selectedSpaceId,
     summarizeInferenceUsageService,
@@ -921,6 +1012,8 @@ export function SemanticPage({
             domains={domains}
             spaces={spaces}
             profiles={profileOptions}
+            vectorStores={vectorStores}
+            vectorStoreCatalog={vectorStoreCatalog}
             validation={validation}
             loading={actionLoading}
             onValidate={() => void validateDraft()}

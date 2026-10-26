@@ -8,6 +8,7 @@ use mycel_sdk::proto::admin::v1::{
     AdminInferenceCatalogServiceListModelsRequest,
     AdminInferenceCatalogServiceListVectorStoresRequest, InferenceModel, InferencePackage,
     ModelEndpoint, ModelEndpointCapability, ModelEndpointCapabilityDefinition, VectorStore,
+    VectorStoreCatalogConflict, VectorStoreCatalogConflictReason,
 };
 
 use mycel_sdk::proto::admin::v1::{
@@ -39,11 +40,23 @@ use mycel_sdk::proto::common::v1::{
     IntelligenceAccessScope, IntelligenceAccessUsageMode, IntelligenceAccessUsageStatus,
 };
 
-use prost_types::{value::Kind, ListValue, Struct, Timestamp, Value};
+use prost::Message;
+use prost_types::{value::Kind, Any, ListValue, Struct, Timestamp, Value};
 use serde_json::Map;
 use tauri::State;
 
+use crate::commands::command_error::{sdk_error, validation_error, ConsoleCommandError};
 use crate::state::AppState;
+
+#[derive(Clone, PartialEq, Message)]
+struct RpcStatusDetails {
+    #[prost(int32, tag = "1")]
+    code: i32,
+    #[prost(string, tag = "2")]
+    message: String,
+    #[prost(message, repeated, tag = "3")]
+    details: Vec<Any>,
+}
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -281,6 +294,8 @@ pub struct InferenceModelInput {
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct VectorStoreInput {
+    #[serde(default)]
+    pub vector_store_id: String,
     #[serde(default)]
     pub key: String,
     #[serde(default)]
@@ -530,20 +545,20 @@ pub async fn admin_list_model_endpoint_capabilities(
 pub async fn admin_apply_inference_package(
     input: ApplyInferencePackageInput,
     state: State<'_, AppState>,
-) -> Result<ApplyInferencePackageResponseInfo, String> {
+) -> Result<ApplyInferencePackageResponseInfo, ConsoleCommandError> {
     let name = input.name.trim().to_string();
     let version = input.version.trim().to_string();
     if name.is_empty() {
-        return Err("Package name is required".to_string());
+        return Err(validation_error("Package name is required"));
     }
     if version.is_empty() {
-        return Err("Package version is required".to_string());
+        return Err(validation_error("Package version is required"));
     }
 
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
-        .ok_or_else(|| "Not authenticated".to_string())?;
+        .ok_or_else(|| sdk_error(mycel_sdk::Error::Message("Not authenticated".to_string())))?;
 
     let response = session
         ._client
@@ -569,7 +584,7 @@ pub async fn admin_apply_inference_package(
             },
         ))
         .await
-        .map_err(|err| err.to_string())?
+        .map_err(inference_catalog_error)?
         .into_inner();
 
     Ok(ApplyInferencePackageResponseInfo {
@@ -2354,7 +2369,7 @@ fn inference_model(input: InferenceModelInput) -> InferenceModel {
 
 fn vector_store(input: VectorStoreInput) -> VectorStore {
     VectorStore {
-        vector_store_id: String::new(),
+        vector_store_id: input.vector_store_id,
         key: input.key,
         name: input.name,
         r#type: input.r#type,
@@ -2378,6 +2393,39 @@ fn model_endpoint_capability_definition(
         model_name_override: String::new(),
         metadata: input.metadata.map(struct_from_map),
     }
+}
+
+fn inference_catalog_error(status: tonic::Status) -> ConsoleCommandError {
+    let conflict = decode_vector_store_conflict(&status);
+    let mut error = sdk_error(mycel_sdk::Error::from(status));
+    if let Some(conflict) = conflict {
+        let reason = VectorStoreCatalogConflictReason::try_from(conflict.reason)
+            .map(|value| value.as_str_name().to_string())
+            .unwrap_or_else(|_| format!("unsupported:{}", conflict.reason));
+        error.detail = Some(
+            serde_json::json!({
+                "type": "vector_store_catalog_conflict",
+                "reason": reason,
+                "normalizedValue": conflict.normalized_value,
+                "conflictingVectorStoreIds": conflict.conflicting_vector_store_ids,
+            })
+            .to_string(),
+        );
+    }
+    error
+}
+
+fn decode_vector_store_conflict(status: &tonic::Status) -> Option<VectorStoreCatalogConflict> {
+    let rpc_status = RpcStatusDetails::decode(status.details()).ok()?;
+    rpc_status.details.into_iter().find_map(|detail| {
+        if !detail
+            .type_url
+            .ends_with("/mycel.admin.v1.VectorStoreCatalogConflict")
+        {
+            return None;
+        }
+        VectorStoreCatalogConflict::decode(detail.value.as_slice()).ok()
+    })
 }
 
 fn struct_from_map(map: Map<String, serde_json::Value>) -> Struct {
@@ -2442,4 +2490,39 @@ fn timestamp_string(timestamp: Option<Timestamp>) -> String {
             }
         })
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preserves_vector_store_conflict_status_detail() {
+        let conflict = VectorStoreCatalogConflict {
+            reason: VectorStoreCatalogConflictReason::NameAlreadyExists as i32,
+            normalized_value: "primary search".to_string(),
+            conflicting_vector_store_ids: vec!["store-1".to_string()],
+        };
+        let detail = Any {
+            type_url: "type.googleapis.com/mycel.admin.v1.VectorStoreCatalogConflict".to_string(),
+            value: conflict.encode_to_vec(),
+        };
+        let rpc_status = RpcStatusDetails {
+            code: tonic::Code::AlreadyExists as i32,
+            message: "vector store name already exists".to_string(),
+            details: vec![detail],
+        };
+        let status = tonic::Status::with_details(
+            tonic::Code::AlreadyExists,
+            "vector store name already exists",
+            rpc_status.encode_to_vec().into(),
+        );
+
+        let error = inference_catalog_error(status);
+        assert_eq!(error.kind, "conflict");
+        let detail = error.detail.expect("structured conflict detail");
+        assert!(detail.contains("vector_store_catalog_conflict"));
+        assert!(detail.contains("primary search"));
+        assert!(detail.contains("store-1"));
+    }
 }

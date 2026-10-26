@@ -25,7 +25,8 @@ const draft: RuleDraft = {
   bindingKey: "body",
   purpose: "search",
   intelligenceProfile: "embed-small",
-  vectorStore: "mycel-file",
+  vectorStoreId: "store_1",
+  vectorStoreLegacyRef: "",
   searchable: true,
   physicalIndex: "exact",
 };
@@ -44,7 +45,24 @@ test("draftToRule maps draft fields without backend interaction", () => {
   expect(rule.embeddings[0]).toMatchObject({
     key: "body",
     intelligenceProfile: "embed-small",
+    vectorStore: "",
+    vectorStoreId: "store_1",
+  });
+});
+
+test("draftToRule preserves a legacy vector-store reference when no UUID is available", () => {
+  const rule = draftToRule({
+    ...draft,
+    vectorStoreId: "",
+    vectorStoreLegacyRef: "mycel-file",
+  });
+  expect(rule.embeddings[0]).toMatchObject({
     vectorStore: "mycel-file",
+    vectorStoreId: "",
+  });
+  expect(ruleToDraft(rule)).toMatchObject({
+    vectorStoreId: "",
+    vectorStoreLegacyRef: "mycel-file",
   });
 });
 

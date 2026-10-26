@@ -139,8 +139,8 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
         purpose: draft.purpose,
         intelligenceProfile: draft.intelligenceProfile,
         intelligenceProfileId: "",
-        vectorStore: draft.vectorStore,
-        vectorStoreId: "",
+        vectorStore: draft.vectorStoreId ? "" : draft.vectorStoreLegacyRef,
+        vectorStoreId: draft.vectorStoreId,
         enabled: true,
       },
     ],
@@ -184,7 +184,8 @@ export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
     purpose: binding?.purpose || "search",
     intelligenceProfile:
       binding?.intelligenceProfile || binding?.intelligenceProfileId || "",
-    vectorStore: binding?.vectorStore || binding?.vectorStoreId || "mycel-file",
+    vectorStoreId: binding?.vectorStoreId || "",
+    vectorStoreLegacyRef: binding?.vectorStore || "",
     searchable: rule.storage?.searchable ?? true,
     physicalIndex: rule.storage?.physicalIndex || "exact",
   };

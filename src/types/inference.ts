@@ -145,6 +145,7 @@ export type InferenceModelInput = {
 };
 
 export type VectorStoreInput = {
+  vector_store_id?: string;
   key: string;
   name?: string;
   type?: string;

@@ -19,7 +19,7 @@ test("invokes login service, stores login hints, and reports successful principa
   render(<LoginPage loginService={loginService} onLoginSuccess={onLoginSuccess} />);
 
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "secret");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith(session));
@@ -47,7 +47,7 @@ test("runs connection diagnostics after a connection problem", async () => {
   expect(screen.queryByRole("button", { name: /run connection diagnostics/i })).not.toBeInTheDocument();
 
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "secret");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   await userEvent.click(await screen.findByRole("button", { name: /run connection diagnostics/i }));
@@ -74,7 +74,7 @@ test("shows bad credential service errors as warnings", async () => {
   render(<LoginPage loginService={loginService} onLoginSuccess={jest.fn()} />);
 
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "wrong");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "wrong");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   const alert = await screen.findByRole("alert");
@@ -88,7 +88,7 @@ test("shows authorization service errors as warnings", async () => {
   render(<LoginPage loginService={loginService} onLoginSuccess={jest.fn()} />);
 
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "secret");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   const alert = await screen.findByRole("alert");
@@ -101,7 +101,7 @@ test("shows connectivity service errors as errors with friendly copy", async () 
   render(<LoginPage loginService={loginService} onLoginSuccess={jest.fn()} />);
 
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "secret");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   const alert = await screen.findByRole("alert");
@@ -115,7 +115,7 @@ test("shows string errors from Tauri commands", async () => {
   render(<LoginPage loginService={loginService} onLoginSuccess={jest.fn()} />);
 
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "wrong");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "wrong");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   const alert = await screen.findByRole("alert");

@@ -71,10 +71,8 @@ export type SemanticTriggerEventValue =
   | SemanticTriggerEvent
   | UnsupportedSemanticTriggerEvent;
 export type SemanticTriggerPolicy = {
-  /** Deprecated compatibility projection populated for older clients. */
-  events: string[];
   /** Canonical names mapped to the API enum by the Tauri boundary. */
-  eventTypes: SemanticTriggerEventValue[];
+  events: SemanticTriggerEventValue[];
   labels: string[];
   debounce: string;
 };

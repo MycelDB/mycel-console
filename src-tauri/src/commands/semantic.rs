@@ -150,8 +150,6 @@ pub struct SemanticTriggerPolicyInfo {
     #[serde(default)]
     pub events: Vec<String>,
     #[serde(default)]
-    pub event_types: Vec<String>,
-    #[serde(default)]
     pub labels: Vec<String>,
     #[serde(default)]
     pub debounce: String,
@@ -640,23 +638,21 @@ fn rule_proto(rule: SemanticGenerationRuleInfo) -> Result<SemanticGenerationRule
     })
 }
 
-#[allow(deprecated)]
 fn trigger_policy_proto(item: SemanticTriggerPolicyInfo) -> Result<SemanticTriggerPolicy, String> {
-    let event_types = item
-        .event_types
+    let events = item
+        .events
         .iter()
         .enumerate()
         .map(|(index, value)| {
             semantic_trigger_event_from_name(value).ok_or_else(|| {
-                format!("Unsupported semantic trigger event at eventTypes[{index}]: {value}")
+                format!("Unsupported semantic trigger event at events[{index}]: {value}")
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(SemanticTriggerPolicy {
-        events: item.events,
+        events,
         labels: item.labels,
         debounce: item.debounce,
-        event_types,
     })
 }
 
@@ -693,7 +689,6 @@ fn semantic_trigger_event_name(value: i32) -> String {
         .unwrap_or_else(|| format!("unsupported:{value}"))
 }
 
-#[allow(deprecated)]
 fn rule_info(rule: SemanticGenerationRule) -> SemanticGenerationRuleInfo {
     SemanticGenerationRuleInfo {
         semantic_rule_id: rule.semantic_rule_id,
@@ -704,9 +699,8 @@ fn rule_info(rule: SemanticGenerationRule) -> SemanticGenerationRuleInfo {
         description: rule.description,
         enabled: rule.enabled,
         trigger: rule.trigger.map(|item| SemanticTriggerPolicyInfo {
-            events: item.events,
-            event_types: item
-                .event_types
+            events: item
+                .events
                 .into_iter()
                 .map(semantic_trigger_event_name)
                 .collect(),
@@ -865,23 +859,20 @@ fn prost_value_json(value: &prost_types::Value) -> Value {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
 
     #[test]
-    fn trigger_policy_proto_maps_typed_events_without_dropping_legacy_compatibility() {
+    fn trigger_policy_proto_maps_typed_events() {
         let got = trigger_policy_proto(SemanticTriggerPolicyInfo {
             events: vec!["node.updated".to_string(), "edge.deleted".to_string()],
-            event_types: vec!["node.updated".to_string(), "edge.deleted".to_string()],
             labels: vec!["Note".to_string()],
             debounce: "30s".to_string(),
         })
         .expect("typed trigger policy");
 
-        assert_eq!(got.events, vec!["node.updated", "edge.deleted"]);
         assert_eq!(
-            got.event_types,
+            got.events,
             vec![
                 SemanticTriggerEventType::NodeUpdated as i32,
                 SemanticTriggerEventType::EdgeDeleted as i32,
@@ -892,11 +883,11 @@ mod tests {
     #[test]
     fn trigger_policy_proto_rejects_unknown_event_name() {
         let err = trigger_policy_proto(SemanticTriggerPolicyInfo {
-            event_types: vec!["unsupported:99".to_string()],
+            events: vec!["unsupported:99".to_string()],
             ..Default::default()
         })
         .expect_err("unknown event must fail closed");
-        assert!(err.contains("eventTypes[0]"), "error = {err}");
+        assert!(err.contains("events[0]"), "error = {err}");
     }
 
     #[test]

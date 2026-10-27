@@ -31,6 +31,13 @@ function renderSearchPage(
   return lexicalSearchService;
 }
 
+test("uses Data as the section eyebrow while retaining the Search page title", () => {
+  renderSearchPage();
+
+  expect(screen.getByText("Data", { selector: "p" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Search" })).toBeInTheDocument();
+});
+
 test("lexical mode sends its query through the lexical channel", async () => {
   const search = renderSearchPage();
   const lexicalQuery = await screen.findByLabelText("Lexical query");
@@ -48,7 +55,6 @@ test("lexical mode sends its query through the lexical channel", async () => {
 test("hybrid mode requires and sends distinct channel queries", async () => {
   const search = renderSearchPage();
   const lexicalQuery = await screen.findByLabelText("Lexical query");
-  expect(screen.getByRole("heading", { name: "Search" })).toBeInTheDocument();
   await userEvent.selectOptions(screen.getByLabelText("Mode"), "hybrid");
   expect(screen.getByLabelText("Semantic weight")).toBeInTheDocument();
   expect(screen.getByLabelText("Semantic rule ID")).toBeInTheDocument();

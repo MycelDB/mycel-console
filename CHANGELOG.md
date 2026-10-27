@@ -8,12 +8,14 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Added
 
+- Added an accessible Show/Hide control to the login password field so operators can verify entered credentials without changing login behavior (#96).
 - Added list-first Semantic Rules routes for rule inventory, dedicated creation, and identity-backed editing, with editor-only catalog loading and in-app unsaved-change protection (#78).
 - Added an accessible semantic trigger-event checkbox group backed by the enum-only API field, with fail-closed handling of unknown projections (#75).
 - Added catalog-backed semantic-rule vector-store selection using authoritative UUID values and unique display-name labels, including search, disabled/empty states, legacy-name disambiguation, and unavailable-reference preservation (#76).
 
 ### Changed
 
+- Aligned the Search page header with the Data navigation section while retaining Search as the page title and sidebar label (#95).
 - Coordinated Admin and data RPC authentication through one rotating-token source and refresh lock, routed generated-client calls through guarded refresh/retry handling, and made terminal refresh-session failures return operators to login (#82, #83).
 - Replaced free-text space-owner entry with a capability-aware, paginated active-principal selector showing name-only options backed by authoritative principal IDs, while retaining an explicit manual username fallback (#80).
 - Renamed the Intelligence navigation entry from Semantic to Semantic Rules and removed semantic search controls from rule administration; search remains under the Search feature. The retired `/intelligence/semantic` route is not redirected (#78).

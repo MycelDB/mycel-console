@@ -226,7 +226,7 @@ export function LexicalSearchPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Search"
+        eyebrow="Data"
         title="Search"
         description="Run lexical or hybrid lexical + semantic search, inspect index freshness, and trigger maintenance rebuilds."
       />

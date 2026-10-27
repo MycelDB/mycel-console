@@ -24,6 +24,49 @@ const packagesResponse: ListInferencePackagesResponse = {
   nextPageToken: "",
 };
 
+function catalogEndpoint(key: string) {
+  return {
+    modelEndpointId: key,
+    key,
+    name: `Endpoint ${key}`,
+    connectorType: "openai-compatible",
+    endpointUrl: `https://${key}.example.test/v1`,
+    networkClass: "external_https",
+    privacyClass: "third_party",
+    authModes: ["api_key"],
+    operations: ["chat"],
+    enabled: true,
+  };
+}
+
+function catalogModel(modelId: string) {
+  return {
+    modelId,
+    key: `provider/${modelId}`,
+    kind: "generative",
+    modelName: modelId,
+    connectorTypes: ["custom"],
+    dimensions: 0,
+    inputModalities: ["text"],
+    outputModalities: ["text"],
+    vectorSpaceKey: "",
+  };
+}
+
+function catalogCapability(
+  modelEndpointCapabilityId: string,
+  modelId: string,
+  operation: string,
+) {
+  return {
+    modelEndpointCapabilityId,
+    modelEndpointId: "endpoint",
+    modelId,
+    operation,
+    enabled: true,
+  };
+}
+
 function LocationView() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -156,6 +199,24 @@ function renderAccessPage(
   return renderPage(
     { section: "access", ...overrides },
     "/intelligence/access",
+  );
+}
+
+async function submitInferencePackageImport() {
+  await userEvent.click(
+    screen.getByRole("button", { name: /import package json/i }),
+  );
+  fireEvent.change(screen.getByLabelText(/or paste package json/i), {
+    target: {
+      value: JSON.stringify({
+        name: "standard-openai-chat",
+        version: "2026-10",
+        model_endpoints: [{ key: "openai", enabled: true }],
+      }),
+    },
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: /^import package$/i }),
   );
 }
 
@@ -1134,21 +1195,7 @@ test("imports package JSON and shows summary", async () => {
   const services = renderPage();
 
   await screen.findByText("openai/gpt-5.6-terra");
-  await userEvent.click(
-    screen.getByRole("button", { name: /import package json/i }),
-  );
-  fireEvent.change(screen.getByLabelText(/or paste package json/i), {
-    target: {
-      value: JSON.stringify({
-        name: "standard-openai-chat",
-        version: "2026-10",
-        model_endpoints: [{ key: "openai", enabled: true }],
-      }),
-    },
-  });
-  await userEvent.click(
-    screen.getByRole("button", { name: /^import package$/i }),
-  );
+  await submitInferencePackageImport();
 
   await waitFor(() =>
     expect(services.applyInferencePackageService).toHaveBeenCalledWith(
@@ -1171,6 +1218,228 @@ test("imports package JSON and shows summary", async () => {
   expect(screen.getByRole("tab", { name: "Endpoints" })).toHaveAttribute(
     "aria-selected",
     "true",
+  );
+});
+
+test("refreshes an already-active endpoint catalog after import and from the summary action", async () => {
+  const listModelEndpointsService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      modelEndpoints: [catalogEndpoint("existing-endpoint")],
+      nextPageToken: "",
+    })
+    .mockResolvedValue({
+      modelEndpoints: [
+        catalogEndpoint("existing-endpoint"),
+        catalogEndpoint("imported-endpoint"),
+      ],
+      nextPageToken: "",
+    });
+  const services = renderPage({ listModelEndpointsService });
+
+  await userEvent.click(
+    await screen.findByRole("tab", { name: "Endpoints" }),
+  );
+  expect(await screen.findByText("existing-endpoint")).toBeInTheDocument();
+
+  await submitInferencePackageImport();
+
+  expect(await screen.findByText("imported-endpoint")).toBeInTheDocument();
+  expect(listModelEndpointsService).toHaveBeenCalledTimes(2);
+  expect(services.listInferencePackagesService).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /view endpoints/i }),
+  );
+  await waitFor(() =>
+    expect(listModelEndpointsService).toHaveBeenCalledTimes(3),
+  );
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("refreshes models and capabilities while the model tab remains active", async () => {
+  const existingModel = catalogModel("existing-model");
+  const importedModel = catalogModel("imported-model");
+  const listModelsService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      models: [existingModel],
+      nextPageToken: "",
+    })
+    .mockResolvedValue({
+      models: [existingModel, importedModel],
+      nextPageToken: "",
+    });
+  const listModelEndpointCapabilitiesService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      modelEndpointCapabilities: [
+        catalogCapability("existing-capability", "existing-model", "chat"),
+      ],
+      nextPageToken: "",
+    })
+    .mockResolvedValue({
+      modelEndpointCapabilities: [
+        catalogCapability("existing-capability", "existing-model", "chat"),
+        catalogCapability(
+          "imported-capability",
+          "imported-model",
+          "summarize",
+        ),
+      ],
+      nextPageToken: "",
+    });
+  const services = renderPage({
+    listModelsService,
+    listModelEndpointCapabilitiesService,
+  });
+
+  expect(await screen.findByText("provider/existing-model")).toBeInTheDocument();
+  await submitInferencePackageImport();
+
+  expect(await screen.findByText("provider/imported-model")).toBeInTheDocument();
+  expect(screen.getByText("Summarize")).toBeInTheDocument();
+  expect(listModelsService).toHaveBeenCalledTimes(2);
+  expect(listModelEndpointCapabilitiesService).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /view models/i }),
+  );
+  await waitFor(() => expect(listModelsService).toHaveBeenCalledTimes(3));
+  expect(listModelEndpointCapabilitiesService).toHaveBeenCalledTimes(3);
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("preserves model filters while refreshing imported catalog data", async () => {
+  let imported = false;
+  const summarizingModel = catalogModel("summary-model");
+  const chatModel = catalogModel("imported-chat-model");
+  const listModelsService = jest.fn().mockImplementation(async () => ({
+    models: imported ? [summarizingModel, chatModel] : [summarizingModel],
+    nextPageToken: "",
+  }));
+  const listModelEndpointCapabilitiesService = jest
+    .fn()
+    .mockImplementation(async (input?: { operation?: string }) => ({
+      modelEndpointCapabilities:
+        input?.operation === "summarize"
+          ? [
+              catalogCapability(
+                "summary-capability",
+                "summary-model",
+                "summarize",
+              ),
+            ]
+          : [
+              catalogCapability(
+                "summary-capability",
+                "summary-model",
+                "summarize",
+              ),
+              ...(imported
+                ? [
+                    catalogCapability(
+                      "chat-capability",
+                      "imported-chat-model",
+                      "chat",
+                    ),
+                  ]
+                : []),
+            ],
+      nextPageToken: "",
+    }));
+  const applyInferencePackageService = jest.fn().mockImplementation(async () => {
+    imported = true;
+    return {
+      package: packagesResponse.packages[0],
+      modelEndpointCount: 1,
+      modelCount: 1,
+      vectorStoreCount: 0,
+      capabilityCount: 1,
+    };
+  });
+  renderPage({
+    applyInferencePackageService,
+    listModelsService,
+    listModelEndpointCapabilitiesService,
+  });
+
+  expect(await screen.findByText("provider/summary-model")).toBeInTheDocument();
+  await userEvent.selectOptions(
+    screen.getByLabelText("Filter operation"),
+    "summarize",
+  );
+  await waitFor(() =>
+    expect(listModelEndpointCapabilitiesService).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "summarize" }),
+    ),
+  );
+  const capabilityReadsBeforeImport =
+    listModelEndpointCapabilitiesService.mock.calls.length;
+
+  await submitInferencePackageImport();
+
+  await waitFor(() =>
+    expect(listModelEndpointCapabilitiesService.mock.calls.length).toBeGreaterThan(
+      capabilityReadsBeforeImport,
+    ),
+  );
+  await screen.findByText(/inference package imported/i);
+  expect(screen.getByLabelText("Filter operation")).toHaveValue("summarize");
+  expect(screen.getByText("provider/summary-model")).toBeInTheDocument();
+  expect(screen.queryByText("provider/imported-chat-model")).not.toBeInTheDocument();
+  expect(applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("preserves import success and offers retry when catalog refresh fails", async () => {
+  const existingModel = catalogModel("existing-model");
+  const importedModel = catalogModel("imported-model");
+  const listModelsService = jest
+    .fn()
+    .mockResolvedValueOnce({ models: [existingModel], nextPageToken: "" })
+    .mockRejectedValueOnce(new Error("catalog read unavailable"))
+    .mockResolvedValue({
+      models: [existingModel, importedModel],
+      nextPageToken: "",
+    });
+  const services = renderPage({ listModelsService });
+
+  expect(await screen.findByText("provider/existing-model")).toBeInTheDocument();
+  await submitInferencePackageImport();
+
+  expect(
+    await screen.findByText(/import succeeded, but the follow-up refresh failed/i),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText(/catalog read unavailable/i).length).toBeGreaterThan(
+    0,
+  );
+  expect(screen.getByText(/inference package imported/i)).toBeInTheDocument();
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /retry refresh/i }),
+  );
+
+  expect(await screen.findByText("provider/imported-model")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      screen.queryByText(/follow-up refresh failed/i),
+    ).not.toBeInTheDocument(),
+  );
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("routes the vector-store summary action to an authoritative catalog page", async () => {
+  renderPage();
+
+  await screen.findByText("openai/gpt-5.6-terra");
+  await submitInferencePackageImport();
+  await userEvent.click(
+    await screen.findByRole("button", { name: /view vector stores/i }),
+  );
+
+  expect(screen.getByTestId("location")).toHaveTextContent(
+    "/intelligence/vector-stores",
   );
 });
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
@@ -214,6 +214,8 @@ export function InferencePage({
   const [summary, setSummary] = useState<ApplyInferencePackageResponse | null>(
     null,
   );
+  const [postImportRefreshing, setPostImportRefreshing] = useState(false);
+  const [postImportRefreshError, setPostImportRefreshError] = useState("");
   const [accessActiveTab, setAccessActiveTab] =
     useState<InferenceTab>("credentials");
   const [endpoints, setEndpoints] = useState<ModelEndpointInfo[]>([]);
@@ -224,6 +226,7 @@ export function InferencePage({
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
+  const catalogRequestId = useRef(0);
   const [includeDisabledCatalog, setIncludeDisabledCatalog] = useState(false);
   const [operationFilter, setOperationFilter] = useState("");
   const modelCounts = useMemo(() => countModelsByKind(models), [models]);
@@ -390,8 +393,13 @@ export function InferencePage({
     async ({
       append = false,
       pageToken = "",
-    }: { append?: boolean; pageToken?: string } = {}) => {
-      setError("");
+      reportError = true,
+    }: {
+      append?: boolean;
+      pageToken?: string;
+      reportError?: boolean;
+    } = {}) => {
+      if (reportError) setError("");
       if (append) setLoadingMore(true);
       else setLoading(true);
       try {
@@ -403,8 +411,14 @@ export function InferencePage({
           append ? [...current, ...response.packages] : response.packages,
         );
         setNextPageToken(response.nextPageToken);
+        return "";
       } catch (err) {
-        setError(errorMessage(err, "Failed to load inference packages"));
+        const message = errorMessage(
+          err,
+          "Failed to load inference packages",
+        );
+        if (reportError) setError(message);
+        return message;
       } finally {
         if (append) setLoadingMore(false);
         else setLoading(false);
@@ -417,14 +431,13 @@ export function InferencePage({
     void loadPackages();
   }, [loadPackages]);
 
-  useEffect(() => {
-    if (section !== "models") return;
-    let cancelled = false;
-    async function loadCatalog() {
+  const loadCatalog = useCallback(
+    async (tab: InferenceTab) => {
+      const requestId = ++catalogRequestId.current;
       setCatalogLoading(true);
       setCatalogError("");
       try {
-        if (activeTab === "endpoints") {
+        if (tab === "endpoints") {
           const [endpointsResponse, modelsResponse] = await Promise.all([
             listModelEndpointsService({
               pageSize: 100,
@@ -432,13 +445,13 @@ export function InferencePage({
             }),
             loadAllModels(listModelsService),
           ]);
-          if (!cancelled) {
+          if (requestId === catalogRequestId.current) {
             setEndpoints(endpointsResponse.modelEndpoints);
             setModels(modelsResponse.models);
           }
-        } else if (isModelCatalogKind(activeTab)) {
+        } else if (isModelCatalogKind(tab)) {
           const capabilityOperation =
-            activeTab === "generative" ? operationFilter : "";
+            tab === "generative" ? operationFilter : "";
           const [modelsResponse, capabilitiesResponse] = await Promise.all([
             loadAllModels(listModelsService),
             loadAllCapabilities(listModelEndpointCapabilitiesService, {
@@ -446,37 +459,44 @@ export function InferencePage({
               includeDisabled: includeDisabledCatalog,
             }),
           ]);
-          if (!cancelled) {
+          if (requestId === catalogRequestId.current) {
             setModels(modelsResponse.models);
             setCapabilities(capabilitiesResponse.modelEndpointCapabilities);
           }
-        } else if (activeTab === "packages") {
+        } else if (tab === "packages") {
           const modelsResponse = await loadAllModels(listModelsService);
-          if (!cancelled) setModels(modelsResponse.models);
+          if (requestId === catalogRequestId.current) {
+            setModels(modelsResponse.models);
+          }
         }
+        return "";
       } catch (err) {
-        if (!cancelled)
-          setCatalogError(
-            errorMessage(err, "Failed to load inference catalog"),
-          );
+        const message = errorMessage(
+          err,
+          "Failed to load inference catalog",
+        );
+        if (requestId === catalogRequestId.current) setCatalogError(message);
+        return message;
       } finally {
-        if (!cancelled) setCatalogLoading(false);
+        if (requestId === catalogRequestId.current) setCatalogLoading(false);
       }
-    }
-    void loadCatalog();
+    },
+    [
+      includeDisabledCatalog,
+      listModelEndpointCapabilitiesService,
+      listModelEndpointsService,
+      listModelsService,
+      operationFilter,
+    ],
+  );
+
+  useEffect(() => {
+    if (section !== "models") return;
+    void loadCatalog(activeTab);
     return () => {
-      cancelled = true;
+      catalogRequestId.current += 1;
     };
-  }, [
-    activeTab,
-    catalogRefreshKey,
-    includeDisabledCatalog,
-    listModelEndpointCapabilitiesService,
-    listModelEndpointsService,
-    listModelsService,
-    operationFilter,
-    section,
-  ]);
+  }, [activeTab, catalogRefreshKey, loadCatalog, section]);
 
   const loadSetupTab = useCallback(async () => {
     setSetupError("");
@@ -1044,14 +1064,41 @@ export function InferencePage({
     setCatalogRefreshKey((current) => current + 1);
   }
 
+  async function refreshPostImportData() {
+    setPostImportRefreshing(true);
+    setPostImportRefreshError("");
+    try {
+      const [packageError, catalogError] = await Promise.all([
+        loadPackages({ reportError: false }),
+        loadCatalog(activeTab),
+      ]);
+      const failures = [
+        packageError ? `Package history: ${packageError}` : "",
+        catalogError ? `Catalog: ${catalogError}` : "",
+      ].filter(Boolean);
+      if (failures.length > 0) {
+        setPostImportRefreshError(
+          `Import succeeded, but the follow-up refresh failed. ${failures.join(" ")}`,
+        );
+      }
+    } catch (err) {
+      setPostImportRefreshError(
+        `Import succeeded, but the follow-up refresh failed. ${errorMessage(err, "Refresh failed")}`,
+      );
+    } finally {
+      setPostImportRefreshing(false);
+    }
+  }
+
   async function handleImport(document: InferencePackageDocument) {
     setImporting(true);
     setError("");
+    setPostImportRefreshError("");
     try {
       const result = await applyInferencePackageService(document);
       setImportOpen(false);
       setSummary(result);
-      await loadPackages();
+      await refreshPostImportData();
     } catch (err) {
       throw err instanceof Error
         ? err
@@ -1083,7 +1130,9 @@ export function InferencePage({
               disabled={
                 (activeTab === "packages"
                   ? loading || loadingMore
-                  : catalogLoading || setupLoading) || importing
+                  : catalogLoading || setupLoading) ||
+                importing ||
+                postImportRefreshing
               }
             >
               Refresh
@@ -1101,7 +1150,7 @@ export function InferencePage({
               <Button
                 variant="secondary"
                 onClick={() => setImportOpen(true)}
-                disabled={importing}
+                disabled={importing || postImportRefreshing}
               >
                 Import package JSON
               </Button>
@@ -1486,14 +1535,22 @@ export function InferencePage({
 
       <ImportInferencePackageSummaryDialog
         result={summary}
-        onClose={() => setSummary(null)}
+        refreshing={postImportRefreshing}
+        refreshError={postImportRefreshError}
+        onRetryRefresh={() => void refreshPostImportData()}
+        onClose={() => {
+          setSummary(null);
+          setPostImportRefreshError("");
+        }}
         onViewCatalog={(target) => {
           setSummary(null);
+          setPostImportRefreshError("");
           if (target === "vectorStores") {
             navigate("/intelligence/vector-stores");
             return;
           }
           setActiveTab(target === "models" ? "generative" : target);
+          setCatalogRefreshKey((current) => current + 1);
         }}
       />
     </section>

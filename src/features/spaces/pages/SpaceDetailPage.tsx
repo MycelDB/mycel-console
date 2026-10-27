@@ -974,9 +974,9 @@ export function SpaceDetailPage({
       {activeTab === "semantic" && (
         <div className="space-y-6" role="tabpanel" aria-label="Semantic">
           <ContextualIntelligenceLink
-            title="Manage semantic generation globally"
-            description="Open Intelligence / Semantic with this space preselected to compare rules, backlog, failures, and token usage across scopes."
-            to={`/intelligence/semantic?spaceId=${encodeURIComponent(spaceId)}`}
+            title="Manage Semantic Rules globally"
+            description="Open Intelligence / Semantic Rules with this space preselected to compare rules, backlog, failures, and token usage across scopes."
+            to={`/intelligence/semantic-rules?spaceId=${encodeURIComponent(spaceId)}`}
           />
           <SemanticMaintenanceSection
             status={maintenanceStatus}

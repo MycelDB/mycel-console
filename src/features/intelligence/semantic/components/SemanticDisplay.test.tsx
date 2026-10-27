@@ -8,7 +8,6 @@ import type { SemanticRow } from "../model/pageTypes";
 import {
   DetailDrawer,
   MaintenanceWorkTable,
-  SearchWarnings,
   SemanticRuleScope,
   StatusPill,
   SummaryCard,
@@ -17,7 +16,6 @@ import {
   formatTimestamp,
   groupValue,
   profileToOption,
-  searchResultTitle,
   semanticScopeDisambiguation,
   semanticTab,
 } from "./SemanticDisplay";
@@ -63,7 +61,7 @@ function semanticRow({
   };
 }
 
-test("renders summary, status, warnings, and detail drawer", async () => {
+test("renders summary, status, and detail drawer", async () => {
   const user = userEvent.setup();
   const onClose = jest.fn();
 
@@ -71,7 +69,6 @@ test("renders summary, status, warnings, and detail drawer", async () => {
     <>
       <SummaryCard label="Rules" value={1234} />
       <StatusPill value="SEARCH_INDEX_STATE_READY" />
-      <SearchWarnings warnings={["low score", "missing binding"]} />
       <DetailDrawer
         title="Rule detail"
         data={{ semanticRuleId: "rule_1" }}
@@ -82,7 +79,6 @@ test("renders summary, status, warnings, and detail drawer", async () => {
 
   expect(screen.getByText("1,234")).toBeInTheDocument();
   expect(screen.getByText("Ready")).toBeInTheDocument();
-  expect(screen.getByText("Search warnings")).toBeInTheDocument();
   expect(screen.getByText(/rule_1/)).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: "Close" }));
@@ -247,8 +243,6 @@ test("semantic display helpers preserve labels and fallbacks", () => {
   expect(formatActionLabel()).toBe("Embed");
   expect(formatTimestamp()).toBe("—");
   expect(formatTimestamp("not-a-number")).toBe("not-a-number");
-  expect(searchResultTitle({ properties: { title: "Title" } })).toBe("Title");
-  expect(searchResultTitle({ nodeId: "node_1" })).toBe("node_1");
 
   const a = {
     spaceId: "space_b",

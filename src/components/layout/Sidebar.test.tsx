@@ -39,7 +39,7 @@ test("renders main navigation links", () => {
     "Access",
     "Vector stores",
     "Automations",
-    "Semantic",
+    "Semantic Rules",
     "Backups",
   ]) {
     expect(screen.getByRole("link", { name: label })).toBeInTheDocument();

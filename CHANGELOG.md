@@ -8,11 +8,13 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Added
 
+- Added list-first Semantic Rules routes for rule inventory, dedicated creation, and identity-backed editing, with editor-only catalog loading and in-app unsaved-change protection (#78).
 - Added an accessible semantic trigger-event checkbox group backed by the enum-only API field, with fail-closed handling of unknown projections (#75).
 - Added catalog-backed semantic-rule vector-store selection using authoritative UUID values and unique display-name labels, including search, disabled/empty states, legacy-name disambiguation, and unavailable-reference preservation (#76).
 
 ### Changed
 
+- Renamed the Intelligence navigation entry from Semantic to Semantic Rules and removed semantic search controls from rule administration; search remains under the Search feature. The retired `/intelligence/semantic` route is not redirected (#78).
 - Made Semantic Rules scope cells name-first while preserving UUID-backed links, accessible exact-ID context, safe ID fallbacks, and concise collision disambiguation (#84).
 - Split the inference model catalog into type-aware generative, embedding, and fallback tables with relevant limits, vector metadata, and defensive missing-value presentation (#88).
 - Updated OpenAI profile and setup-wizard defaults to the concrete supported `openai/gpt-5.6-terra` catalog key instead of the removed `openai/gpt-5.6-mini` example (#261 in `mycel`).

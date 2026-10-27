@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../../components/layout/PageHeader";
 import {
   Button,
-  Alert,
   ErrorGroup,
   errorMessage,
-  EnumBadge,
   formatEnumLabel,
-  Input,
   ResourceIdText,
   Select,
   SpaceLabel,
@@ -25,23 +22,16 @@ import {
   analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork,
   backfillSemanticRule as defaultBackfillSemanticRule,
   cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork,
-  createSemanticRule as defaultCreateSemanticRule,
   deleteSemanticRule as defaultDeleteSemanticRule,
   getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus,
-  getSemanticRule as defaultGetSemanticRule,
   listDomains as defaultListDomains,
-  listInferenceProfiles as defaultListInferenceProfiles,
   listSemanticRules as defaultListSemanticRules,
-  listVectorStores as defaultListVectorStores,
   listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork,
   listSpaces as defaultListSpaces,
   processSemanticDirtyWork as defaultProcessSemanticDirtyWork,
   retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork,
-  semanticSearch as defaultSemanticSearch,
   setSemanticRuleEnabled as defaultSetSemanticRuleEnabled,
   summarizeInferenceUsage as defaultSummarizeInferenceUsage,
-  updateSemanticRule as defaultUpdateSemanticRule,
-  validateSemanticRule as defaultValidateSemanticRule,
 } from "../../../../services/adminService";
 import type {
   DomainInfo,
@@ -49,34 +39,16 @@ import type {
   ListDomainsResponse,
 } from "../../../../types/domains";
 import type {
-  InferenceProfileInfo,
-  ListInferenceProfilesInput,
-  ListInferenceProfilesResponse,
-  ListVectorStoresInput,
-  ListVectorStoresResponse,
   SummarizeUsageInput,
   SummarizeUsageResponse,
-  VectorStoreInfo,
 } from "../../../../types/inference";
 import type {
-  CreateSemanticRuleInput,
-  CreateSemanticRuleResponse,
   DeleteSemanticRuleInput,
   DeleteSemanticRuleResponse,
-  GetSemanticRuleInput,
-  GetSemanticRuleResponse,
   ListSemanticRulesInput,
   ListSemanticRulesResponse,
-  SemanticGenerationRule,
-  SemanticGenerationRuleSummary,
-  SemanticSearchInput,
-  SemanticSearchResponse,
   SetSemanticRuleEnabledInput,
   SetSemanticRuleEnabledResponse,
-  UpdateSemanticRuleInput,
-  UpdateSemanticRuleResponse,
-  ValidateSemanticRuleInput,
-  ValidateSemanticRuleResponse,
 } from "../../../../types/semantic";
 import type {
   AnalyzeSemanticDirtyWorkInput,
@@ -98,28 +70,17 @@ import type {
   SpaceInfo,
 } from "../../../../types/spaces";
 import type {
-  DraftMode,
-  ProfileOption,
-  RuleDraft,
-  SearchDraft,
   SemanticRow,
   SemanticTab,
   SpaceMaintenance,
   UsageByRule,
-  VectorStoreCatalogState,
 } from "../model/pageTypes";
-import { Field, RuleEditor } from "../components/SemanticRuleEditor";
-import { draftToRule, ruleToDraft, summaryToRule } from "../model/ruleDraft";
 import {
-  compareProfiles,
   compareSemanticRows,
   DetailDrawer,
   formatTimestamp,
   groupValue,
   MaintenanceWorkTable,
-  profileToOption,
-  SearchWarnings,
-  searchResultTitle,
   semanticScopeDisambiguation,
   SemanticRuleScope,
   semanticTab,
@@ -127,65 +88,20 @@ import {
   SummaryCard,
 } from "../components/SemanticDisplay";
 
-export type SemanticPageProps = {
+export type SemanticRulesPageProps = {
   listSpacesService?: (input?: ListSpacesInput) => Promise<ListSpacesResponse>;
-  listDomainsService?: (
-    input: ListDomainsInput,
-  ) => Promise<ListDomainsResponse>;
-  listInferenceProfilesService?: (
-    input?: ListInferenceProfilesInput,
-  ) => Promise<ListInferenceProfilesResponse>;
-  listVectorStoresService?: (
-    input?: ListVectorStoresInput,
-  ) => Promise<ListVectorStoresResponse>;
-  listSemanticRulesService?: (
-    input: ListSemanticRulesInput,
-  ) => Promise<ListSemanticRulesResponse>;
-  getSemanticRuleService?: (
-    input: GetSemanticRuleInput,
-  ) => Promise<GetSemanticRuleResponse>;
-  validateSemanticRuleService?: (
-    input: ValidateSemanticRuleInput,
-  ) => Promise<ValidateSemanticRuleResponse>;
-  createSemanticRuleService?: (
-    input: CreateSemanticRuleInput,
-  ) => Promise<CreateSemanticRuleResponse>;
-  updateSemanticRuleService?: (
-    input: UpdateSemanticRuleInput,
-  ) => Promise<UpdateSemanticRuleResponse>;
-  setSemanticRuleEnabledService?: (
-    input: SetSemanticRuleEnabledInput,
-  ) => Promise<SetSemanticRuleEnabledResponse>;
-  deleteSemanticRuleService?: (
-    input: DeleteSemanticRuleInput,
-  ) => Promise<DeleteSemanticRuleResponse>;
-  getSemanticMaintenanceStatusService?: (
-    input: GetSemanticMaintenanceStatusInput,
-  ) => Promise<SemanticMaintenanceStatusInfo>;
-  listSemanticMaintenanceWorkService?: (
-    input: ListSemanticMaintenanceWorkInput,
-  ) => Promise<ListSemanticMaintenanceWorkResponse>;
-  retrySemanticMaintenanceWorkService?: (
-    input: SemanticMaintenanceWorkActionInput,
-  ) => Promise<SemanticMaintenanceWorkItemInfo>;
-  cancelSemanticMaintenanceWorkService?: (
-    input: SemanticMaintenanceWorkActionInput,
-  ) => Promise<SemanticMaintenanceWorkItemInfo>;
-  analyzeSemanticDirtyWorkService?: (
-    input: AnalyzeSemanticDirtyWorkInput,
-  ) => Promise<AnalyzeSemanticDirtyWorkResponse>;
-  processSemanticDirtyWorkService?: (
-    input: ProcessSemanticDirtyWorkInput,
-  ) => Promise<ProcessSemanticDirtyWorkResponse>;
-  backfillSemanticRuleService?: (
-    input: BackfillSemanticRuleInput,
-  ) => Promise<BackfillSemanticRuleResponse>;
-  summarizeInferenceUsageService?: (
-    input: SummarizeUsageInput,
-  ) => Promise<SummarizeUsageResponse>;
-  semanticSearchService?: (
-    input: SemanticSearchInput,
-  ) => Promise<SemanticSearchResponse>;
+  listDomainsService?: (input: ListDomainsInput) => Promise<ListDomainsResponse>;
+  listSemanticRulesService?: (input: ListSemanticRulesInput) => Promise<ListSemanticRulesResponse>;
+  setSemanticRuleEnabledService?: (input: SetSemanticRuleEnabledInput) => Promise<SetSemanticRuleEnabledResponse>;
+  deleteSemanticRuleService?: (input: DeleteSemanticRuleInput) => Promise<DeleteSemanticRuleResponse>;
+  getSemanticMaintenanceStatusService?: (input: GetSemanticMaintenanceStatusInput) => Promise<SemanticMaintenanceStatusInfo>;
+  listSemanticMaintenanceWorkService?: (input: ListSemanticMaintenanceWorkInput) => Promise<ListSemanticMaintenanceWorkResponse>;
+  retrySemanticMaintenanceWorkService?: (input: SemanticMaintenanceWorkActionInput) => Promise<SemanticMaintenanceWorkItemInfo>;
+  cancelSemanticMaintenanceWorkService?: (input: SemanticMaintenanceWorkActionInput) => Promise<SemanticMaintenanceWorkItemInfo>;
+  analyzeSemanticDirtyWorkService?: (input: AnalyzeSemanticDirtyWorkInput) => Promise<AnalyzeSemanticDirtyWorkResponse>;
+  processSemanticDirtyWorkService?: (input: ProcessSemanticDirtyWorkInput) => Promise<ProcessSemanticDirtyWorkResponse>;
+  backfillSemanticRuleService?: (input: BackfillSemanticRuleInput) => Promise<BackfillSemanticRuleResponse>;
+  summarizeInferenceUsageService?: (input: SummarizeUsageInput) => Promise<SummarizeUsageResponse>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
@@ -197,89 +113,10 @@ const ruleStates = [
   "SEMANTIC_RULE_STATE_ERROR",
 ];
 
-function defaultDraft(spaceId = "", domainId = ""): RuleDraft {
-  return {
-    semanticRuleId: "",
-    spaceId,
-    domainId,
-    key: "",
-    displayName: "",
-    description: "",
-    enabled: true,
-    labels: "Note",
-    triggerEvents: ["changed"],
-    triggerEventProblem: "",
-    dirtyCooldown: "30s",
-    selectorMode: "node_type",
-    selectorGql: "",
-    targetAlias: "",
-    maxResults: "100",
-    sourceMode: "self",
-    includeProperties: "",
-    excludeProperties: "",
-    contextGql: "",
-    bindingKey: "search",
-    purpose: "search",
-    intelligenceProfile: "",
-    vectorStoreId: "",
-    vectorStoreLegacyRef: "",
-    searchable: true,
-    physicalIndex: "exact",
-  };
-}
-
-function vectorStoreCatalogFailure(error: unknown): VectorStoreCatalogState {
-  const message = errorMessage(error, "Failed to load vector-store catalog");
-  const normalized = message.toLocaleLowerCase();
-  if (
-    normalized.includes("unimplemented") ||
-    normalized.includes("unknown service") ||
-    normalized.includes("unknown method") ||
-    normalized.includes("not supported")
-  ) {
-    return {
-      kind: "unsupported",
-      message:
-        "This daemon does not support vector-store catalog selection. Existing rule references remain preserved.",
-    };
-  }
-  if (
-    normalized.includes("permission denied") ||
-    normalized.includes("permission_denied") ||
-    normalized.includes("not authorized") ||
-    normalized.includes("capability")
-  ) {
-    return {
-      kind: "unauthorized",
-      message:
-        "You are not authorized to read the vector-store catalog. Existing rule references remain preserved.",
-    };
-  }
-  return { kind: "error", message };
-}
-
-function defaultSearchDraft(spaceId = "", domainId = ""): SearchDraft {
-  return {
-    spaceId,
-    domainId,
-    semanticRuleId: "",
-    embeddingBindingKey: "",
-    query: "",
-    limit: "10",
-    minScore: "",
-  };
-}
-
-export function SemanticPage({
+export function SemanticRulesPage({
   listSpacesService = defaultListSpaces,
   listDomainsService = defaultListDomains,
-  listInferenceProfilesService = defaultListInferenceProfiles,
-  listVectorStoresService = defaultListVectorStores,
   listSemanticRulesService = defaultListSemanticRules,
-  getSemanticRuleService = defaultGetSemanticRule,
-  validateSemanticRuleService = defaultValidateSemanticRule,
-  createSemanticRuleService = defaultCreateSemanticRule,
-  updateSemanticRuleService = defaultUpdateSemanticRule,
   setSemanticRuleEnabledService = defaultSetSemanticRuleEnabled,
   deleteSemanticRuleService = defaultDeleteSemanticRule,
   getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus,
@@ -290,19 +127,13 @@ export function SemanticPage({
   processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork,
   backfillSemanticRuleService = defaultBackfillSemanticRule,
   summarizeInferenceUsageService = defaultSummarizeInferenceUsage,
-  semanticSearchService = defaultSemanticSearch,
   principalContext,
-}: SemanticPageProps) {
+}: SemanticRulesPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [domains, setDomains] = useState<DomainInfo[]>([]);
-  const [profiles, setProfiles] = useState<InferenceProfileInfo[]>([]);
-  const [vectorStores, setVectorStores] = useState<VectorStoreInfo[]>([]);
-  const [vectorStoreCatalog, setVectorStoreCatalog] =
-    useState<VectorStoreCatalogState>({
-      kind: "loading",
-      message: "Loading vector-store catalog…",
-    });
   const [rows, setRows] = useState<SemanticRow[]>([]);
   const [maintenanceBySpace, setMaintenanceBySpace] = useState<
     Record<string, SpaceMaintenance>
@@ -316,17 +147,6 @@ export function SemanticPage({
   const [detail, setDetail] = useState<{ title: string; data: unknown } | null>(
     null,
   );
-  const [draftMode, setDraftMode] = useState<DraftMode | null>(null);
-  const [draft, setDraft] = useState<RuleDraft>(() => defaultDraft());
-  const [validation, setValidation] =
-    useState<ValidateSemanticRuleResponse | null>(null);
-  const [searchDraft, setSearchDraft] = useState<SearchDraft>(() =>
-    defaultSearchDraft(),
-  );
-  const [searchResult, setSearchResult] =
-    useState<SemanticSearchResponse | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState("");
 
   const selectedSpaceId = searchParams.get("spaceId") || "";
   const selectedDomainId = searchParams.get("domainId") || "";
@@ -334,10 +154,6 @@ export function SemanticPage({
   const includeDisabled = searchParams.get("includeDisabled") === "true";
   const activeTab = semanticTab(searchParams.get("tab"));
   const canManage = canUseCapability(principalContext, "semantic.manage");
-  const canReadVectorStores = canUseCapability(
-    principalContext,
-    "inference.catalog.read",
-  );
 
   const setTab = useCallback(
     (tab: SemanticTab) => {
@@ -363,45 +179,6 @@ export function SemanticPage({
     setLoading(true);
     setError("");
     setUsageError("");
-    if (!canReadVectorStores) {
-      setVectorStores([]);
-      setVectorStoreCatalog({
-        kind: "unauthorized",
-        message:
-          "The authenticated principal does not have inference.catalog.read. Existing rule references remain preserved.",
-      });
-    } else {
-      setVectorStoreCatalog({
-        kind: "loading",
-        message: "Loading vector-store catalog…",
-      });
-      try {
-        const catalog: VectorStoreInfo[] = [];
-        let pageToken: string | undefined;
-        do {
-          const response = await listVectorStoresService({
-            pageSize: 500,
-            pageToken,
-            includeDisabled: true,
-          });
-          catalog.push(...response.vectorStores);
-          pageToken = response.nextPageToken || undefined;
-        } while (pageToken);
-        setVectorStores(catalog);
-        setVectorStoreCatalog(
-          catalog.length > 0
-            ? { kind: "ready", message: "" }
-            : {
-                kind: "empty",
-                message:
-                  "No vector stores are available. Create or import one before creating a semantic rule.",
-              },
-        );
-      } catch (catalogError) {
-        setVectorStores([]);
-        setVectorStoreCatalog(vectorStoreCatalogFailure(catalogError));
-      }
-    }
     try {
       const spaceResponse = await listSpacesService({
         pageSize: 100,
@@ -427,28 +204,6 @@ export function SemanticPage({
       );
       const allDomains = domainResults.flat();
       setDomains(allDomains);
-      try {
-        const profileResults = await Promise.all(
-          visibleSpaces.map(
-            async (space) =>
-              (
-                await listInferenceProfilesService({
-                  spaceId: space.spaceId,
-                  domainId: selectedDomainId || undefined,
-                  operation: "embeddings",
-                  includeDisabled: false,
-                  pageSize: 100,
-                })
-              ).inferenceProfiles,
-          ),
-        );
-        setProfiles(profileResults.flat().sort(compareProfiles));
-      } catch (err) {
-        setProfiles([]);
-        setUsageError(
-          errorMessage(err, "Failed to load Intelligence profiles"),
-        );
-      }
       const domainById = new Map(
         allDomains.map((domain) => [domain.domainId, domain]),
       );
@@ -552,15 +307,12 @@ export function SemanticPage({
       setLoading(false);
     }
   }, [
-    canReadVectorStores,
     getSemanticMaintenanceStatusService,
     includeDisabled,
     listDomainsService,
-    listInferenceProfilesService,
     listSemanticMaintenanceWorkService,
     listSemanticRulesService,
     listSpacesService,
-    listVectorStoresService,
     selectedDomainId,
     selectedSpaceId,
     summarizeInferenceUsageService,
@@ -571,12 +323,11 @@ export function SemanticPage({
   }, [load]);
 
   useEffect(() => {
-    setSearchDraft((current) => ({
-      ...current,
-      spaceId: selectedSpaceId || current.spaceId,
-      domainId: selectedDomainId || current.domainId,
-    }));
-  }, [selectedDomainId, selectedSpaceId]);
+    const notice = (location.state as { notice?: string } | null)?.notice;
+    if (!notice) return;
+    setActionResult(notice);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate]);
 
   const filteredDomains = useMemo(
     () =>
@@ -620,109 +371,6 @@ export function SemanticPage({
   const selectedMaintenanceSpaces = selectedSpaceId
     ? spaces.filter((space) => space.spaceId === selectedSpaceId)
     : spaces;
-  const profileOptions = useMemo(
-    () => profiles.map(profileToOption),
-    [profiles],
-  );
-  const searchDomains = useMemo(
-    () =>
-      domains.filter(
-        (domain) =>
-          !searchDraft.spaceId || domain.spaceId === searchDraft.spaceId,
-      ),
-    [domains, searchDraft.spaceId],
-  );
-  const searchRules = useMemo(
-    () =>
-      rows.filter(
-        (row) =>
-          (!searchDraft.spaceId || row.space.spaceId === searchDraft.spaceId) &&
-          (!searchDraft.domainId ||
-            row.rule.domainId === searchDraft.domainId) &&
-          row.rule.enabled,
-      ),
-    [rows, searchDraft.domainId, searchDraft.spaceId],
-  );
-  const selectedSearchRule = searchRules.find(
-    (row) => row.rule.semanticRuleId === searchDraft.semanticRuleId,
-  );
-  const searchBindings =
-    selectedSearchRule?.rule.bindings.filter((binding) => binding.enabled) ??
-    [];
-
-  function startCreate() {
-    setDraftMode("create");
-    setValidation(null);
-    setDraft(
-      defaultDraft(
-        selectedSpaceId || spaces[0]?.spaceId || "",
-        selectedDomainId || filteredDomains[0]?.domainId || "",
-      ),
-    );
-  }
-
-  async function startEdit(row: SemanticRow) {
-    setActionLoading(true);
-    setError("");
-    try {
-      const response = await getSemanticRuleService({
-        spaceId: row.space.spaceId,
-        semanticRuleId: row.rule.semanticRuleId,
-      });
-      setDraft(ruleToDraft(response.rule ?? summaryToRule(row.rule)));
-      setDraftMode("edit");
-      setValidation(null);
-    } catch (err) {
-      setError(errorMessage(err, "Failed to load semantic rule"));
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function validateDraft() {
-    setActionLoading(true);
-    setError("");
-    try {
-      const result = await validateSemanticRuleService({
-        rule: draftToRule(draft),
-      });
-      setValidation(result);
-      return result;
-    } catch (err) {
-      setError(errorMessage(err, "Failed to validate semantic rule"));
-      return null;
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function saveDraft() {
-    const result = await validateDraft();
-    if (!result?.valid) return;
-    setActionLoading(true);
-    setError("");
-    try {
-      const rule = draftToRule(draft);
-      if (draftMode === "edit" && draft.semanticRuleId) {
-        await updateSemanticRuleService({
-          spaceId: draft.spaceId,
-          semanticRuleId: draft.semanticRuleId,
-          rule,
-        });
-        setActionResult(`Updated semantic rule ${draft.key}.`);
-      } else {
-        await createSemanticRuleService({ rule });
-        setActionResult(`Created semantic rule ${draft.key}.`);
-      }
-      setDraftMode(null);
-      await load();
-    } catch (err) {
-      setError(errorMessage(err, "Failed to save semantic rule"));
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
   async function setRuleEnabled(row: SemanticRow, enabled: boolean) {
     setActionLoading(true);
     setError("");
@@ -840,32 +488,6 @@ export function SemanticPage({
     }
   }
 
-  async function runSemanticSearch() {
-    setSearchLoading(true);
-    setSearchError("");
-    setSearchResult(null);
-    try {
-      const limit = Number(searchDraft.limit) || 10;
-      const minScore = searchDraft.minScore.trim()
-        ? Number(searchDraft.minScore)
-        : undefined;
-      const result = await semanticSearchService({
-        spaceId: searchDraft.spaceId,
-        domainId: searchDraft.domainId,
-        semanticRuleId: searchDraft.semanticRuleId || undefined,
-        embeddingBindingKey: searchDraft.embeddingBindingKey || undefined,
-        query: searchDraft.query,
-        limit,
-        minScore: Number.isFinite(minScore) ? minScore : undefined,
-      });
-      setSearchResult(result);
-    } catch (err) {
-      setSearchError(errorMessage(err, "Semantic search failed"));
-    } finally {
-      setSearchLoading(false);
-    }
-  }
-
   async function updateWork(
     kind: "retry" | "cancel",
     item: SemanticMaintenanceWorkItemInfo,
@@ -898,8 +520,8 @@ export function SemanticPage({
     <section className="space-y-6">
       <PageHeader
         eyebrow="Intelligence"
-        title="Semantic"
-        description="Author semantic generation rules, inspect per-binding search-index health, run explicit maintenance, and track token usage."
+        title="Semantic Rules"
+        description="Define and manage semantic generation rules, inspect per-binding index health, run explicit maintenance, and track token usage."
         actions={
           <>
             <Button
@@ -909,7 +531,18 @@ export function SemanticPage({
             >
               {loading ? "Refreshing…" : "Refresh"}
             </Button>
-            {canManage && <Button onClick={startCreate}>New rule</Button>}
+            {canManage && (
+              <Button
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (selectedSpaceId) params.set("spaceId", selectedSpaceId);
+                  if (selectedDomainId) params.set("domainId", selectedDomainId);
+                  navigate(`/intelligence/semantic-rules/new${params.size ? `?${params}` : ""}`);
+                }}
+              >
+                Add Rule
+              </Button>
+            )}
           </>
         }
       />
@@ -946,10 +579,9 @@ export function SemanticPage({
         <SummaryCard label="Failed work" value={maintenanceTotals.failed} />
         <SummaryCard label="Usage tokens" value={totalUsage} />
       </div>
-      <>
-        <div
-          className={`grid gap-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4 md:grid-cols-4`}
-        >
+      <div
+        className={`grid gap-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4 md:grid-cols-4`}
+      >
           <Select
             label="Space"
             value={selectedSpaceId}
@@ -996,37 +628,7 @@ export function SemanticPage({
             />{" "}
             Include disabled
           </label>
-        </div>
-        <SemanticSearchPanel
-          draft={searchDraft}
-          setDraft={setSearchDraft}
-          spaces={spaces}
-          domains={searchDomains}
-          rules={searchRules}
-          bindings={searchBindings}
-          result={searchResult}
-          error={searchError}
-          loading={searchLoading}
-          onSearch={() => void runSemanticSearch()}
-        />
-        {draftMode && (
-          <RuleEditor
-            mode={draftMode}
-            draft={draft}
-            setDraft={setDraft}
-            domains={domains}
-            spaces={spaces}
-            profiles={profileOptions}
-            vectorStores={vectorStores}
-            vectorStoreCatalog={vectorStoreCatalog}
-            validation={validation}
-            loading={actionLoading}
-            onValidate={() => void validateDraft()}
-            onSave={() => void saveDraft()}
-            onCancel={() => setDraftMode(null)}
-          />
-        )}
-      </>
+      </div>
       <div
         className={`overflow-hidden rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel}`}
       >
@@ -1090,7 +692,11 @@ export function SemanticPage({
                         data: row.rule,
                       })
                     }
-                    onEdit={() => void startEdit(row)}
+                    onEdit={() =>
+                      navigate(
+                        `/intelligence/semantic-rules/${encodeURIComponent(row.rule.semanticRuleId)}?spaceId=${encodeURIComponent(row.space.spaceId)}`,
+                      )
+                    }
                     onSetEnabled={(enabled) =>
                       void setRuleEnabled(row, enabled)
                     }
@@ -1404,180 +1010,5 @@ function RuleRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-function SemanticSearchPanel({
-  draft,
-  setDraft,
-  spaces,
-  domains,
-  rules,
-  bindings,
-  result,
-  error,
-  loading,
-  onSearch,
-}: {
-  draft: SearchDraft;
-  setDraft: (draft: SearchDraft) => void;
-  spaces: SpaceInfo[];
-  domains: DomainInfo[];
-  rules: SemanticRow[];
-  bindings: SemanticGenerationRuleSummary["bindings"];
-  result: SemanticSearchResponse | null;
-  error: string;
-  loading: boolean;
-  onSearch: () => void;
-}) {
-  const update = (key: keyof SearchDraft, value: string) =>
-    setDraft({
-      ...draft,
-      [key]: value,
-      ...(key === "spaceId"
-        ? { domainId: "", semanticRuleId: "", embeddingBindingKey: "" }
-        : {}),
-      ...(key === "domainId"
-        ? { semanticRuleId: "", embeddingBindingKey: "" }
-        : {}),
-      ...(key === "semanticRuleId" ? { embeddingBindingKey: "" } : {}),
-    });
-  return (
-    <div
-      className={`space-y-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-5`}
-    >
-      <div>
-        <Text
-          as="h3"
-          className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-        >
-          Semantic search
-        </Text>
-        <Text intent="muted" size="sm" className="mt-1">
-          Search committed semantic rule binding state. Rule, binding, limit,
-          and minimum score are optional.
-        </Text>
-      </div>
-      {error && <Alert>{error}</Alert>}
-      <div className="grid gap-3 md:grid-cols-3">
-        <Select
-          label="Search space"
-          value={draft.spaceId}
-          onChange={(value) => update("spaceId", value)}
-          options={spaces.map((space) => ({
-            value: space.spaceId,
-            label: space.name || space.spaceId,
-          }))}
-          placeholder="Select space"
-        />
-        <Select
-          label="Search domain"
-          value={draft.domainId}
-          onChange={(value) => update("domainId", value)}
-          options={domains.map((domain) => ({
-            value: domain.domainId,
-            label: domain.name || domain.key,
-          }))}
-          placeholder="Select domain"
-          disabled={!draft.spaceId}
-        />
-        <Select
-          label="Rule"
-          value={draft.semanticRuleId}
-          onChange={(value) => update("semanticRuleId", value)}
-          options={rules.map((row) => ({
-            value: row.rule.semanticRuleId,
-            label: row.rule.displayName || row.rule.key,
-            hint: row.rule.key,
-          }))}
-          placeholder="All searchable rules"
-          disabled={!draft.domainId}
-        />
-        <Select
-          label="Binding"
-          value={draft.embeddingBindingKey}
-          onChange={(value) => update("embeddingBindingKey", value)}
-          options={bindings.map((binding) => ({
-            value: binding.key,
-            label: binding.key,
-            hint: binding.searchIndex?.state || binding.purpose,
-          }))}
-          placeholder="All bindings"
-          disabled={!draft.semanticRuleId}
-        />
-        <Field
-          label="Limit"
-          value={draft.limit}
-          onChange={(value) => update("limit", value)}
-        />
-        <Field
-          label="Minimum score"
-          value={draft.minScore}
-          onChange={(value) => update("minScore", value)}
-        />
-      </div>
-      <label
-        className={`block text-sm font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-      >
-        Search text
-        <Input
-          className="mt-1 w-full"
-          value={draft.query}
-          onChange={(event) => update("query", event.target.value)}
-          placeholder="e.g. embedding profile vector store"
-        />
-      </label>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          disabled={
-            loading || !draft.spaceId || !draft.domainId || !draft.query.trim()
-          }
-          onClick={onSearch}
-        >
-          {loading ? "Searching…" : "Search"}
-        </Button>
-      </div>
-      {result && (
-        <div className="space-y-3">
-          <SearchWarnings warnings={result.warnings} />
-          {result.results.length === 0 ? (
-            <Text intent="muted" size="sm">
-              No semantic search results.
-            </Text>
-          ) : (
-            result.results.map((item) => (
-              <div
-                key={`${item.recordId}-${item.nodeId}`}
-                className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <Text
-                      className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
-                    >
-                      {searchResultTitle(item.node)}
-                    </Text>
-                    <Text intent="muted" size="sm" className="mt-1">
-                      {item.snippet || "Matched graph node"}
-                    </Text>
-                  </div>
-                  <span className="rounded-full bg-sky-50 px-2 py-1 text-xs text-sky-800 dark:bg-sky-950 dark:text-sky-200">
-                    score {item.score.toFixed(4)}
-                  </span>
-                </div>
-                <div
-                  className={`mt-2 text-xs ${themeClasses.text.parts.mutedLight}`}
-                >
-                  rule=
-                  <ResourceIdText value={item.semanticRuleId} /> · binding=
-                  {item.embeddingBindingKey || "—"} · node=
-                  <ResourceIdText value={item.nodeId} />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
   );
 }

@@ -11,8 +11,14 @@ import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
   createSpace as defaultCreateSpace,
   deleteSpace as defaultDeleteSpace,
+  listPrincipals as defaultListPrincipals,
   listSpaces as defaultListSpaces,
 } from "../../../services/adminService";
+import type {
+  ListPrincipalsInput,
+  ListPrincipalsResponse,
+  PrincipalInfo,
+} from "../../../types/users";
 import type {
   CreateSpaceInput,
   CreateSpaceResponse,
@@ -25,6 +31,7 @@ import {
   SpaceFilters,
   type SpaceFiltersValue,
 } from "../components/SpaceFilters";
+import { PrincipalOwnerSelector } from "../components/PrincipalOwnerSelector";
 import { SpaceTable } from "../components/SpaceTable";
 
 const defaultFilters: SpaceFiltersValue = {
@@ -32,12 +39,22 @@ const defaultFilters: SpaceFiltersValue = {
   includeArchived: false,
 };
 
+const initialCreateForm = (): CreateSpaceInput => ({
+  name: "",
+  ownerUsername: "",
+  defaultDomainKey: "default",
+  defaultDomainName: "default",
+});
+
 export type SpacesPageProps = {
   listSpacesService?: (input: ListSpacesInput) => Promise<ListSpacesResponse>;
   createSpaceService?: (
     input: CreateSpaceInput,
   ) => Promise<CreateSpaceResponse>;
   deleteSpaceService?: (spaceId: string) => Promise<DeleteSpaceResponse>;
+  listPrincipalsService?: (
+    input: ListPrincipalsInput,
+  ) => Promise<ListPrincipalsResponse>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
@@ -45,6 +62,7 @@ export function SpacesPage({
   listSpacesService = defaultListSpaces,
   createSpaceService = defaultCreateSpace,
   deleteSpaceService = defaultDeleteSpace,
+  listPrincipalsService = defaultListPrincipals,
   principalContext,
 }: SpacesPageProps) {
   const [filters, setFilters] = useState<SpaceFiltersValue>(defaultFilters);
@@ -58,12 +76,23 @@ export function SpacesPage({
   const [deletingSpaceId, setDeletingSpaceId] = useState("");
   const [pendingDelete, setPendingDelete] = useState<SpaceInfo | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
-  const [createForm, setCreateForm] = useState<CreateSpaceInput>({
-    name: "",
-    ownerUsername: "",
-    defaultDomainKey: "default",
-    defaultDomainName: "default",
-  });
+  const [createForm, setCreateForm] = useState<CreateSpaceInput>(initialCreateForm);
+  const [ownerPrincipals, setOwnerPrincipals] = useState<PrincipalInfo[]>([]);
+  const [selectedOwner, setSelectedOwner] = useState<PrincipalInfo | null>(null);
+  const [ownerQuery, setOwnerQuery] = useState("");
+  const [ownerCatalogState, setOwnerCatalogState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [ownerCatalogError, setOwnerCatalogError] = useState("");
+  const [ownerNextPageToken, setOwnerNextPageToken] = useState("");
+  const [loadingMoreOwners, setLoadingMoreOwners] = useState(false);
+  const [manualOwnerFallback, setManualOwnerFallback] = useState(false);
+  const canCreateSpace = canUseCapability(principalContext, "space.create");
+  const canDeleteSpace = canUseCapability(principalContext, "space.delete");
+  const canReadPrincipals = canUseCapability(
+    principalContext,
+    "identity.principal.read",
+  );
 
   const loadSpaces = useCallback(
     async ({
@@ -98,25 +127,89 @@ export function SpacesPage({
     void loadSpaces();
   }, [loadSpaces]);
 
+  const loadOwnerPrincipals = useCallback(
+    async ({ append = false, pageToken = "" } = {}) => {
+      setOwnerCatalogError("");
+      if (append) setLoadingMoreOwners(true);
+      else setOwnerCatalogState("loading");
+      try {
+        const response = await listPrincipalsService({
+          pageSize: 100,
+          pageToken,
+          includeDisabled: false,
+          includeDeleted: false,
+        });
+        setOwnerPrincipals((current) =>
+          append
+            ? mergePrincipals(current, response.principals)
+            : response.principals,
+        );
+        setOwnerNextPageToken(response.nextPageToken);
+        setOwnerCatalogState("ready");
+      } catch (err) {
+        setOwnerCatalogError(
+          err instanceof Error ? err.message : "Failed to load principals",
+        );
+        setOwnerCatalogState("error");
+      } finally {
+        setLoadingMoreOwners(false);
+      }
+    },
+    [listPrincipalsService],
+  );
+
+  useEffect(() => {
+    if (
+      showCreate &&
+      canReadPrincipals &&
+      !manualOwnerFallback &&
+      ownerCatalogState === "idle"
+    ) {
+      void loadOwnerPrincipals();
+    }
+  }, [
+    canReadPrincipals,
+    loadOwnerPrincipals,
+    manualOwnerFallback,
+    ownerCatalogState,
+    showCreate,
+  ]);
+
+  const resetCreateSpace = useCallback(() => {
+    setCreateForm(initialCreateForm());
+    setSelectedOwner(null);
+    setOwnerQuery("");
+    setManualOwnerFallback(false);
+  }, []);
+
+  const closeCreateSpace = useCallback(() => {
+    setShowCreate(false);
+    resetCreateSpace();
+  }, [resetCreateSpace]);
+
   const submitCreateSpace = useCallback(async () => {
     setError("");
     setCreating(true);
     try {
-      await createSpaceService(createForm);
-      setShowCreate(false);
-      setCreateForm({
-        name: "",
-        ownerUsername: "",
-        defaultDomainKey: "default",
-        defaultDomainName: "default",
-      });
+      const input: CreateSpaceInput = {
+        name: createForm.name,
+        defaultDomainKey: createForm.defaultDomainKey,
+        defaultDomainName: createForm.defaultDomainName,
+      };
+      if (createForm.ownerUserId?.trim()) {
+        input.ownerUserId = createForm.ownerUserId.trim();
+      } else {
+        input.ownerUsername = createForm.ownerUsername?.trim();
+      }
+      await createSpaceService(input);
+      closeCreateSpace();
       await loadSpaces();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create space");
     } finally {
       setCreating(false);
     }
-  }, [createForm, createSpaceService, loadSpaces]);
+  }, [closeCreateSpace, createForm, createSpaceService, loadSpaces]);
 
   function requestDeleteSpace(space: SpaceInfo) {
     setError("");
@@ -140,9 +233,6 @@ export function SpacesPage({
       setDeletingSpaceId("");
     }
   }
-
-  const canCreateSpace = canUseCapability(principalContext, "space.create");
-  const canDeleteSpace = canUseCapability(principalContext, "space.delete");
 
   const filteredSpaces = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
@@ -185,7 +275,12 @@ export function SpacesPage({
               Refresh
             </Button>
             {canCreateSpace && (
-              <Button onClick={() => setShowCreate((value) => !value)}>
+              <Button
+                onClick={() => {
+                  if (showCreate) closeCreateSpace();
+                  else setShowCreate(true);
+                }}
+              >
                 Create space
               </Button>
             )}
@@ -214,23 +309,97 @@ export function SpacesPage({
                 spellCheck={false}
               />
             </label>
-            <label className={`space-y-1 text-sm font-medium ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkStrong}`}>
-              <span>Owner username</span>
-              <Input
-                className="text-sm"
-                value={createForm.ownerUsername || ""}
-                onChange={(event) =>
+            {canReadPrincipals && !manualOwnerFallback ? (
+              <PrincipalOwnerSelector
+                principals={ownerPrincipals}
+                selectedPrincipal={selectedOwner}
+                query={ownerQuery}
+                loading={
+                  ownerCatalogState === "idle" || ownerCatalogState === "loading"
+                }
+                loadingMore={loadingMoreOwners}
+                error={
+                  ownerCatalogState === "error" ? ownerCatalogError : ""
+                }
+                hasMore={Boolean(ownerNextPageToken)}
+                onQueryChange={setOwnerQuery}
+                onSelect={(principal) => {
+                  setSelectedOwner(principal);
                   setCreateForm((form) => ({
                     ...form,
-                    ownerUsername: event.target.value,
-                  }))
+                    ownerUserId: principal.principalId,
+                    ownerUsername: undefined,
+                  }));
+                }}
+                onClear={() => {
+                  setSelectedOwner(null);
+                  setOwnerQuery("");
+                  setCreateForm((form) => ({
+                    ...form,
+                    ownerUserId: undefined,
+                    ownerUsername: undefined,
+                  }));
+                }}
+                onLoadMore={() =>
+                  void loadOwnerPrincipals({
+                    append: true,
+                    pageToken: ownerNextPageToken,
+                  })
                 }
-                placeholder="martin"
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
+                onRetry={() => void loadOwnerPrincipals()}
+                onUseManualFallback={() => {
+                  setManualOwnerFallback(true);
+                  setSelectedOwner(null);
+                  setOwnerQuery("");
+                  setCreateForm((form) => ({
+                    ...form,
+                    ownerUserId: undefined,
+                    ownerUsername: "",
+                  }));
+                }}
               />
-            </label>
+            ) : (
+              <div className="space-y-2">
+                <label className={`block space-y-1 text-sm font-medium ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkStrong}`}>
+                  <span>Owner username (manual fallback)</span>
+                  <Input
+                    className="text-sm"
+                    value={createForm.ownerUsername || ""}
+                    onChange={(event) =>
+                      setCreateForm((form) => ({
+                        ...form,
+                        ownerUserId: undefined,
+                        ownerUsername: event.target.value,
+                      }))
+                    }
+                    placeholder="martin"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                  />
+                </label>
+                <Text intent="muted" size="sm">
+                  {canReadPrincipals
+                    ? "Principal catalog selection is unavailable. The daemon will resolve this exact username when the space is created."
+                    : "Your session cannot read the principal catalog. The daemon will resolve this exact username when the space is created."}
+                </Text>
+                {canReadPrincipals && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setManualOwnerFallback(false);
+                      setCreateForm((form) => ({
+                        ...form,
+                        ownerUserId: undefined,
+                        ownerUsername: undefined,
+                      }));
+                    }}
+                  >
+                    Use principal selector
+                  </Button>
+                )}
+              </div>
+            )}
             <label className={`space-y-1 text-sm font-medium ${themeClasses.text.parts.bodyLight} ${themeClasses.text.parts.darkStrong}`}>
               <span>Default domain key</span>
               <Input
@@ -281,7 +450,7 @@ export function SpacesPage({
             </Button>
             <Button
               variant="secondary"
-              onClick={() => setShowCreate(false)}
+              onClick={closeCreateSpace}
               disabled={creating}
             >
               Cancel
@@ -349,6 +518,15 @@ export function SpacesPage({
       />
     </section>
   );
+}
+
+function mergePrincipals(
+  current: PrincipalInfo[],
+  incoming: PrincipalInfo[],
+) {
+  const byId = new Map(current.map((principal) => [principal.principalId, principal]));
+  for (const principal of incoming) byId.set(principal.principalId, principal);
+  return [...byId.values()];
 }
 
 function DeleteSpaceDialog({

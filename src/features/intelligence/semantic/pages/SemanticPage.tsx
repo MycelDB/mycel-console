@@ -4,7 +4,6 @@ import { PageHeader } from "../../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
-  DomainLabel,
   ErrorGroup,
   errorMessage,
   EnumBadge,
@@ -121,6 +120,8 @@ import {
   profileToOption,
   SearchWarnings,
   searchResultTitle,
+  semanticScopeDisambiguation,
+  SemanticRuleScope,
   semanticTab,
   StatusPill,
   SummaryCard,
@@ -587,6 +588,10 @@ export function SemanticPage({
   const filteredRows = useMemo(
     () => rows.filter((row) => !stateFilter || row.rule.state === stateFilter),
     [rows, stateFilter],
+  );
+  const scopeDisambiguation = useMemo(
+    () => semanticScopeDisambiguation(filteredRows),
+    [filteredRows],
   );
   const maintenanceTotals = useMemo(
     () =>
@@ -1075,6 +1080,7 @@ export function SemanticPage({
                   <RuleRow
                     key={row.rule.semanticRuleId}
                     row={row}
+                    scopeDisambiguation={scopeDisambiguation}
                     usage={usageByRule[row.rule.semanticRuleId]}
                     canManage={canManage}
                     loading={actionLoading}
@@ -1212,6 +1218,7 @@ export function SemanticPage({
 
 function RuleRow({
   row,
+  scopeDisambiguation,
   usage,
   canManage,
   loading,
@@ -1223,6 +1230,7 @@ function RuleRow({
   onAnalyze,
 }: {
   row: SemanticRow;
+  scopeDisambiguation: ReturnType<typeof semanticScopeDisambiguation>;
   usage?: UsageByRule[string];
   canManage: boolean;
   loading: boolean;
@@ -1240,16 +1248,10 @@ function RuleRow({
   return (
     <tr className="align-top hover:bg-slate-100 dark:hover:bg-slate-800/40">
       <td className="px-4 py-3">
-        <SpaceLabel spaceId={row.space.spaceId} name={row.space.name} link />
-        <div
-          className={`mt-2 ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}
-        >
-          <DomainLabel
-            domainId={row.rule.domainId}
-            name={row.domain?.name}
-            domainKey={row.domain?.key}
-          />
-        </div>
+        <SemanticRuleScope
+          row={row}
+          disambiguation={scopeDisambiguation}
+        />
       </td>
       <td className="px-4 py-3">
         <div

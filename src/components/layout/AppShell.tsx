@@ -9,7 +9,10 @@ import { ActivityPage } from "../../features/activity/ActivityPage";
 import { AccessPage } from "../../features/intelligence/access";
 import { ModelsPage } from "../../features/intelligence/models";
 import { AutomationsPage } from "../../features/intelligence/automations";
-import { SemanticPage } from "../../features/intelligence/semantic";
+import {
+  SemanticRuleEditorPage,
+  SemanticRulesPage,
+} from "../../features/intelligence/semantic";
 import { VectorStoresPage } from "../../features/intelligence/vector-stores";
 import { LexicalSearchPage } from "../../features/search";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
@@ -224,10 +227,6 @@ export function AppShell({
               element={<Navigate to="/intelligence/models" replace />}
             />
             <Route
-              path="/semantic"
-              element={<Navigate to="/intelligence/semantic" replace />}
-            />
-            <Route
               path="/intelligence/access"
               element={
                 <RequireCapabilities
@@ -279,7 +278,7 @@ export function AppShell({
               }
             />
             <Route
-              path="/intelligence/semantic"
+              path="/intelligence/semantic-rules"
               element={
                 <RequireCapabilities
                   principalContext={principalContext}
@@ -289,7 +288,37 @@ export function AppShell({
                     requirement("domain.read"),
                   ]}
                 >
-                  <SemanticPage principalContext={principalContext} />
+                  <SemanticRulesPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/intelligence/semantic-rules/new"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[
+                    requirement("semantic.search"),
+                    requirement("space.read"),
+                    requirement("domain.read"),
+                  ]}
+                >
+                  <SemanticRuleEditorPage mode="create" principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/intelligence/semantic-rules/:ruleId"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[
+                    requirement("semantic.search"),
+                    requirement("space.read"),
+                    requirement("domain.read"),
+                  ]}
+                >
+                  <SemanticRuleEditorPage mode="edit" principalContext={principalContext} />
                 </RequireCapabilities>
               }
             />

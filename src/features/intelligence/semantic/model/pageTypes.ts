@@ -76,14 +76,4 @@ export type RuleDraft = {
   physicalIndex: string;
 };
 
-export type SearchDraft = {
-  spaceId: string;
-  domainId: string;
-  semanticRuleId: string;
-  embeddingBindingKey: string;
-  query: string;
-  limit: string;
-  minScore: string;
-};
-
 export type SemanticTab = "rules" | "activity";

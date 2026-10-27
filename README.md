@@ -5,7 +5,7 @@
 
 Desktop and web console UI for MycelDB daemon and cluster operations.
 
-Mycel Console is a React/Vite application packaged with Tauri. It connects to `myceld` through the Rust SDK and provides operator-facing views for authentication, spaces/domains, graph/query workflows, semantic/inference setup, backups, activity, and raft/cluster reliability.
+Mycel Console is a React/Vite application packaged with Tauri. It connects to `myceld` through the Rust SDK and provides operator-facing views for authentication, spaces/domains, graph/query workflows, semantic/inference setup, backups, activity, and raft/cluster reliability. Semantic generation rules use dedicated list, create, and edit pages; semantic-assisted queries remain in Search.
 
 ## Repository layout
 

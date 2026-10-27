@@ -234,35 +234,6 @@ export function StatusPill({ value }: { value: string }) {
   return <EnumBadge value={value || "unknown"} />;
 }
 
-export function SearchWarnings({ warnings }: { warnings: string[] }) {
-  if (warnings.length === 0) return null;
-  return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-      <div className="font-medium">Search warnings</div>
-      <ul className="mt-1 list-disc pl-5">
-        {warnings.map((warning, index) => (
-          <li key={index}>{warning}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-export function searchResultTitle(
-  node: Record<string, unknown> | null | undefined,
-): string {
-  const props = node?.properties as Record<string, unknown> | undefined;
-  const payload = node?.payload as Record<string, unknown> | undefined;
-  return String(
-    props?.title ||
-      payload?.title ||
-      props?.name ||
-      payload?.name ||
-      node?.nodeId ||
-      "Semantic result",
-  );
-}
-
 export function MaintenanceWorkTable({
   items,
   canManage,

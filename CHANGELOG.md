@@ -14,6 +14,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- Replaced free-text space-owner entry with a capability-aware, paginated active-principal selector showing name-only options backed by authoritative principal IDs, while retaining an explicit manual username fallback (#80).
 - Renamed the Intelligence navigation entry from Semantic to Semantic Rules and removed semantic search controls from rule administration; search remains under the Search feature. The retired `/intelligence/semantic` route is not redirected (#78).
 - Made Semantic Rules scope cells name-first while preserving UUID-backed links, accessible exact-ID context, safe ID fallbacks, and concise collision disambiguation (#84).
 - Split the inference model catalog into type-aware generative, embedding, and fallback tables with relevant limits, vector metadata, and defensive missing-value presentation (#88).

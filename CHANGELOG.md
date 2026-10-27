@@ -11,8 +11,13 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 - Added an accessible semantic trigger-event checkbox group backed by the enum-only API field, with fail-closed handling of unknown projections (#75).
 - Added catalog-backed semantic-rule vector-store selection using authoritative UUID values and unique display-name labels, including search, disabled/empty states, legacy-name disambiguation, and unavailable-reference preservation (#76).
 
+### Changed
+
+- Search now provides separate lexical-syntax and semantic-natural-language inputs in hybrid mode, places text only in the corresponding channel options, and carries bound continuation tokens without populating the removed top-level fallback (#64).
+
 ### Compatibility
 
+- Search requires a daemon and Rust SDK implementing channel-specific queries; older top-level-query-only Search contracts are not supported.
 - Semantic rule requests and responses require the enum-only `trigger.events` contract. The Console no longer reads or dual-writes legacy trigger strings and requires matching regenerated SDK and daemon versions.
 - Older, unauthorized, or temporarily unavailable vector-store catalogs are surfaced explicitly. Existing UUID or legacy key references remain unchanged during unrelated edits; new rules require selection of an enabled UUID-backed store.
 

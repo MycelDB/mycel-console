@@ -637,7 +637,7 @@ test("semanticSearch invokes client semantic search command", async () => {
 
 test("lexicalSearch invokes client lexical search command", async () => {
   const response = { results: [], nextPageToken: "", freshness: null, warnings: [] };
-  const input = { spaceId: "sp1", domainId: "dom1", query: "graph memory", pageSize: 10 };
+  const input = { spaceId: "sp1", domainId: "dom1", lexicalQuery: "graph AND memory", pageSize: 10 };
   invokeMock.mockResolvedValue(response);
 
   await expect(lexicalSearch(input)).resolves.toEqual(response);

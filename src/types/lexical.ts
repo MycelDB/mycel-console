@@ -28,7 +28,8 @@ export type SearchFiltersInput = {
 export type LexicalSearchInput = {
   spaceId: string;
   domainId: string;
-  query: string;
+  lexicalQuery: string;
+  semanticQuery?: string;
   mode?: SearchMode;
   pageSize?: number;
   pageToken?: string;

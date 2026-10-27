@@ -139,7 +139,7 @@ function disambiguatorsForGroups(groups: Map<string, Set<string>>) {
 }
 
 function uniqueIdPrefixes(ids: string[]) {
-  const ordered = [...new Set(ids)].sort();
+  const ordered = [...new Set(ids)].sort((a, b) => a.localeCompare(b));
   return Object.fromEntries(
     ordered.map((id) => {
       let length = Math.min(8, id.length);

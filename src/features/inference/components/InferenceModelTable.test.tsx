@@ -79,6 +79,12 @@ test("separates generative and embedding models into type-aware tables", () => {
   expect(generative.getByText("1,050,000")).toBeInTheDocument();
   expect(generative.getByText("128,000")).toBeInTheDocument();
   expect(
+    generative.getByRole("columnheader", { name: "Supported operations" }),
+  ).toBeInTheDocument();
+  expect(
+    generative.getByRole("columnheader", { name: "Inputs and outputs" }),
+  ).toBeInTheDocument();
+  expect(
     generative.queryByRole("columnheader", { name: "Dimensions" }),
   ).not.toBeInTheDocument();
   expect(
@@ -92,10 +98,19 @@ test("separates generative and embedding models into type-aware tables", () => {
   expect(embedding.getByText("Embeddings · openai")).toBeInTheDocument();
   expect(embedding.getByText("1,536")).toBeInTheDocument();
   expect(embedding.getByText("8,192")).toBeInTheDocument();
-  expect(embedding.getByText("Fixed by connector")).toBeInTheDocument();
+  expect(embedding.getByText("Fixed in Mycel")).toBeInTheDocument();
   expect(
     embedding.getByText("Provider supports adjustment"),
   ).toBeInTheDocument();
+  expect(
+    embedding.getByRole("columnheader", { name: "Vector compatibility" }),
+  ).toBeInTheDocument();
+  expect(
+    embedding.getByRole("columnheader", { name: "Availability" }),
+  ).toBeInTheDocument();
+  expect(
+    embedding.queryByRole("columnheader", { name: "Supported operations" }),
+  ).not.toBeInTheDocument();
   expect(
     embedding.queryByRole("columnheader", { name: "Context window" }),
   ).not.toBeInTheDocument();
@@ -236,7 +251,17 @@ test("preserves disabled capability presentation and model-scoped detail records
   );
 });
 
-test("renders model empty state", () => {
-  render(<InferenceModelTable models={[]} />);
-  expect(screen.getByText(/no models/i)).toBeInTheDocument();
+test("renders model-kind-specific empty states", () => {
+  const { rerender } = render(
+    <InferenceModelTable models={[]} kind="generative" />,
+  );
+  expect(screen.getByText("No generative models found.")).toBeInTheDocument();
+
+  rerender(<InferenceModelTable models={[]} kind="embedding" />);
+  expect(screen.getByText("No embedding models found.")).toBeInTheDocument();
+
+  rerender(<InferenceModelTable models={[]} kind="other" />);
+  expect(
+    screen.getByText("No unrecognized model kinds found."),
+  ).toBeInTheDocument();
 });

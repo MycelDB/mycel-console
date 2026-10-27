@@ -15,6 +15,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- Replaced the shared Models catalog tab with URL-addressable counted Generative, Embedding, and conditional Other tabs, each with kind-specific filters, columns, loading, and empty states (#89).
 - Aligned the Search page header with the Data navigation section while retaining Search as the page title and sidebar label (#95).
 - Coordinated Admin and data RPC authentication through one rotating-token source and refresh lock, routed generated-client calls through guarded refresh/retry handling, and made terminal refresh-session failures return operators to login (#82, #83).
 - Replaced free-text space-owner entry with a capability-aware, paginated active-principal selector showing name-only options backed by authoritative principal IDs, while retaining an explicit manual username fallback (#80).

@@ -10,6 +10,10 @@ import type {
   JsonObject,
   ModelEndpointCapabilityInfo,
 } from "../../../types/inference";
+import {
+  modelCatalogKind,
+  type ModelCatalogKind,
+} from "../model/pageTypes";
 
 type InferenceModelDetail = InferenceModelInfo & {
   modelEndpointCapabilities?: ModelEndpointCapabilityInfo[];
@@ -18,6 +22,7 @@ type InferenceModelDetail = InferenceModelInfo & {
 type ModelTableProps = {
   models: InferenceModelInfo[];
   capabilities?: ModelEndpointCapabilityInfo[];
+  kind?: ModelCatalogKind;
   onViewDetails?: (model: InferenceModelDetail) => void;
 };
 
@@ -32,23 +37,28 @@ const cellClassName = "px-4 py-3 align-top";
 export function InferenceModelTable({
   models,
   capabilities = [],
+  kind,
   onViewDetails,
 }: ModelTableProps) {
-  if (models.length === 0) return <Empty message="No models found." />;
+  const visibleModels = kind
+    ? models.filter((model) => modelCatalogKind(model.kind) === kind)
+    : models;
+  if (visibleModels.length === 0) {
+    return <Empty message={emptyModelMessage(kind)} />;
+  }
 
-  const orderedModels = [...models].sort((left, right) =>
+  const orderedModels = [...visibleModels].sort((left, right) =>
     left.key.localeCompare(right.key),
   );
   const generativeModels = orderedModels.filter(
-    (model) => normalizedKind(model.kind) === "generative",
+    (model) => modelCatalogKind(model.kind) === "generative",
   );
   const embeddingModels = orderedModels.filter(
-    (model) => normalizedKind(model.kind) === "embedding",
+    (model) => modelCatalogKind(model.kind) === "embedding",
   );
-  const otherModels = orderedModels.filter((model) => {
-    const kind = normalizedKind(model.kind);
-    return kind !== "generative" && kind !== "embedding";
-  });
+  const otherModels = orderedModels.filter(
+    (model) => modelCatalogKind(model.kind) === "other",
+  );
 
   return (
     <div className="space-y-8">
@@ -94,13 +104,12 @@ function GenerativeModelsSection({
         <thead className={headerClassName}>
           <tr>
             <TableHead className="px-4 py-3">Model</TableHead>
-            <TableHead className="px-4 py-3">Capabilities</TableHead>
-            <TableHead className="px-4 py-3">Modalities</TableHead>
+            <TableHead className="px-4 py-3">Supported operations</TableHead>
+            <TableHead className="px-4 py-3">Inputs and outputs</TableHead>
             <TableHead className="px-4 py-3">Context window</TableHead>
             <TableHead className="px-4 py-3">Max output tokens</TableHead>
-            <TableHead className="px-4 py-3">Connectors</TableHead>
             {onViewDetails && (
-              <TableHead className="px-4 py-3">Actions</TableHead>
+              <TableHead className="px-4 py-3">Details</TableHead>
             )}
           </tr>
         </thead>
@@ -110,6 +119,9 @@ function GenerativeModelsSection({
           onViewDetails={onViewDetails}
           renderTypeCells={(model, modelCapabilities) => (
             <>
+              <td className={cellClassName}>
+                <ModelCapabilities capabilities={modelCapabilities} />
+              </td>
               <td className={cellClassName}>{formatModalities(model)}</td>
               <td className={cellClassName}>
                 {formatReportedNumber(
@@ -155,14 +167,12 @@ function EmbeddingModelsSection({
         <thead className={headerClassName}>
           <tr>
             <TableHead className="px-4 py-3">Model</TableHead>
-            <TableHead className="px-4 py-3">Capabilities</TableHead>
             <TableHead className="px-4 py-3">Dimensions</TableHead>
-            <TableHead className="px-4 py-3">Vector space</TableHead>
             <TableHead className="px-4 py-3">Max input tokens</TableHead>
-            <TableHead className="px-4 py-3">Dimension behavior</TableHead>
-            <TableHead className="px-4 py-3">Connectors</TableHead>
+            <TableHead className="px-4 py-3">Vector compatibility</TableHead>
+            <TableHead className="px-4 py-3">Availability</TableHead>
             {onViewDetails && (
-              <TableHead className="px-4 py-3">Actions</TableHead>
+              <TableHead className="px-4 py-3">Details</TableHead>
             )}
           </tr>
         </thead>
@@ -173,12 +183,16 @@ function EmbeddingModelsSection({
           renderTypeCells={(model, modelCapabilities) => (
             <>
               <td className={cellClassName}>
-                {formatReportedNumber(
-                  resolveDimensions(model, modelCapabilities),
-                )}
-              </td>
-              <td className={`${cellClassName} font-mono text-xs`}>
-                {model.vectorSpaceKey || "Not reported"}
+                <div>
+                  {formatReportedNumber(
+                    resolveDimensions(model, modelCapabilities),
+                  )}
+                </div>
+                <div
+                  className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
+                >
+                  <DimensionBehavior metadata={model.metadata} />
+                </div>
               </td>
               <td className={cellClassName}>
                 {formatReportedNumber(
@@ -189,8 +203,11 @@ function EmbeddingModelsSection({
                   ),
                 )}
               </td>
+              <td className={`${cellClassName} font-mono text-xs`}>
+                {model.vectorSpaceKey || "Not reported"}
+              </td>
               <td className={cellClassName}>
-                <DimensionBehavior metadata={model.metadata} />
+                <ModelCapabilities capabilities={modelCapabilities} />
               </td>
             </>
           )}
@@ -222,7 +239,7 @@ function OtherModelsSection({
             <TableHead className="px-4 py-3">Modalities</TableHead>
             <TableHead className="px-4 py-3">Connectors</TableHead>
             {onViewDetails && (
-              <TableHead className="px-4 py-3">Actions</TableHead>
+              <TableHead className="px-4 py-3">Details</TableHead>
             )}
           </tr>
         </thead>
@@ -332,13 +349,7 @@ function TypedModelRows({
         return (
           <tr key={model.modelId}>
             <ModelIdentityCell model={model} />
-            <td className={cellClassName}>
-              <ModelCapabilities capabilities={modelCapabilities} />
-            </td>
             {renderTypeCells(model, modelCapabilities)}
-            <td className={cellClassName}>
-              <ConnectorTypes model={model} />
-            </td>
             {onViewDetails && (
               <ActionCell
                 model={model}
@@ -450,7 +461,7 @@ function DimensionBehavior({ metadata }: { metadata?: JsonObject | null }) {
   if (connectorUsesFixed === true) {
     return (
       <div>
-        <div>Fixed by connector</div>
+        <div>Fixed in Mycel</div>
         {providerAdjustable === true && (
           <div
             className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
@@ -483,17 +494,6 @@ function capabilitiesForModel(
   return capabilities.filter(
     (capability) => capability.modelId === model.modelId,
   );
-}
-
-function normalizedKind(kind: string) {
-  const normalized = kind.trim().toLowerCase();
-  if (normalized === "generative" || normalized === "model_kind_generative") {
-    return "generative";
-  }
-  if (normalized === "embedding" || normalized === "model_kind_embedding") {
-    return "embedding";
-  }
-  return normalized;
 }
 
 function formatModalities(model: InferenceModelInfo) {
@@ -577,6 +577,13 @@ function formatReportedNumber(value: ReportedNumber) {
   if (value === "varies") return "Varies by capability";
   if (value === null) return "Not reported";
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function emptyModelMessage(kind?: ModelCatalogKind) {
+  if (kind === "generative") return "No generative models found.";
+  if (kind === "embedding") return "No embedding models found.";
+  if (kind === "other") return "No unrecognized model kinds found.";
+  return "No models found.";
 }
 
 function Empty({ message }: { message: string }) {

@@ -345,10 +345,12 @@ test("redirects inference route to Models", async () => {
   expect(
     screen.getByRole("heading", { name: /^models$/i }),
   ).toBeInTheDocument();
-  expect(await screen.findByRole("tab", { name: "Endpoints" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  expect(
+    await screen.findByText("No generative models found."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("tab", { name: /Generative \(\d+\)/ }),
+  ).toHaveAttribute("aria-selected", "true");
 });
 
 test("renders vector stores route", async () => {

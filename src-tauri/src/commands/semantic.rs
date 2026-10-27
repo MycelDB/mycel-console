@@ -12,6 +12,7 @@ use mycel_sdk::proto::client::v1::{
 use serde_json::{json, Value};
 use tauri::State;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -336,19 +337,18 @@ pub async fn admin_list_semantic_rules(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .list_semantic_rules(tonic::Request::new(ListSemanticRulesRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.list_semantic_rules(ListSemanticRulesRequest {
             space_id,
             domain_id: input.domain_id.unwrap_or_default(),
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
             include_disabled: input.include_disabled,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListSemanticRulesResponseInfo {
         rules: response.rules.into_iter().map(rule_summary_info).collect(),
         next_page_token: response.next_page_token,
@@ -376,10 +376,9 @@ pub async fn client_semantic_search(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._data_client
-        .semantic
-        .semantic_search(tonic::Request::new(SemanticSearchRequest {
+    let response = authenticated_rpc!(
+        session._data_client,
+        semantic.semantic_search(SemanticSearchRequest {
             space_id,
             domain_id,
             semantic_rule_id: clean_optional(input.semantic_rule_id),
@@ -389,10 +388,10 @@ pub async fn client_semantic_search(
             min_score: input.min_score,
             page_token: None,
             filter: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(SemanticSearchResponseInfo {
         results: response
             .results
@@ -426,16 +425,15 @@ pub async fn admin_get_semantic_rule(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .get_semantic_rule(tonic::Request::new(GetSemanticRuleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.get_semantic_rule(GetSemanticRuleRequest {
             space_id,
             semantic_rule_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GetSemanticRuleResponseInfo {
         rule: response.rule.map(rule_info),
         summary: response.summary.map(rule_summary_info),
@@ -451,15 +449,14 @@ pub async fn admin_validate_semantic_rule(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .validate_semantic_rule(tonic::Request::new(ValidateSemanticRuleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.validate_semantic_rule(ValidateSemanticRuleRequest {
             rule: Some(rule_proto(input.rule)?),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ValidateSemanticRuleResponseInfo {
         valid: response.valid,
         diagnostics: response
@@ -484,15 +481,14 @@ pub async fn admin_create_semantic_rule(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .create_semantic_rule(tonic::Request::new(CreateSemanticRuleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.create_semantic_rule(CreateSemanticRuleRequest {
             rule: Some(rule_proto(input.rule)?),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(MutateSemanticRuleResponseInfo {
         rule: response.rule.map(rule_info),
         summary: response.summary.map(rule_summary_info),
@@ -508,17 +504,16 @@ pub async fn admin_update_semantic_rule(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .update_semantic_rule(tonic::Request::new(UpdateSemanticRuleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.update_semantic_rule(UpdateSemanticRuleRequest {
             space_id: input.space_id,
             semantic_rule_id: input.semantic_rule_id,
             rule: Some(rule_proto(input.rule)?),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(MutateSemanticRuleResponseInfo {
         rule: response.rule.map(rule_info),
         summary: response.summary.map(rule_summary_info),
@@ -534,17 +529,16 @@ pub async fn admin_set_semantic_rule_enabled(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .set_semantic_rule_enabled(tonic::Request::new(SetSemanticRuleEnabledRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.set_semantic_rule_enabled(SetSemanticRuleEnabledRequest {
             space_id: input.space_id,
             semantic_rule_id: input.semantic_rule_id,
             enabled: input.enabled,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(MutateSemanticRuleResponseInfo {
         rule: response.rule.map(rule_info),
         summary: response.summary.map(rule_summary_info),
@@ -560,17 +554,16 @@ pub async fn admin_delete_semantic_rule(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic
-        .delete_semantic_rule(tonic::Request::new(DeleteSemanticRuleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic.delete_semantic_rule(DeleteSemanticRuleRequest {
             space_id: input.space_id,
             semantic_rule_id: input.semantic_rule_id,
             purge_vectors: input.purge_vectors,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(DeleteSemanticRuleResponseInfo {
         semantic_rule_id: response.semantic_rule_id,
         vectors_purged: response.vectors_purged,

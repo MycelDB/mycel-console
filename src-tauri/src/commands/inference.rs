@@ -45,7 +45,9 @@ use prost_types::{value::Kind, Any, ListValue, Struct, Timestamp, Value};
 use serde_json::Map;
 use tauri::State;
 
-use crate::commands::command_error::{sdk_error, validation_error, ConsoleCommandError};
+use crate::commands::command_error::{
+    authenticated_rpc, sdk_error, sdk_error_code, validation_error, ConsoleCommandError,
+};
 use crate::state::AppState;
 
 #[derive(Clone, PartialEq, Message)]
@@ -348,18 +350,17 @@ pub async fn admin_list_inference_packages(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .inference_catalog
-        .list_inference_packages(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_catalog.list_inference_packages(
             AdminInferenceCatalogServiceListInferencePackagesRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListInferencePackagesResponse {
         packages: response.packages.into_iter().map(package_info).collect(),
@@ -377,19 +378,18 @@ pub async fn admin_list_model_endpoints(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .inference_catalog
-        .list_model_endpoints(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_catalog.list_model_endpoints(
             AdminInferenceCatalogServiceListModelEndpointsRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
                 include_disabled: input.include_disabled,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListModelEndpointsResponse {
         model_endpoints: response
@@ -411,19 +411,16 @@ pub async fn admin_list_models(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .inference_catalog
-        .list_models(tonic::Request::new(
-            AdminInferenceCatalogServiceListModelsRequest {
-                page_size: input.page_size.unwrap_or(100),
-                page_token: input.page_token.unwrap_or_default(),
-                kind: input.kind.unwrap_or_default(),
-            },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        inference_catalog.list_models(AdminInferenceCatalogServiceListModelsRequest {
+            page_size: input.page_size.unwrap_or(100),
+            page_token: input.page_token.unwrap_or_default(),
+            kind: input.kind.unwrap_or_default(),
+        },)
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListModelsResponse {
         models: response
@@ -445,19 +442,16 @@ pub async fn admin_list_vector_stores(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .inference_catalog
-        .list_vector_stores(tonic::Request::new(
-            AdminInferenceCatalogServiceListVectorStoresRequest {
-                page_size: input.page_size.unwrap_or(100),
-                page_token: input.page_token.unwrap_or_default(),
-                include_disabled: input.include_disabled,
-            },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        inference_catalog.list_vector_stores(AdminInferenceCatalogServiceListVectorStoresRequest {
+            page_size: input.page_size.unwrap_or(100),
+            page_token: input.page_token.unwrap_or_default(),
+            include_disabled: input.include_disabled,
+        },)
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListVectorStoresResponse {
         vector_stores: response
@@ -479,10 +473,9 @@ pub async fn admin_list_model_endpoint_capabilities(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .inference_catalog
-        .list_model_endpoint_capabilities(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_catalog.list_model_endpoint_capabilities(
             AdminInferenceCatalogServiceListModelEndpointCapabilitiesRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
@@ -491,42 +484,38 @@ pub async fn admin_list_model_endpoint_capabilities(
                 operation: input.operation.unwrap_or_default(),
                 include_disabled: input.include_disabled,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     let endpoint_keys = endpoint_key_map(
-        session
-            ._client
-            .inference_catalog
-            .list_model_endpoints(tonic::Request::new(
+        authenticated_rpc!(
+            session._client,
+            inference_catalog.list_model_endpoints(
                 AdminInferenceCatalogServiceListModelEndpointsRequest {
                     page_size: 1000,
                     page_token: String::new(),
                     include_disabled: true,
                 },
-            ))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .model_endpoints,
+            )
+        )
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .model_endpoints,
     );
     let model_keys = model_key_map(
-        session
-            ._client
-            .inference_catalog
-            .list_models(tonic::Request::new(
-                AdminInferenceCatalogServiceListModelsRequest {
-                    page_size: 1000,
-                    page_token: String::new(),
-                    kind: String::new(),
-                },
-            ))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .models,
+        authenticated_rpc!(
+            session._client,
+            inference_catalog.list_models(AdminInferenceCatalogServiceListModelsRequest {
+                page_size: 1000,
+                page_token: String::new(),
+                kind: String::new(),
+            },)
+        )
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .models,
     );
 
     Ok(ListModelEndpointCapabilitiesResponse {
@@ -560,10 +549,9 @@ pub async fn admin_apply_inference_package(
         .as_mut()
         .ok_or_else(|| sdk_error(mycel_sdk::Error::Message("Not authenticated".to_string())))?;
 
-    let response = session
-        ._client
-        .inference_catalog
-        .apply_inference_package(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_catalog.apply_inference_package(
             AdminInferenceCatalogServiceApplyInferencePackageRequest {
                 name,
                 version,
@@ -582,10 +570,10 @@ pub async fn admin_apply_inference_package(
                     .map(model_endpoint_capability_definition)
                     .collect(),
             },
-        ))
-        .await
-        .map_err(inference_catalog_error)?
-        .into_inner();
+        )
+    )
+    .map_err(inference_catalog_error)?
+    .into_inner();
 
     Ok(ApplyInferencePackageResponseInfo {
         package: response.package.map(package_info),
@@ -1194,10 +1182,9 @@ pub async fn admin_list_inference_profiles(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_profiles
-        .list_intelligence_profiles(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_profiles.list_intelligence_profiles(
             AdminIntelligenceAccessProfileServiceListIntelligenceProfilesRequest {
                 space_id: input.space_id,
                 domain_id: input.domain_id,
@@ -1207,10 +1194,10 @@ pub async fn admin_list_inference_profiles(
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListIntelligenceProfilesResponse {
         inference_profiles: response
             .intelligence_profiles
@@ -1236,10 +1223,9 @@ pub async fn admin_create_inference_profile(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_profiles
-        .create_intelligence_profile(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_profiles.create_intelligence_profile(
             AdminIntelligenceAccessProfileServiceCreateIntelligenceProfileRequest {
                 space_id: input.space_id,
                 key: input.key,
@@ -1257,10 +1243,10 @@ pub async fn admin_create_inference_profile(
                 enabled: input.enabled,
                 metadata: input.metadata.map(struct_from_map),
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(IntelligenceProfileResponse {
         inference_profile: response.intelligence_profile.map(inference_profile_info),
     })
@@ -1275,20 +1261,19 @@ pub async fn admin_set_inference_profile_enabled(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_profiles
-        .set_intelligence_profile_enabled(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_profiles.set_intelligence_profile_enabled(
             AdminIntelligenceAccessProfileServiceSetIntelligenceProfileEnabledRequest {
                 space_id: input.space_id,
                 intelligence_profile: input.inference_profile,
                 intelligence_profile_id: input.inference_profile_id,
                 enabled: input.enabled,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(IntelligenceProfileResponse {
         inference_profile: response.intelligence_profile.map(inference_profile_info),
     })
@@ -1303,19 +1288,18 @@ pub async fn admin_delete_inference_profile(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_profiles
-        .delete_intelligence_profile(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_profiles.delete_intelligence_profile(
             AdminIntelligenceAccessProfileServiceDeleteIntelligenceProfileRequest {
                 space_id: input.space_id,
                 intelligence_profile: input.inference_profile,
                 intelligence_profile_id: input.inference_profile_id,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(HashMap::from([(
         "inferenceProfileId".to_string(),
         response.intelligence_profile_id,
@@ -1331,10 +1315,9 @@ pub async fn admin_list_inference_credentials(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_credentials
-        .list_credentials(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_credentials.list_credentials(
             AdminIntelligenceAccessCredentialServiceListCredentialsRequest {
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
@@ -1343,25 +1326,24 @@ pub async fn admin_list_inference_credentials(
                 model_endpoint_id: input.model_endpoint_id,
                 include_inactive: input.include_inactive,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     let endpoint_keys = endpoint_key_map(
-        session
-            ._client
-            .inference_catalog
-            .list_model_endpoints(tonic::Request::new(
+        authenticated_rpc!(
+            session._client,
+            inference_catalog.list_model_endpoints(
                 AdminInferenceCatalogServiceListModelEndpointsRequest {
                     page_size: 1000,
                     page_token: String::new(),
                     include_disabled: true,
                 },
-            ))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .model_endpoints,
+            )
+        )
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .model_endpoints,
     );
     Ok(ListCredentialsResponse {
         credentials: response
@@ -1386,10 +1368,9 @@ pub async fn admin_create_inference_credential(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_credentials
-        .create_credential(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_credentials.create_credential(
             AdminIntelligenceAccessCredentialServiceCreateCredentialRequest {
                 key: input.key,
                 display_name: input.display_name,
@@ -1401,10 +1382,10 @@ pub async fn admin_create_inference_credential(
                 is_default: input.is_default,
                 secret_value,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(CredentialResponse {
         credential: response.credential.map(credential_info),
     })
@@ -1419,19 +1400,18 @@ pub async fn admin_set_inference_credential_status(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_credentials
-        .set_credential_status(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_credentials.set_credential_status(
             AdminIntelligenceAccessCredentialServiceSetCredentialStatusRequest {
                 credential: input.credential,
                 credential_id: input.credential_id,
                 status: input.status,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(CredentialResponse {
         credential: response.credential.map(credential_info),
     })
@@ -1447,20 +1427,19 @@ pub async fn admin_rotate_inference_credential(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_credentials
-        .rotate_credential(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_credentials.rotate_credential(
             AdminIntelligenceAccessCredentialServiceRotateCredentialRequest {
                 credential: input.credential,
                 credential_id: input.credential_id,
                 secret_value,
                 reason: input.reason,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(CredentialResponse {
         credential: response.credential.map(credential_info),
     })
@@ -1475,20 +1454,19 @@ pub async fn admin_delete_inference_credential(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_credentials
-        .delete_credential(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_credentials.delete_credential(
             AdminIntelligenceAccessCredentialServiceDeleteCredentialRequest {
                 credential: input.credential,
                 credential_id: input.credential_id,
                 delete_grants: input.delete_grants,
                 delete_secret: input.delete_secret,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(DeleteCredentialResponseInfo {
         credential_id: response.credential_id,
         credential_grants_deleted: response.credential_grants_deleted,
@@ -1505,10 +1483,9 @@ pub async fn admin_list_inference_credential_grants(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_grants
-        .list_credential_grants(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_grants.list_credential_grants(
             AdminIntelligenceAccessGrantServiceListCredentialGrantsRequest {
                 space_id: input.space_id,
                 page_size: input.page_size.unwrap_or(100),
@@ -1516,41 +1493,37 @@ pub async fn admin_list_inference_credential_grants(
                 credential_id: input.credential_id,
                 include_expired: input.include_expired,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     let endpoint_keys = endpoint_key_map(
-        session
-            ._client
-            .inference_catalog
-            .list_model_endpoints(tonic::Request::new(
+        authenticated_rpc!(
+            session._client,
+            inference_catalog.list_model_endpoints(
                 AdminInferenceCatalogServiceListModelEndpointsRequest {
                     page_size: 1000,
                     page_token: String::new(),
                     include_disabled: true,
                 },
-            ))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .model_endpoints,
+            )
+        )
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .model_endpoints,
     );
     let model_keys = model_key_map(
-        session
-            ._client
-            .inference_catalog
-            .list_models(tonic::Request::new(
-                AdminInferenceCatalogServiceListModelsRequest {
-                    page_size: 1000,
-                    page_token: String::new(),
-                    kind: String::new(),
-                },
-            ))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .models,
+        authenticated_rpc!(
+            session._client,
+            inference_catalog.list_models(AdminInferenceCatalogServiceListModelsRequest {
+                page_size: 1000,
+                page_token: String::new(),
+                kind: String::new(),
+            },)
+        )
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .models,
     );
     Ok(ListIntelligenceCredentialGrantsResponse {
         credential_grants: response
@@ -1571,10 +1544,9 @@ pub async fn admin_create_inference_credential_grant(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_grants
-        .create_credential_grant(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_grants.create_credential_grant(
             AdminIntelligenceAccessGrantServiceCreateCredentialGrantRequest {
                 space_id: input.space_id,
                 credential: input.credential,
@@ -1592,10 +1564,10 @@ pub async fn admin_create_inference_credential_grant(
                 grantee_principal_ids: input.grantee_principal_ids,
                 allow_on_behalf_of_principal_ids: input.allow_on_behalf_of_principal_ids,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(IntelligenceCredentialGrantResponse {
         credential_grant: response.credential_grant.map(credential_grant_info),
     })
@@ -1610,18 +1582,17 @@ pub async fn admin_expire_inference_credential_grant(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_grants
-        .expire_credential_grant(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_grants.expire_credential_grant(
             AdminIntelligenceAccessGrantServiceExpireCredentialGrantRequest {
                 space_id: input.space_id,
                 credential_grant_id: input.credential_grant_id,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(IntelligenceCredentialGrantResponse {
         credential_grant: response.credential_grant.map(credential_grant_info),
     })
@@ -1636,18 +1607,17 @@ pub async fn admin_delete_inference_credential_grant(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_grants
-        .delete_credential_grant(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_grants.delete_credential_grant(
             AdminIntelligenceAccessGrantServiceDeleteCredentialGrantRequest {
                 space_id: input.space_id,
                 credential_grant_id: input.credential_grant_id,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(DeleteIntelligenceCredentialGrantResponseInfo {
         credential_grant_id: response.credential_grant_id,
     })
@@ -1662,10 +1632,9 @@ pub async fn admin_list_inference_policies(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_policies
-        .list_access_policies(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_policies.list_access_policies(
             AdminIntelligenceAccessPolicyServiceListAccessPoliciesRequest {
                 space_id: input.space_id,
                 page_size: input.page_size.unwrap_or(100),
@@ -1673,10 +1642,10 @@ pub async fn admin_list_inference_policies(
                 effect: input.effect,
                 include_expired: input.include_expired,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListInferencePoliciesResponse {
         inference_policies: response
             .access_policies
@@ -1696,10 +1665,9 @@ pub async fn admin_create_inference_policy(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_policies
-        .create_access_policy(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_policies.create_access_policy(
             AdminIntelligenceAccessPolicyServiceCreateAccessPolicyRequest {
                 space_id: input.space_id,
                 scope: input.scope.map(processing_scope),
@@ -1715,10 +1683,10 @@ pub async fn admin_create_inference_policy(
                 model_refs: Vec::new(),
                 capability_refs: Vec::new(),
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(IntelligenceAccessPolicyResponse {
         inference_policy: response.access_policy.map(inference_policy_info),
     })
@@ -1733,18 +1701,17 @@ pub async fn admin_expire_inference_policy(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_policies
-        .expire_access_policy(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_policies.expire_access_policy(
             AdminIntelligenceAccessPolicyServiceExpireAccessPolicyRequest {
                 space_id: input.space_id,
                 access_policy_id: input.inference_policy_id,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(IntelligenceAccessPolicyResponse {
         inference_policy: response.access_policy.map(inference_policy_info),
     })
@@ -1759,18 +1726,17 @@ pub async fn admin_delete_inference_policy(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_policies
-        .delete_access_policy(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_policies.delete_access_policy(
             AdminIntelligenceAccessPolicyServiceDeleteAccessPolicyRequest {
                 space_id: input.space_id,
                 access_policy_id: input.inference_policy_id,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(DeleteIntelligenceAccessPolicyResponseInfo {
         inference_policy_id: response.access_policy_id,
     })
@@ -1785,10 +1751,9 @@ pub async fn admin_list_inference_usage_events(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_usage
-        .list_usage_events(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        inference_usage.list_usage_events(
             AdminIntelligenceAccessUsageServiceListUsageEventsRequest {
                 space_id: input.space_id,
                 scope: input.scope.map(inference_scope),
@@ -1810,40 +1775,34 @@ pub async fn admin_list_inference_usage_events(
                 page_size: input.page_size.unwrap_or(100),
                 page_token: input.page_token.unwrap_or_default(),
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
-    let endpoint_keys = match session
-        ._client
-        .inference_catalog
-        .list_model_endpoints(tonic::Request::new(
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
+    let endpoint_keys = match authenticated_rpc!(
+        session._client,
+        inference_catalog.list_model_endpoints(
             AdminInferenceCatalogServiceListModelEndpointsRequest {
                 page_size: 1000,
                 page_token: String::new(),
                 include_disabled: true,
             },
-        ))
-        .await
-    {
+        )
+    ) {
         Ok(response) => endpoint_key_map(response.into_inner().model_endpoints),
-        Err(err) if err.code() == tonic::Code::PermissionDenied => HashMap::new(),
+        Err(err) if sdk_error_code(&err) == Some(tonic::Code::PermissionDenied) => HashMap::new(),
         Err(err) => return Err(err.to_string()),
     };
-    let model_keys = match session
-        ._client
-        .inference_catalog
-        .list_models(tonic::Request::new(
-            AdminInferenceCatalogServiceListModelsRequest {
-                page_size: 1000,
-                page_token: String::new(),
-                kind: String::new(),
-            },
-        ))
-        .await
-    {
+    let model_keys = match authenticated_rpc!(
+        session._client,
+        inference_catalog.list_models(AdminInferenceCatalogServiceListModelsRequest {
+            page_size: 1000,
+            page_token: String::new(),
+            kind: String::new(),
+        },)
+    ) {
         Ok(response) => model_key_map(response.into_inner().models),
-        Err(err) if err.code() == tonic::Code::PermissionDenied => HashMap::new(),
+        Err(err) if sdk_error_code(&err) == Some(tonic::Code::PermissionDenied) => HashMap::new(),
         Err(err) => return Err(err.to_string()),
     };
     Ok(ListUsageEventsResponse {
@@ -1865,21 +1824,18 @@ pub async fn admin_summarize_inference_usage(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .inference_usage
-        .summarize_usage(tonic::Request::new(
-            AdminIntelligenceAccessUsageServiceSummarizeUsageRequest {
-                space_id: input.space_id,
-                scope: input.scope.map(inference_scope),
-                since: input.since.map(timestamp_from_input),
-                until: input.until.map(timestamp_from_input),
-                group_by: input.group_by,
-            },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        inference_usage.summarize_usage(AdminIntelligenceAccessUsageServiceSummarizeUsageRequest {
+            space_id: input.space_id,
+            scope: input.scope.map(inference_scope),
+            since: input.since.map(timestamp_from_input),
+            until: input.until.map(timestamp_from_input),
+            group_by: input.group_by,
+        },)
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(SummarizeUsageResponse {
         summaries: response
             .summaries
@@ -2395,9 +2351,12 @@ fn model_endpoint_capability_definition(
     }
 }
 
-fn inference_catalog_error(status: tonic::Status) -> ConsoleCommandError {
-    let conflict = decode_vector_store_conflict(&status);
-    let mut error = sdk_error(mycel_sdk::Error::from(status));
+fn inference_catalog_error(err: mycel_sdk::Error) -> ConsoleCommandError {
+    let conflict = match &err {
+        mycel_sdk::Error::Status(status) => decode_vector_store_conflict(status),
+        _ => None,
+    };
+    let mut error = sdk_error(err);
     if let Some(conflict) = conflict {
         let reason = VectorStoreCatalogConflictReason::try_from(conflict.reason)
             .map(|value| value.as_str_name().to_string())
@@ -2518,7 +2477,7 @@ mod tests {
             rpc_status.encode_to_vec().into(),
         );
 
-        let error = inference_catalog_error(status);
+        let error = inference_catalog_error(status.into());
         assert_eq!(error.kind, "conflict");
         let detail = error.detail.expect("structured conflict detail");
         assert!(detail.contains("vector_store_catalog_conflict"));

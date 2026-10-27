@@ -8,6 +8,7 @@ use prost_types::Timestamp;
 use tauri::State;
 use tonic::Code;
 
+use crate::commands::command_error::{authenticated_rpc, sdk_error_code};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -93,25 +94,23 @@ pub async fn admin_get_space(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let admin_result = session
-        ._client
-        .spaces
-        .get_space(tonic::Request::new(AdminSpaceServiceGetSpaceRequest {
+    let admin_result = authenticated_rpc!(
+        session._client,
+        spaces.get_space(AdminSpaceServiceGetSpaceRequest {
             space_id: space_id.clone(),
-        }))
-        .await;
+        })
+    );
 
     let space = match admin_result {
         Ok(response) => response.into_inner().space,
-        Err(err) if err.code() == Code::PermissionDenied => {
-            session
-                ._data_client
-                .space
-                .get_space(tonic::Request::new(GetSpaceRequest { space_id }))
-                .await
-                .map_err(|err| err.to_string())?
-                .into_inner()
-                .space
+        Err(err) if sdk_error_code(&err) == Some(Code::PermissionDenied) => {
+            authenticated_rpc!(
+                session._data_client,
+                space.get_space(GetSpaceRequest { space_id })
+            )
+            .map_err(|err| err.to_string())?
+            .into_inner()
+            .space
         }
         Err(err) => return Err(err.to_string()),
     };
@@ -146,10 +145,9 @@ pub async fn admin_create_space(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .spaces
-        .create_space(tonic::Request::new(CreateSpaceRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        spaces.create_space(CreateSpaceRequest {
             name,
             owner_principal_id,
             owner_username,
@@ -163,10 +161,10 @@ pub async fn admin_create_space(
                 .unwrap_or_default()
                 .trim()
                 .to_string(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(CreateSpaceInfo {
         space: response
@@ -192,12 +190,11 @@ pub async fn admin_delete_space(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    session
-        ._client
-        .spaces
-        .delete_space(tonic::Request::new(DeleteSpaceRequest { space_id }))
-        .await
-        .map_err(|err| err.to_string())?;
+    authenticated_rpc!(
+        session._client,
+        spaces.delete_space(DeleteSpaceRequest { space_id })
+    )
+    .map_err(|err| err.to_string())?;
 
     Ok(())
 }
@@ -215,33 +212,31 @@ pub async fn admin_list_spaces(
     let page_size = input.page_size.unwrap_or(100);
     let page_token = input.page_token.unwrap_or_default();
     let include_archived = input.include_archived;
-    let admin_result = session
-        ._client
-        .spaces
-        .list_spaces(tonic::Request::new(AdminSpaceServiceListSpacesRequest {
+    let admin_result = authenticated_rpc!(
+        session._client,
+        spaces.list_spaces(AdminSpaceServiceListSpacesRequest {
             page_size,
             page_token: page_token.clone(),
             include_archived,
-        }))
-        .await;
+        })
+    );
 
     let (spaces, next_page_token) = match admin_result {
         Ok(response) => {
             let response = response.into_inner();
             (response.spaces, response.next_page_token)
         }
-        Err(err) if err.code() == Code::PermissionDenied => {
-            let response = session
-                ._data_client
-                .space
-                .list_spaces(tonic::Request::new(ListSpacesRequest {
+        Err(err) if sdk_error_code(&err) == Some(Code::PermissionDenied) => {
+            let response = authenticated_rpc!(
+                session._data_client,
+                space.list_spaces(ListSpacesRequest {
                     page_size,
                     page_token,
                     include_archived,
-                }))
-                .await
-                .map_err(|err| err.to_string())?
-                .into_inner();
+                })
+            )
+            .map_err(|err| err.to_string())?
+            .into_inner();
             (response.spaces, response.next_page_token)
         }
         Err(err) => return Err(err.to_string()),

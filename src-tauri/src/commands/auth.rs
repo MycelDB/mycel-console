@@ -112,15 +112,7 @@ pub async fn admin_login(
     .await
     .map_err(sdk_error)?;
 
-    let data_client = mycel_sdk::dial(mycel_sdk::Config {
-        addr: addr.clone(),
-        access_token: client.access_token(),
-        access_token_expire_time: client.access_token_expire_time(),
-        refresh_token: client.refresh_token(),
-        ..Default::default()
-    })
-    .await
-    .map_err(sdk_error)?;
+    let data_client = client.data_client();
 
     let operator = client.who_am_i().await.map_err(sdk_error)?;
     let session = AdminSession {

@@ -89,10 +89,13 @@ export function LoginForm({ loading, diagnosticsLoading = false, error, notice =
           className="pr-16"
           disabled={loading}
         />
+        <span id="password-visibility-description" className="sr-only">
+          Controls whether the password is visible.
+        </span>
         <button
           type="button"
           aria-controls="password"
-          aria-label={showPassword ? "Hide password" : "Show password"}
+          aria-describedby="password-visibility-description"
           aria-pressed={showPassword}
           className={`absolute inset-y-0 right-3 flex items-center text-sm font-medium underline underline-offset-2 ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted} ${themeClasses.text.hover.primary} ${themeClasses.focus.ring} disabled:cursor-not-allowed disabled:opacity-50`}
           disabled={loading}

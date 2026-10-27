@@ -29,17 +29,17 @@ test("shows and hides the entered password without changing its value or submitt
 
   const password = screen.getByLabelText(/^password$/i);
   expect(password).toHaveAttribute("type", "password");
-  expect(screen.getByRole("button", { name: "Show password" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "Show" })).toHaveAttribute("aria-pressed", "false");
 
   await userEvent.type(password, "secret");
-  await userEvent.click(screen.getByRole("button", { name: "Show password" }));
+  await userEvent.click(screen.getByRole("button", { name: "Show" }));
 
   expect(password).toHaveAttribute("type", "text");
   expect(password).toHaveValue("secret");
-  expect(screen.getByRole("button", { name: "Hide password" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Hide" })).toHaveAttribute("aria-pressed", "true");
   expect(onSubmit).not.toHaveBeenCalled();
 
-  await userEvent.click(screen.getByRole("button", { name: "Hide password" }));
+  await userEvent.click(screen.getByRole("button", { name: "Hide" }));
 
   expect(password).toHaveAttribute("type", "password");
   expect(password).toHaveValue("secret");
@@ -114,6 +114,6 @@ test("disables fields and submit button while loading", () => {
   expect(screen.getByLabelText(/cluster grpc address/i)).toBeDisabled();
   expect(screen.getByLabelText(/principal username/i)).toBeDisabled();
   expect(screen.getByLabelText(/^password$/i)).toBeDisabled();
-  expect(screen.getByRole("button", { name: /show password/i })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Show" })).toBeDisabled();
   expect(screen.getByRole("button", { name: /logging in/i })).toBeDisabled();
 });

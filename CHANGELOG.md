@@ -13,6 +13,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- Made Semantic Rules scope cells name-first while preserving UUID-backed links, accessible exact-ID context, safe ID fallbacks, and concise collision disambiguation (#84).
 - Split the inference model catalog into type-aware generative, embedding, and fallback tables with relevant limits, vector metadata, and defensive missing-value presentation (#88).
 - Updated OpenAI profile and setup-wizard defaults to the concrete supported `openai/gpt-5.6-terra` catalog key instead of the removed `openai/gpt-5.6-mini` example (#261 in `mycel`).
 - Search now provides separate lexical-syntax and semantic-natural-language inputs in hybrid mode, places text only in the corresponding channel options, and carries bound continuation tokens without populating the removed top-level fallback (#64).

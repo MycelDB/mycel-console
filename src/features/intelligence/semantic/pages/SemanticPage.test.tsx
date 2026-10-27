@@ -218,6 +218,10 @@ test("renders global semantic rule inventory, maintenance, and usage", async () 
 
   expect(screen.getByRole("heading", { name: "Semantic" })).toBeInTheDocument();
   expect(await screen.findByText("Page summary")).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "Space Research; ID sp1" }),
+  ).toHaveAttribute("href", "/spaces/sp1");
+  expect(screen.getByLabelText("Domain Main; ID dom1")).toBeInTheDocument();
   expect(screen.getByText(/45 tokens/i)).toBeInTheDocument();
   expect(screen.getAllByText(/Pending 1/i).length).toBeGreaterThan(0);
   expect(listInferenceProfilesService).toHaveBeenCalledWith({

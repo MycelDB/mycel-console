@@ -4,6 +4,7 @@ use prost_types::Timestamp;
 use tauri::State;
 use tonic::Code;
 
+use crate::commands::command_error::{authenticated_rpc, sdk_error_code};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -58,35 +59,33 @@ pub async fn admin_list_domains(
     let page_size = input.page_size.unwrap_or(100);
     let page_token = input.page_token.unwrap_or_default();
     let include_system = input.include_system;
-    let admin_result = session
-        ._client
-        .domains
-        .list_domains(tonic::Request::new(AdminDomainServiceListDomainsRequest {
+    let admin_result = authenticated_rpc!(
+        session._client,
+        domains.list_domains(AdminDomainServiceListDomainsRequest {
             space_id: space_id.clone(),
             page_size,
             page_token: page_token.clone(),
             include_system,
-        }))
-        .await;
+        })
+    );
 
     let (domains, next_page_token) = match admin_result {
         Ok(response) => {
             let response = response.into_inner();
             (response.domains, response.next_page_token)
         }
-        Err(err) if err.code() == Code::PermissionDenied => {
-            let response = session
-                ._data_client
-                .domain
-                .list_domains(tonic::Request::new(ListDomainsRequest {
+        Err(err) if sdk_error_code(&err) == Some(Code::PermissionDenied) => {
+            let response = authenticated_rpc!(
+                session._data_client,
+                domain.list_domains(ListDomainsRequest {
                     space_id,
                     page_size,
                     page_token,
                     include_system,
-                }))
-                .await
-                .map_err(|err| err.to_string())?
-                .into_inner();
+                })
+            )
+            .map_err(|err| err.to_string())?
+            .into_inner();
             (response.domains, response.next_page_token)
         }
         Err(err) => return Err(err.to_string()),

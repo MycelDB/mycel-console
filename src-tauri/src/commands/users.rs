@@ -14,6 +14,7 @@ use mycel_sdk::proto::common::v1::{
 use prost_types::Timestamp;
 use tauri::State;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -305,18 +306,17 @@ pub async fn admin_list_principals(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .list_principals(tonic::Request::new(ListPrincipalsRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.list_principals(ListPrincipalsRequest {
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
             include_disabled: input.include_disabled,
             include_deleted: input.include_deleted,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListPrincipalsResponse {
         principals: response
@@ -343,13 +343,12 @@ pub async fn admin_get_principal(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .get_principal(tonic::Request::new(GetPrincipalRequest { principal_id }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        principals.get_principal(GetPrincipalRequest { principal_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     response
         .principal
@@ -372,15 +371,12 @@ pub async fn admin_list_principal_roles(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .list_principal_roles(tonic::Request::new(ListPrincipalRolesRequest {
-            principal_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        principals.list_principal_roles(ListPrincipalRolesRequest { principal_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListPrincipalRolesResponseInfo {
         grants: response.grants.into_iter().map(role_grant_info).collect(),
@@ -403,15 +399,12 @@ pub async fn admin_list_principal_capabilities(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .list_principal_capabilities(tonic::Request::new(ListPrincipalCapabilitiesRequest {
-            principal_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        principals.list_principal_capabilities(ListPrincipalCapabilitiesRequest { principal_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListPrincipalCapabilitiesResponseInfo {
         grants: response
@@ -446,18 +439,17 @@ pub async fn admin_grant_principal_role(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .grant_principal_role(tonic::Request::new(GrantPrincipalRoleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.grant_principal_role(GrantPrincipalRoleRequest {
             principal_id,
             role,
             scope: Some(access_scope_input(input.scope)),
             reason: input.reason.unwrap_or_default(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(GrantPrincipalRoleResponseInfo {
         grant: response
@@ -491,17 +483,16 @@ pub async fn admin_revoke_principal_role(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .revoke_principal_role(tonic::Request::new(RevokePrincipalRoleRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.revoke_principal_role(RevokePrincipalRoleRequest {
             principal_id,
             role_grant_id,
             reason: input.reason.unwrap_or_default(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(RevokePrincipalRoleResponseInfo {
         effective_capabilities: response
@@ -533,18 +524,17 @@ pub async fn admin_set_principal_roles_for_scope(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .set_principal_roles_for_scope(tonic::Request::new(SetPrincipalRolesForScopeRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.set_principal_roles_for_scope(SetPrincipalRolesForScopeRequest {
             principal_id,
             scope: Some(access_scope_input(input.scope)),
             roles,
             reason: input.reason.unwrap_or_default(),
-        }))
-        .await
-        .map_err(access_api_error)?
-        .into_inner();
+        })
+    )
+    .map_err(access_api_error)?
+    .into_inner();
 
     Ok(SetPrincipalRolesForScopeResponseInfo {
         grants: response.grants.into_iter().map(role_grant_info).collect(),
@@ -573,18 +563,17 @@ pub async fn admin_grant_principal_capability(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .grant_principal_capability(tonic::Request::new(GrantPrincipalCapabilityRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.grant_principal_capability(GrantPrincipalCapabilityRequest {
             principal_id,
             capability: capability as i32,
             scope: Some(access_scope_input(input.scope)),
             reason: input.reason.unwrap_or_default(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(GrantPrincipalCapabilityResponseInfo {
         grant: response.grant.map(capability_grant_info).ok_or_else(|| {
@@ -617,17 +606,16 @@ pub async fn admin_revoke_principal_capability(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .revoke_principal_capability(tonic::Request::new(RevokePrincipalCapabilityRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.revoke_principal_capability(RevokePrincipalCapabilityRequest {
             principal_id,
             capability_grant_id,
             reason: input.reason.unwrap_or_default(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(RevokePrincipalCapabilityResponseInfo {
         effective_capabilities: response
@@ -657,20 +645,17 @@ pub async fn admin_set_principal_capabilities_for_scope(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .set_principal_capabilities_for_scope(tonic::Request::new(
-            SetPrincipalCapabilitiesForScopeRequest {
-                principal_id,
-                scope: Some(access_scope_input(input.scope)),
-                capabilities,
-                reason: input.reason.unwrap_or_default(),
-            },
-        ))
-        .await
-        .map_err(access_api_error)?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        principals.set_principal_capabilities_for_scope(SetPrincipalCapabilitiesForScopeRequest {
+            principal_id,
+            scope: Some(access_scope_input(input.scope)),
+            capabilities,
+            reason: input.reason.unwrap_or_default(),
+        },)
+    )
+    .map_err(access_api_error)?
+    .into_inner();
 
     Ok(SetPrincipalCapabilitiesForScopeResponseInfo {
         grants: response
@@ -701,18 +686,17 @@ pub async fn admin_list_principal_sessions(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .list_principal_sessions(tonic::Request::new(ListPrincipalSessionsRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.list_principal_sessions(ListPrincipalSessionsRequest {
             principal_id,
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
             include_inactive: input.include_inactive,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListPrincipalSessionsResponse {
         sessions: response
@@ -743,15 +727,14 @@ pub async fn admin_revoke_principal_session(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    session
-        ._client
-        .principals
-        .revoke_principal_session(tonic::Request::new(RevokePrincipalSessionRequest {
+    authenticated_rpc!(
+        session._client,
+        principals.revoke_principal_session(RevokePrincipalSessionRequest {
             principal_id,
             auth_session_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?;
+        })
+    )
+    .map_err(|err| err.to_string())?;
 
     Ok(())
 }
@@ -771,15 +754,12 @@ pub async fn admin_revoke_principal_sessions(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .revoke_principal_sessions(tonic::Request::new(RevokePrincipalSessionsRequest {
-            principal_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        principals.revoke_principal_sessions(RevokePrincipalSessionsRequest { principal_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(RevokePrincipalSessionsResponseInfo {
         revoked_count: response.revoked_count,
@@ -801,20 +781,19 @@ pub async fn admin_create_principal(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .create_principal(tonic::Request::new(CreatePrincipalRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.create_principal(CreatePrincipalRequest {
             username,
             password: input.password.filter(|password| !password.is_empty()),
             disabled: input.disabled,
             r#type: PrincipalType::Human as i32,
             login_enabled: !input.disabled,
             ..Default::default()
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     response
         .principal
@@ -837,17 +816,16 @@ pub async fn admin_disable_principal(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .disable_principal(tonic::Request::new(DisablePrincipalRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.disable_principal(DisablePrincipalRequest {
             principal_id,
             reason: input.reason.unwrap_or_default(),
             revoke_sessions: input.revoke_sessions,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     response
         .principal
@@ -870,13 +848,12 @@ pub async fn admin_enable_principal(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .enable_principal(tonic::Request::new(EnablePrincipalRequest { principal_id }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        principals.enable_principal(EnablePrincipalRequest { principal_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     response
         .principal
@@ -899,16 +876,15 @@ pub async fn admin_delete_principal(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .delete_principal(tonic::Request::new(DeletePrincipalRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.delete_principal(DeletePrincipalRequest {
             principal_id,
             revoke_sessions: input.revoke_sessions,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     response
         .principal
@@ -934,17 +910,16 @@ pub async fn admin_set_principal_password(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .principals
-        .set_principal_password(tonic::Request::new(SetPrincipalPasswordRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        principals.set_principal_password(SetPrincipalPasswordRequest {
             principal_id,
             password: input.password,
             revoke_sessions: input.revoke_sessions,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     response
         .principal
@@ -1020,16 +995,18 @@ fn access_scope_input(scope: Option<AccessScopeInput>) -> AccessScope {
     }
 }
 
-fn access_api_error(status: tonic::Status) -> String {
-    if status.code() == tonic::Code::Unimplemented
-        && (status.message().contains("SetPrincipalRolesForScope")
-            || status
-                .message()
-                .contains("SetPrincipalCapabilitiesForScope"))
-    {
-        return "Connected myceld does not implement the principal bulk access APIs. Rebuild and restart myceld from this branch, then reconnect Console.".to_string();
+fn access_api_error(err: mycel_sdk::Error) -> String {
+    if let mycel_sdk::Error::Status(status) = &err {
+        if status.code() == tonic::Code::Unimplemented
+            && (status.message().contains("SetPrincipalRolesForScope")
+                || status
+                    .message()
+                    .contains("SetPrincipalCapabilitiesForScope"))
+        {
+            return "Connected myceld does not implement the principal bulk access APIs. Rebuild and restart myceld from this branch, then reconnect Console.".to_string();
+        }
     }
-    status.to_string()
+    err.to_string()
 }
 
 fn capability_name(capability: i32) -> String {

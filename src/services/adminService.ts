@@ -245,10 +245,12 @@ export function isAuthExpiredError(err: unknown): boolean {
   const appError = normalizeAppError(err);
   const lower = `${appError.message} ${appError.detail || ""}`.toLowerCase();
   return (
+    appError.kind === "authentication" ||
+    lower.includes("unauthenticated") ||
     lower.includes("authorization token is expired") ||
     lower.includes("access token is expired") ||
     lower.includes("token is expired") ||
-    (lower.includes("unauthenticated") && lower.includes("expired"))
+    lower.includes("refresh token")
   );
 }
 

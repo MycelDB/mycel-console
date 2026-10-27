@@ -6,6 +6,7 @@ use mycel_sdk::proto::client::v1::{
 };
 use tauri::State;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -170,11 +171,7 @@ pub async fn client_lexical_search(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._data_client
-        .search
-        .search(tonic::Request::new(request))
-        .await
+    let response = authenticated_rpc!(session._data_client, search.search(request))
         .map_err(|err| err.to_string())?
         .into_inner();
     Ok(LexicalSearchResponseInfo {
@@ -210,16 +207,15 @@ pub async fn client_get_lexical_index_status(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._data_client
-        .search
-        .get_lexical_index_status(tonic::Request::new(GetLexicalIndexStatusRequest {
+    let response = authenticated_rpc!(
+        session._data_client,
+        search.get_lexical_index_status(GetLexicalIndexStatusRequest {
             space_id,
             domain_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(status_info(response.status.unwrap_or_default()))
 }
 
@@ -237,18 +233,17 @@ pub async fn admin_rebuild_lexical_index(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .lexical_maintenance
-        .rebuild_lexical_index(tonic::Request::new(RebuildLexicalIndexRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        lexical_maintenance.rebuild_lexical_index(RebuildLexicalIndexRequest {
             space_id,
             domain_id,
             force: input.force,
             dry_run: input.dry_run,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     let state = response.state().as_str_name().to_string();
     Ok(RebuildLexicalIndexResponseInfo {
         space_id: response.space_id,

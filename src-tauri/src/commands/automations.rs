@@ -7,8 +7,8 @@ use mycel_sdk::proto::admin::v1::{
     UpdateAutomationRequest, ValidateAutomationRequest,
 };
 use tauri::State;
-use tonic::Request;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -123,16 +123,15 @@ pub async fn admin_list_automations(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .list_automations(Request::new(ListAutomationsRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.list_automations(ListAutomationsRequest {
             domain_id: input.domain_id,
             status: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListAutomationsResponseInfo {
         automations: response
             .automations
@@ -159,16 +158,15 @@ pub async fn admin_get_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .get_automation(Request::new(GetAutomationRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.get_automation(GetAutomationRequest {
             domain_id: input.domain_id,
             automation_id: input.automation_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AutomationDefinitionInfo {
         definition_json: response.definition_json,
     })
@@ -183,16 +181,15 @@ pub async fn admin_enable_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .enable_automation(Request::new(EnableAutomationRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.enable_automation(EnableAutomationRequest {
             domain_id: input.domain_id,
             automation_id: input.automation_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AutomationDefinitionInfo {
         definition_json: response.definition_json,
     })
@@ -207,16 +204,15 @@ pub async fn admin_disable_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .disable_automation(Request::new(DisableAutomationRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.disable_automation(DisableAutomationRequest {
             domain_id: input.domain_id,
             automation_id: input.automation_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AutomationDefinitionInfo {
         definition_json: response.definition_json,
     })
@@ -231,16 +227,15 @@ pub async fn admin_validate_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .validate_automation(Request::new(ValidateAutomationRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.validate_automation(ValidateAutomationRequest {
             domain_id: input.domain_id,
             definition_json: input.definition_json,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ValidateAutomationInfo {
         valid: response.valid,
         error: response.error,
@@ -257,16 +252,15 @@ pub async fn admin_create_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .create_automation(Request::new(CreateAutomationRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.create_automation(CreateAutomationRequest {
             domain_id: input.domain_id,
             definition_json: input.definition_json,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AutomationDefinitionInfo {
         definition_json: response.definition_json,
     })
@@ -281,17 +275,16 @@ pub async fn admin_update_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .update_automation(Request::new(UpdateAutomationRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.update_automation(UpdateAutomationRequest {
             domain_id: input.domain_id,
             automation_id: input.automation_id,
             definition_json: input.definition_json,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AutomationDefinitionInfo {
         definition_json: response.definition_json,
     })
@@ -306,15 +299,14 @@ pub async fn admin_delete_automation(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    session
-        ._client
-        .automation
-        .delete_automation(Request::new(DeleteAutomationRequest {
+    authenticated_rpc!(
+        session._client,
+        automation.delete_automation(DeleteAutomationRequest {
             domain_id: input.domain_id,
             automation_id: input.automation_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?;
+        })
+    )
+    .map_err(|err| err.to_string())?;
     Ok(())
 }
 
@@ -327,18 +319,17 @@ pub async fn admin_list_automation_invocations(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .list_automation_invocations(Request::new(ListAutomationInvocationsRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.list_automation_invocations(ListAutomationInvocationsRequest {
             domain_id: input.domain_id,
             automation_id: input.automation_id.unwrap_or_default(),
             status: input.status.unwrap_or_default(),
             limit: input.limit.unwrap_or(50),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListAutomationInvocationsResponseInfo {
         invocations: response
             .invocations
@@ -368,16 +359,15 @@ pub async fn admin_get_automation_run(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .get_automation_run(Request::new(GetAutomationRunRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.get_automation_run(GetAutomationRunRequest {
             domain_id: input.domain_id,
             run_id: input.run_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AutomationRunInfo {
         run_json: response.run_json,
     })
@@ -465,16 +455,15 @@ pub async fn admin_list_graph_procedures(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .list_graph_procedures(Request::new(ListGraphProceduresRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.list_graph_procedures(ListGraphProceduresRequest {
             domain_id: input.domain_id,
             status: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListGraphProceduresResponseInfo {
         procedures: response
             .procedures
@@ -502,16 +491,15 @@ pub async fn admin_get_graph_procedure(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .get_graph_procedure(Request::new(GetGraphProcedureRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.get_graph_procedure(GetGraphProcedureRequest {
             domain_id: input.domain_id,
             procedure_id: input.procedure_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GraphProcedureInfo {
         procedure_json: response.procedure_json,
     })
@@ -526,16 +514,15 @@ pub async fn admin_list_graph_automation_bindings(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .list_graph_automation_bindings(Request::new(ListGraphAutomationBindingsRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.list_graph_automation_bindings(ListGraphAutomationBindingsRequest {
             domain_id: input.domain_id,
             status: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListGraphAutomationBindingsResponseInfo {
         bindings: response
             .bindings
@@ -572,16 +559,15 @@ pub async fn admin_get_graph_automation_binding(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .get_graph_automation_binding(Request::new(GetGraphAutomationBindingRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.get_graph_automation_binding(GetGraphAutomationBindingRequest {
             domain_id: input.domain_id,
             binding_id: input.binding_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GraphAutomationBindingInfo {
         binding_json: response.binding_json,
     })
@@ -596,16 +582,15 @@ pub async fn admin_enable_graph_automation_binding(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .enable_graph_automation_binding(Request::new(EnableGraphAutomationBindingRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.enable_graph_automation_binding(EnableGraphAutomationBindingRequest {
             domain_id: input.domain_id,
             binding_id: input.binding_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GraphAutomationBindingInfo {
         binding_json: response.binding_json,
     })
@@ -620,16 +605,15 @@ pub async fn admin_disable_graph_automation_binding(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .automation
-        .disable_graph_automation_binding(Request::new(DisableGraphAutomationBindingRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        automation.disable_graph_automation_binding(DisableGraphAutomationBindingRequest {
             domain_id: input.domain_id,
             binding_id: input.binding_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GraphAutomationBindingInfo {
         binding_json: response.binding_json,
     })

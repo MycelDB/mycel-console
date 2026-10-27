@@ -1,7 +1,6 @@
 use tauri::State;
-use tonic::Request;
 
-use crate::state::AppState;
+use crate::{commands::command_error::authenticated_rpc, state::AppState};
 use mycel_sdk::proto::admin::v1::{
     ClusterEngine, ClusterMember, ClusterMemberState, ClusterMode, ClusterNodeState, ClusterPeer,
     ClusterPeerSource, ClusterPeerState, ClusterReadiness, GetClusterHealthRequest,
@@ -328,12 +327,14 @@ pub struct ClusterMemberInfo {
 pub async fn admin_get_cluster_status(
     state: State<'_, AppState>,
 ) -> Result<ClusterStatusInfo, String> {
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .get_cluster_status(Request::new(GetClusterStatusRequest {}))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.get_cluster_status(GetClusterStatusRequest {})
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     let node = response.node.unwrap_or_default();
     let cluster = response.cluster.unwrap_or_default();
     Ok(ClusterStatusInfo {
@@ -358,12 +359,14 @@ pub async fn admin_get_cluster_status(
 pub async fn admin_get_cluster_health(
     state: State<'_, AppState>,
 ) -> Result<ClusterHealthInfo, String> {
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .get_cluster_health(Request::new(GetClusterHealthRequest {}))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.get_cluster_health(GetClusterHealthRequest {})
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ClusterHealthInfo {
         status: response.status,
         warnings: response.warnings,
@@ -378,12 +381,14 @@ pub async fn admin_get_cluster_health(
 pub async fn admin_get_cluster_runtime_status(
     state: State<'_, AppState>,
 ) -> Result<ClusterRuntimeStatusInfo, String> {
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .get_cluster_runtime_status(Request::new(GetClusterRuntimeStatusRequest {}))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.get_cluster_runtime_status(GetClusterRuntimeStatusRequest {})
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ClusterRuntimeStatusInfo {
         engine: cluster_engine(response.engine),
         cluster_name: optional(response.cluster_name),
@@ -402,12 +407,14 @@ pub async fn admin_get_cluster_runtime_status(
 pub async fn admin_list_raft_groups(
     state: State<'_, AppState>,
 ) -> Result<ListRaftGroupsResponseInfo, String> {
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .list_raft_groups(Request::new(ListRaftGroupsRequest {}))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.list_raft_groups(ListRaftGroupsRequest {})
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ListRaftGroupsResponseInfo {
         groups: response.groups.into_iter().map(raft_group_info).collect(),
     })
@@ -422,12 +429,14 @@ pub async fn admin_lookup_space_route(
     if space_id.is_empty() {
         return Err("Space ID is required".to_string());
     }
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .lookup_space_route(Request::new(LookupSpaceRouteRequest { space_id }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.lookup_space_route(LookupSpaceRouteRequest { space_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(LookupSpaceRouteResult {
         space_id: response.space_id,
         partition_id: response.partition_id,
@@ -442,15 +451,17 @@ pub async fn admin_get_local_graph_consistency(
     state: State<'_, AppState>,
 ) -> Result<LocalGraphConsistencyResponseInfo, String> {
     let input = validate_graph_consistency_input(input)?;
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .get_local_graph_consistency(Request::new(GetLocalGraphConsistencyRequest {
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.get_local_graph_consistency(GetLocalGraphConsistencyRequest {
             space_id: input.space_id,
             domain_id: input.domain_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(LocalGraphConsistencyResponseInfo {
         stats: response.stats.map(local_graph_consistency_stats_info),
         raft_group: response.raft_group.map(raft_group_info),
@@ -464,15 +475,17 @@ pub async fn admin_get_graph_consistency_report(
     state: State<'_, AppState>,
 ) -> Result<GraphConsistencyReportInfo, String> {
     let input = validate_graph_consistency_input(input)?;
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .get_graph_consistency_report(Request::new(GetGraphConsistencyReportRequest {
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.get_graph_consistency_report(GetGraphConsistencyReportRequest {
             space_id: input.space_id,
             domain_id: input.domain_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GraphConsistencyReportInfo {
         status: graph_consistency_status(response.status),
         space_id: response.space_id,
@@ -502,18 +515,20 @@ pub async fn admin_get_local_graph_forensic_export(
     state: State<'_, AppState>,
 ) -> Result<GraphForensicExportResponseInfo, String> {
     let input = validate_graph_forensic_export_input(input)?;
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .get_local_graph_forensic_export(Request::new(GetLocalGraphForensicExportRequest {
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.get_local_graph_forensic_export(GetLocalGraphForensicExportRequest {
             space_id: input.space_id,
             domain_id: input.domain_id,
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
             source_label: input.source_label.unwrap_or_default(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(GraphForensicExportResponseInfo {
         manifest: response.manifest.map(graph_forensic_export_manifest_info),
         stats: response.stats.map(local_graph_consistency_stats_info),
@@ -537,31 +552,20 @@ pub async fn admin_get_local_graph_forensic_export(
 pub async fn admin_list_cluster_members(
     state: State<'_, AppState>,
 ) -> Result<ListClusterMembersResponse, String> {
-    let mut client = cluster_client(&state).await?;
-    let response = client
-        .list_cluster_members(Request::new(ListClusterMembersRequest {}))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| "Not logged in".to_string())?;
+    let response = authenticated_rpc!(
+        session._client,
+        cluster.list_cluster_members(ListClusterMembersRequest {})
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListClusterMembersResponse {
         cluster_id: response.cluster_id,
         cluster_name: optional(response.cluster_name),
         members: response.members.into_iter().map(member_info).collect(),
     })
-}
-
-async fn cluster_client(
-    state: &State<'_, AppState>,
-) -> Result<
-    mycel_sdk::proto::admin::v1::admin_cluster_service_client::AdminClusterServiceClient<
-        mycel_sdk::admin::AuthenticatedService,
-    >,
-    String,
-> {
-    let guard = state.admin.read().await;
-    let session = guard.as_ref().ok_or_else(|| "Not logged in".to_string())?;
-    Ok(session._client.cluster.clone())
 }
 
 fn peer_info(peer: ClusterPeer) -> ClusterPeerInfo {

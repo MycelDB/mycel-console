@@ -14,53 +14,21 @@ export function csv(value: string) {
 }
 const triggerEventSet = new Set<string>(semanticTriggerEvents);
 
-function normalizeLegacyTriggerEvent(value: string) {
-  const normalized = value.trim().toLowerCase();
-  return normalized.replace("node_", "node.").replace("edge_", "edge.");
-}
-
 function canonicalTriggerEvents(values: string[]): SemanticTriggerEvent[] {
-  const unique = new Set(values.map(normalizeLegacyTriggerEvent));
+  const unique = new Set(values);
   return semanticTriggerEvents.filter((event) => unique.has(event));
-}
-
-function sameTriggerEventSet(left: string[], right: string[]) {
-  return (
-    left.length === right.length && left.every((event) => right.includes(event))
-  );
 }
 
 export function resolveTriggerEvents(
   trigger: SemanticGenerationRule["trigger"],
 ): { events: string[]; problem: string } {
-  const typed = trigger?.eventTypes || [];
-  const legacyRaw = trigger?.events || [];
-  const legacy = canonicalTriggerEvents(legacyRaw);
-  const unsupportedTyped = typed.filter((event) => !triggerEventSet.has(event));
-  const unsupportedLegacy = legacyRaw
-    .map(normalizeLegacyTriggerEvent)
-    .filter((event) => !triggerEventSet.has(event));
-  const selected =
-    typed.length > 0 ? [...typed] : legacy.length > 0 ? legacy : ["changed"];
-  if (unsupportedTyped.length > 0 || unsupportedLegacy.length > 0) {
+  const events = trigger?.events || [];
+  const unsupported = events.filter((event) => !triggerEventSet.has(event));
+  const selected = events.length > 0 ? [...events] : ["changed"];
+  if (unsupported.length > 0) {
     return {
       events: selected,
-      problem: `Unsupported trigger event values: ${[
-        ...unsupportedTyped,
-        ...unsupportedLegacy,
-      ].join(", ")}`,
-    };
-  }
-  const canonicalTyped = canonicalTriggerEvents(typed);
-  if (
-    typed.length > 0 &&
-    legacyRaw.length > 0 &&
-    !sameTriggerEventSet(canonicalTyped, legacy)
-  ) {
-    return {
-      events: canonicalTyped,
-      problem:
-        "Typed and legacy trigger event representations conflict. Select the intended events before saving.",
+      problem: `Unsupported trigger event values: ${unsupported.join(", ")}`,
     };
   }
   return { events: canonicalTriggerEvents(selected), problem: "" };
@@ -118,9 +86,7 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
     description: draft.description,
     enabled: draft.enabled,
     trigger: {
-      // Dual-write equivalent forms until older daemon support is retired.
       events: triggerEvents,
-      eventTypes: triggerEvents,
       labels,
       debounce: draft.dirtyCooldown,
     },

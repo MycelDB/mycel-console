@@ -41,7 +41,6 @@ test("draftToRule maps draft fields without backend interaction", () => {
   expect(rule.semanticRuleId).toBe("rule_1");
   expect(rule.selector?.labels).toEqual(["note", "page"]);
   expect(rule.trigger?.events).toEqual(["changed", "node.created"]);
-  expect(rule.trigger?.eventTypes).toEqual(["changed", "node.created"]);
   expect(rule.embeddings[0]).toMatchObject({
     key: "body",
     intelligenceProfile: "embed-small",
@@ -66,7 +65,7 @@ test("draftToRule preserves a legacy vector-store reference when no UUID is avai
   });
 });
 
-test("ruleToDraft prefers typed events and accepts equivalent legacy events", () => {
+test("ruleToDraft reads typed events", () => {
   const rule = draftToRule(draft);
   expect(ruleToDraft(rule)).toMatchObject({
     triggerEvents: ["changed", "node.created"],
@@ -74,21 +73,17 @@ test("ruleToDraft prefers typed events and accepts equivalent legacy events", ()
   });
 });
 
-test("ruleToDraft exposes conflicting and unknown trigger projections", () => {
-  const conflicting = draftToRule(draft);
-  conflicting.trigger = {
-    events: ["node.created"],
-    eventTypes: ["node.updated"],
+test("ruleToDraft exposes unknown typed trigger events", () => {
+  const invalid = draftToRule(draft);
+  invalid.trigger = {
+    events: ["unsupported:99"],
     labels: [],
     debounce: "30s",
   };
-  expect(ruleToDraft(conflicting).triggerEventProblem).toMatch(/conflict/i);
-
-  conflicting.trigger.eventTypes = ["unsupported:99"];
-  expect(ruleToDraft(conflicting)).toMatchObject({
+  expect(ruleToDraft(invalid)).toMatchObject({
     triggerEvents: ["unsupported:99"],
   });
-  expect(ruleToDraft(conflicting).triggerEventProblem).toMatch(/unsupported/i);
+  expect(ruleToDraft(invalid).triggerEventProblem).toMatch(/unsupported/i);
 });
 
 test("draftToRule fails closed for unresolved trigger events", () => {

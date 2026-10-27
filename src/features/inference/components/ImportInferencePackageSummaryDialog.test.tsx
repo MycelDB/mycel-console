@@ -53,6 +53,43 @@ test("renders catalog view actions", async () => {
   expect(onViewCatalog).toHaveBeenNthCalledWith(3, "vectorStores");
 });
 
+test("disables summary actions while authoritative data refreshes", () => {
+  render(
+    <ImportInferencePackageSummaryDialog
+      result={result}
+      refreshing
+      onClose={jest.fn()}
+      onViewCatalog={jest.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("status")).toHaveTextContent(
+    /refreshing package history and catalog/i,
+  );
+  expect(
+    screen.getByRole("button", { name: /view endpoints/i }),
+  ).toBeDisabled();
+  expect(screen.getByRole("button", { name: /done/i })).toBeDisabled();
+});
+
+test("shows a distinct refresh failure and invokes retry", async () => {
+  const onRetryRefresh = jest.fn();
+  render(
+    <ImportInferencePackageSummaryDialog
+      result={result}
+      refreshError="Import succeeded, but the follow-up refresh failed."
+      onRetryRefresh={onRetryRefresh}
+      onClose={jest.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("alert")).toHaveTextContent(/import succeeded/i);
+  await userEvent.click(
+    screen.getByRole("button", { name: /retry refresh/i }),
+  );
+  expect(onRetryRefresh).toHaveBeenCalledTimes(1);
+});
+
 test("invokes close callback", async () => {
   const onClose = jest.fn();
   render(<ImportInferencePackageSummaryDialog result={result} onClose={onClose} />);

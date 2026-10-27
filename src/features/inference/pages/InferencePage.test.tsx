@@ -211,7 +211,7 @@ test("loads models with capability chips", async () => {
 
   await screen.findByText("Openai Compatible");
   await userEvent.click(screen.getByRole("tab", { name: "Models" }));
-  expect(await screen.findByText("1536")).toBeInTheDocument();
+  expect(await screen.findByText("1,536")).toBeInTheDocument();
   expect(screen.getByText("Embeddings · openai")).toBeInTheDocument();
   expect(services.listModelsService).toHaveBeenCalledWith({ pageSize: 100 });
   expect(services.listModelEndpointCapabilitiesService).toHaveBeenCalledWith({

@@ -279,7 +279,7 @@ export function InferencePage({
     displayName: "Summarize page",
     operation: "chat",
     purpose: "automation",
-    modelRefs: ["openai/gpt-5.6-mini"],
+    modelRefs: ["openai/gpt-5.6-terra"],
     endpointRefs: ["openai"],
     maxOutputTokens: "512",
   });
@@ -339,7 +339,7 @@ export function InferencePage({
     profileKey: "summarize-page",
     credentialKey: "openai-default",
     secretValue: "",
-    modelRef: "openai/gpt-5.6-mini",
+    modelRef: "openai/gpt-5.6-terra",
     operation: "chat",
     purpose: "automation",
   });

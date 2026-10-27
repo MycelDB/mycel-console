@@ -104,49 +104,35 @@ function GenerativeModelsSection({
             )}
           </tr>
         </thead>
-        <tbody className={bodyClassName}>
-          {models.map((model) => {
-            const modelCapabilities = capabilitiesForModel(model, capabilities);
-            return (
-              <tr key={model.modelId}>
-                <ModelIdentityCell model={model} />
-                <td className={cellClassName}>
-                  <ModelCapabilities capabilities={modelCapabilities} />
-                </td>
-                <td className={cellClassName}>{formatModalities(model)}</td>
-                <td className={cellClassName}>
-                  {formatReportedNumber(
-                    resolveLimit(
-                      model,
-                      modelCapabilities,
-                      ["context_tokens", "contextTokens"],
-                      ["max_input_tokens", "maxInputTokens"],
-                    ),
-                  )}
-                </td>
-                <td className={cellClassName}>
-                  {formatReportedNumber(
-                    resolveLimit(
-                      model,
-                      modelCapabilities,
-                      ["max_output_tokens", "maxOutputTokens"],
-                    ),
-                  )}
-                </td>
-                <td className={cellClassName}>
-                  <ConnectorTypes model={model} />
-                </td>
-                {onViewDetails && (
-                  <ActionCell
-                    model={model}
-                    capabilities={modelCapabilities}
-                    onViewDetails={onViewDetails}
-                  />
+        <TypedModelRows
+          models={models}
+          capabilities={capabilities}
+          onViewDetails={onViewDetails}
+          renderTypeCells={(model, modelCapabilities) => (
+            <>
+              <td className={cellClassName}>{formatModalities(model)}</td>
+              <td className={cellClassName}>
+                {formatReportedNumber(
+                  resolveLimit(
+                    model,
+                    modelCapabilities,
+                    ["context_tokens", "contextTokens"],
+                    ["max_input_tokens", "maxInputTokens"],
+                  ),
                 )}
-              </tr>
-            );
-          })}
-        </tbody>
+              </td>
+              <td className={cellClassName}>
+                {formatReportedNumber(
+                  resolveLimit(
+                    model,
+                    modelCapabilities,
+                    ["max_output_tokens", "maxOutputTokens"],
+                  ),
+                )}
+              </td>
+            </>
+          )}
+        />
       </table>
     </ModelSection>
   );
@@ -180,49 +166,35 @@ function EmbeddingModelsSection({
             )}
           </tr>
         </thead>
-        <tbody className={bodyClassName}>
-          {models.map((model) => {
-            const modelCapabilities = capabilitiesForModel(model, capabilities);
-            return (
-              <tr key={model.modelId}>
-                <ModelIdentityCell model={model} />
-                <td className={cellClassName}>
-                  <ModelCapabilities capabilities={modelCapabilities} />
-                </td>
-                <td className={cellClassName}>
-                  {formatReportedNumber(
-                    resolveDimensions(model, modelCapabilities),
-                  )}
-                </td>
-                <td className={`${cellClassName} font-mono text-xs`}>
-                  {model.vectorSpaceKey || "Not reported"}
-                </td>
-                <td className={cellClassName}>
-                  {formatReportedNumber(
-                    resolveLimit(
-                      model,
-                      modelCapabilities,
-                      ["max_input_tokens", "maxInputTokens"],
-                    ),
-                  )}
-                </td>
-                <td className={cellClassName}>
-                  <DimensionBehavior metadata={model.metadata} />
-                </td>
-                <td className={cellClassName}>
-                  <ConnectorTypes model={model} />
-                </td>
-                {onViewDetails && (
-                  <ActionCell
-                    model={model}
-                    capabilities={modelCapabilities}
-                    onViewDetails={onViewDetails}
-                  />
+        <TypedModelRows
+          models={models}
+          capabilities={capabilities}
+          onViewDetails={onViewDetails}
+          renderTypeCells={(model, modelCapabilities) => (
+            <>
+              <td className={cellClassName}>
+                {formatReportedNumber(
+                  resolveDimensions(model, modelCapabilities),
                 )}
-              </tr>
-            );
-          })}
-        </tbody>
+              </td>
+              <td className={`${cellClassName} font-mono text-xs`}>
+                {model.vectorSpaceKey || "Not reported"}
+              </td>
+              <td className={cellClassName}>
+                {formatReportedNumber(
+                  resolveLimit(
+                    model,
+                    modelCapabilities,
+                    ["max_input_tokens", "maxInputTokens"],
+                  ),
+                )}
+              </td>
+              <td className={cellClassName}>
+                <DimensionBehavior metadata={model.metadata} />
+              </td>
+            </>
+          )}
+        />
       </table>
     </ModelSection>
   );
@@ -338,6 +310,46 @@ function ModelIdentityCell({ model }: { model: InferenceModelInfo }) {
         {model.modelName || "Not reported"}
       </div>
     </td>
+  );
+}
+
+function TypedModelRows({
+  models,
+  capabilities,
+  onViewDetails,
+  renderTypeCells,
+}: Required<Pick<ModelTableProps, "models" | "capabilities">> &
+  Pick<ModelTableProps, "onViewDetails"> & {
+    renderTypeCells: (
+      model: InferenceModelInfo,
+      capabilities: ModelEndpointCapabilityInfo[],
+    ) => React.ReactNode;
+  }) {
+  return (
+    <tbody className={bodyClassName}>
+      {models.map((model) => {
+        const modelCapabilities = capabilitiesForModel(model, capabilities);
+        return (
+          <tr key={model.modelId}>
+            <ModelIdentityCell model={model} />
+            <td className={cellClassName}>
+              <ModelCapabilities capabilities={modelCapabilities} />
+            </td>
+            {renderTypeCells(model, modelCapabilities)}
+            <td className={cellClassName}>
+              <ConnectorTypes model={model} />
+            </td>
+            {onViewDetails && (
+              <ActionCell
+                model={model}
+                capabilities={modelCapabilities}
+                onViewDetails={onViewDetails}
+              />
+            )}
+          </tr>
+        );
+      })}
+    </tbody>
   );
 }
 

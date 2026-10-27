@@ -13,7 +13,7 @@ const packagesResponse: ListInferencePackagesResponse = {
     {
       inferencePackageId: "pkg-1",
       name: "standard-openai-chat",
-      version: "2026-06",
+      version: "2026-10",
       source: "standard-openai-chat.json",
       checksum: "abc",
       definitionCounts: { model_endpoints: 1, models: 2 },
@@ -119,6 +119,18 @@ function renderAccessPage(
   return renderPage({ section: "access", ...overrides });
 }
 
+test("uses a supported concrete OpenAI model in the setup wizard", async () => {
+  renderAccessPage();
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Configure OpenAI" }),
+  );
+
+  expect(screen.getByLabelText("Model ref")).toHaveValue(
+    "openai/gpt-5.6-terra",
+  );
+});
+
 test("renders import history as the last tab", async () => {
   renderPage();
 
@@ -140,7 +152,7 @@ test("renders import history as the last tab", async () => {
   await userEvent.click(screen.getByRole("tab", { name: "Import history" }));
 
   expect(await screen.findByText("standard-openai-chat")).toBeInTheDocument();
-  expect(screen.getByText("2026-06")).toBeInTheDocument();
+  expect(screen.getByText("2026-10")).toBeInTheDocument();
   expect(screen.getByText(/Model Endpoints: 1/)).toBeInTheDocument();
 });
 
@@ -597,9 +609,9 @@ test("uses multi-select endpoint and model refs for profile creation", async () 
     models: [
       {
         modelId: "m-chat",
-        key: "openai/gpt-5.6-mini",
+        key: "openai/gpt-5.6-terra",
         kind: "generative",
-        modelName: "gpt-5.6-mini",
+        modelName: "gpt-5.6-terra",
         connectorTypes: ["openai-compatible"],
         dimensions: 0,
         inputModalities: ["text"],
@@ -635,7 +647,7 @@ test("uses multi-select endpoint and model refs for profile creation", async () 
           modelEndpointId: "ep1",
           modelEndpointKey: "openai",
           modelId: "m-chat",
-          modelKey: "openai/gpt-5.6-mini",
+          modelKey: "openai/gpt-5.6-terra",
           operation: "chat",
           enabled: true,
         },
@@ -662,7 +674,7 @@ test("uses multi-select endpoint and model refs for profile creation", async () 
     "embeddings",
   );
 
-  expect(screen.queryByText("openai/gpt-5.6-mini")).not.toBeInTheDocument();
+  expect(screen.queryByText("openai/gpt-5.6-terra")).not.toBeInTheDocument();
   expect(
     await screen.findByText("openai/text-embedding-3-small"),
   ).toBeInTheDocument();
@@ -920,7 +932,7 @@ test("imports package JSON and shows summary", async () => {
     target: {
       value: JSON.stringify({
         name: "standard-openai-chat",
-        version: "2026-06",
+        version: "2026-10",
         model_endpoints: [{ key: "openai", enabled: true }],
       }),
     },
@@ -933,7 +945,7 @@ test("imports package JSON and shows summary", async () => {
     expect(services.applyInferencePackageService).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "standard-openai-chat",
-        version: "2026-06",
+        version: "2026-10",
       }),
     ),
   );

@@ -13,6 +13,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Changed
 
+- Updated OpenAI profile and setup-wizard defaults to the concrete supported `openai/gpt-5.6-terra` catalog key instead of the removed `openai/gpt-5.6-mini` example (#261 in `mycel`).
 - Search now provides separate lexical-syntax and semantic-natural-language inputs in hybrid mode, places text only in the corresponding channel options, and carries bound continuation tokens without populating the removed top-level fallback (#64).
 
 ### Compatibility

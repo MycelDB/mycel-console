@@ -8,6 +8,7 @@ use mycel_sdk::proto::admin::v1::{
 };
 use tauri::State;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -158,18 +159,17 @@ pub async fn admin_analyze_semantic_dirty_work(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response: AnalyzeSemanticDirtyWorkResponse = session
-        ._client
-        .semantic_maintenance
-        .analyze_semantic_dirty_work(tonic::Request::new(AnalyzeSemanticDirtyWorkRequest {
+    let response: AnalyzeSemanticDirtyWorkResponse = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.analyze_semantic_dirty_work(AnalyzeSemanticDirtyWorkRequest {
             space_id,
             semantic_rule_id: input.semantic_rule_id.unwrap_or_default(),
             embedding_binding_key: input.embedding_binding_key.unwrap_or_default(),
             limit: input.limit.unwrap_or(100),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(AnalyzeSemanticDirtyWorkResponseInfo {
         processed_events: response.processed_events,
         enqueued_items: response.enqueued_items,
@@ -189,16 +189,15 @@ pub async fn admin_process_semantic_dirty_work(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response: ProcessSemanticDirtyWorkResponse = session
-        ._client
-        .semantic_maintenance
-        .process_semantic_dirty_work(tonic::Request::new(ProcessSemanticDirtyWorkRequest {
+    let response: ProcessSemanticDirtyWorkResponse = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.process_semantic_dirty_work(ProcessSemanticDirtyWorkRequest {
             space_id,
             limit: input.limit.unwrap_or(100),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(ProcessSemanticDirtyWorkResponseInfo {
         processed_items: response.processed_items,
         completed_items: response.completed_items,
@@ -223,10 +222,9 @@ pub async fn admin_backfill_semantic_rule(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response: BackfillSemanticRuleResponse = session
-        ._client
-        .semantic_maintenance
-        .backfill_semantic_rule(tonic::Request::new(BackfillSemanticRuleRequest {
+    let response: BackfillSemanticRuleResponse = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.backfill_semantic_rule(BackfillSemanticRuleRequest {
             space_id,
             semantic_rule_id,
             embedding_binding_key,
@@ -234,10 +232,10 @@ pub async fn admin_backfill_semantic_rule(
             force: input.force,
             limit: input.limit.unwrap_or(100),
             continue_on_error: input.continue_on_error,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(BackfillSemanticRuleResponseInfo {
         semantic_rule_id: response.semantic_rule_id,
         embedding_binding_key: response.embedding_binding_key,
@@ -262,16 +260,15 @@ pub async fn admin_retry_semantic_maintenance_work(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic_maintenance
-        .retry_semantic_maintenance_work(tonic::Request::new(RetrySemanticMaintenanceWorkRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.retry_semantic_maintenance_work(RetrySemanticMaintenanceWorkRequest {
             space_id,
             work_item_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     response
         .item
         .map(work_item_info)
@@ -292,18 +289,17 @@ pub async fn admin_cancel_semantic_maintenance_work(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic_maintenance
-        .cancel_semantic_maintenance_work(tonic::Request::new(
+    let response = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.cancel_semantic_maintenance_work(
             CancelSemanticMaintenanceWorkRequest {
                 space_id,
                 work_item_id,
             },
-        ))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        )
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     response
         .item
         .map(work_item_info)
@@ -324,15 +320,13 @@ pub async fn admin_get_semantic_maintenance_status(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic_maintenance
-        .get_semantic_maintenance_status(tonic::Request::new(GetSemanticMaintenanceStatusRequest {
-            space_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+    let response = authenticated_rpc!(
+        session._client,
+        semantic_maintenance
+            .get_semantic_maintenance_status(GetSemanticMaintenanceStatusRequest { space_id })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(status_info(response))
 }
@@ -351,19 +345,18 @@ pub async fn admin_list_semantic_maintenance_work(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .semantic_maintenance
-        .list_semantic_maintenance_work(tonic::Request::new(ListSemanticMaintenanceWorkRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.list_semantic_maintenance_work(ListSemanticMaintenanceWorkRequest {
             space_id,
             status: input.status.unwrap_or_default(),
             semantic_rule_id: input.semantic_rule_id.unwrap_or_default(),
             embedding_binding_key: input.embedding_binding_key.unwrap_or_default(),
             limit: input.limit.unwrap_or(100),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(ListSemanticMaintenanceWorkResponseInfo {
         items: response.items.into_iter().map(work_item_info).collect(),

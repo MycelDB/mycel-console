@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Button,
   Input,
@@ -6,12 +8,30 @@ import {
   themeClasses,
 } from "../../../../components/typography";
 import type { DomainInfo } from "../../../../types/domains";
-import type {
-  SemanticRuleValidationDiagnostic,
-  ValidateSemanticRuleResponse,
+import type { VectorStoreInfo } from "../../../../types/inference";
+import {
+  semanticTriggerEvents,
+  type SemanticRuleValidationDiagnostic,
+  type ValidateSemanticRuleResponse,
 } from "../../../../types/semantic";
 import type { SpaceInfo } from "../../../../types/spaces";
-import type { DraftMode, ProfileOption, RuleDraft } from "../model/pageTypes";
+import type {
+  DraftMode,
+  ProfileOption,
+  RuleDraft,
+  VectorStoreCatalogState,
+} from "../model/pageTypes";
+
+const triggerEventLabels: Record<string, string> = {
+  changed: "Any event",
+  "node.created": "Node created",
+  "node.updated": "Node updated",
+  "node.deleted": "Node deleted",
+  "edge.changed": "Edge changed",
+  "edge.created": "Edge created",
+  "edge.updated": "Edge updated",
+  "edge.deleted": "Edge deleted",
+};
 
 export function RuleEditor({
   mode,
@@ -20,6 +40,8 @@ export function RuleEditor({
   spaces,
   domains,
   profiles,
+  vectorStores,
+  vectorStoreCatalog,
   validation,
   loading,
   onValidate,
@@ -32,6 +54,8 @@ export function RuleEditor({
   spaces: SpaceInfo[];
   domains: DomainInfo[];
   profiles: ProfileOption[];
+  vectorStores: VectorStoreInfo[];
+  vectorStoreCatalog: VectorStoreCatalogState;
   validation: ValidateSemanticRuleResponse | null;
   loading: boolean;
   onValidate: () => void;
@@ -40,6 +64,23 @@ export function RuleEditor({
 }) {
   const update = (key: keyof RuleDraft, value: string | boolean) =>
     setDraft({ ...draft, [key]: value });
+  const toggleTriggerEvent = (eventName: string, checked: boolean) => {
+    const next = checked
+      ? eventName === "changed"
+        ? ["changed"]
+        : [
+            ...new Set([
+              ...draft.triggerEvents.filter((event) => event !== "changed"),
+              eventName,
+            ]),
+          ]
+      : draft.triggerEvents.filter((event) => event !== eventName);
+    setDraft({
+      ...draft,
+      triggerEvents: next.length > 0 ? next : ["changed"],
+      triggerEventProblem: "",
+    });
+  };
   const updateSelectorMode = (value: string) =>
     setDraft({
       ...draft,
@@ -131,11 +172,68 @@ export function RuleEditor({
           value={draft.labels}
           onChange={(value) => update("labels", value)}
         />
-        <Field
-          label="Trigger events"
-          value={draft.triggerEvents}
-          onChange={(value) => update("triggerEvents", value)}
-        />
+        <fieldset
+          className={`rounded-md border border-slate-300 p-3 text-sm dark:border-slate-700 ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
+        >
+          <legend className="px-1 font-medium">Trigger events</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {semanticTriggerEvents.map((eventName) => (
+              <label key={eventName} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={draft.triggerEvents.includes(eventName)}
+                  onChange={(event) =>
+                    toggleTriggerEvent(eventName, event.target.checked)
+                  }
+                />
+                {triggerEventLabels[eventName]}
+              </label>
+            ))}
+            {draft.triggerEvents
+              .filter(
+                (eventName) =>
+                  !(semanticTriggerEvents as readonly string[]).includes(
+                    eventName,
+                  ),
+              )
+              .map((eventName) => (
+                <label
+                  key={eventName}
+                  className="flex items-center gap-2 text-amber-700 dark:text-amber-300"
+                >
+                  <input
+                    type="checkbox"
+                    checked
+                    onChange={() => toggleTriggerEvent(eventName, false)}
+                  />
+                  Unsupported: {eventName}
+                </label>
+              ))}
+          </div>
+          <Text intent="muted" size="xs" className="mt-2">
+            Labels narrow matching changes. Dirty cooldown coalesces rapid
+            changes before semantic maintenance runs.
+          </Text>
+          {draft.triggerEventProblem && (
+            <div
+              role="alert"
+              className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300"
+            >
+              {draft.triggerEventProblem}
+              {draft.triggerEventProblem.startsWith("Typed and legacy") && (
+                <button
+                  type="button"
+                  className="ml-2 underline underline-offset-2"
+                  onClick={() =>
+                    setDraft({ ...draft, triggerEventProblem: "" })
+                  }
+                >
+                  Use typed values
+                </button>
+              )}
+            </div>
+          )}
+        </fieldset>
         <Field
           label="Dirty cooldown"
           value={draft.dirtyCooldown}
@@ -217,10 +315,12 @@ export function RuleEditor({
               : "Select profile"
           }
         />
-        <Field
-          label="Vector store"
-          value={draft.vectorStore}
-          onChange={(value) => update("vectorStore", value)}
+        <VectorStoreSelector
+          mode={mode}
+          draft={draft}
+          setDraft={setDraft}
+          stores={vectorStores}
+          catalog={vectorStoreCatalog}
         />
         <Field
           label="Physical index"
@@ -250,13 +350,158 @@ export function RuleEditor({
       </div>
       {validation && <ValidationPanel validation={validation} />}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={loading} onClick={onValidate}>
+        <Button
+          variant="secondary"
+          disabled={
+            loading ||
+            Boolean(draft.triggerEventProblem) ||
+            (mode === "create" && !draft.vectorStoreId)
+          }
+          onClick={onValidate}
+        >
           Validate
         </Button>
-        <Button disabled={loading} onClick={onSave}>
+        <Button
+          disabled={
+            loading ||
+            Boolean(draft.triggerEventProblem) ||
+            (mode === "create" && !draft.vectorStoreId)
+          }
+          onClick={onSave}
+        >
           {mode === "create" ? "Create rule" : "Save rule"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function VectorStoreSelector({
+  mode,
+  draft,
+  setDraft,
+  stores,
+  catalog,
+}: {
+  mode: DraftMode;
+  draft: RuleDraft;
+  setDraft: (draft: RuleDraft) => void;
+  stores: VectorStoreInfo[];
+  catalog: VectorStoreCatalogState;
+}) {
+  const [filter, setFilter] = useState("");
+  const selected = stores.find(
+    (store) => store.vectorStoreId === draft.vectorStoreId,
+  );
+  const normalizedNameCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const store of stores) {
+      const name = store.name.trim().toLocaleLowerCase();
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return counts;
+  }, [stores]);
+  const hasLegacyNameCollision = [...normalizedNameCounts.values()].some(
+    (count) => count > 1,
+  );
+  const query = filter.trim().toLocaleLowerCase();
+  const visibleStores = stores.filter(
+    (store) =>
+      !query ||
+      store.name.toLocaleLowerCase().includes(query) ||
+      store.key.toLocaleLowerCase().includes(query) ||
+      store.vectorStoreId.toLocaleLowerCase().includes(query),
+  );
+  if (selected && !visibleStores.includes(selected)) visibleStores.unshift(selected);
+  const options = visibleStores.map((store) => {
+    const duplicateName =
+      (normalizedNameCounts.get(store.name.trim().toLocaleLowerCase()) ?? 0) > 1;
+    const baseLabel = store.name.trim() || "Unnamed vector store";
+    return {
+      value: store.vectorStoreId,
+      label: duplicateName
+        ? `${baseLabel} — ${store.key || "blank key"} · ${store.vectorStoreId}`
+        : baseLabel,
+      hint: store.enabled ? undefined : "Disabled",
+      disabled: !store.enabled && store.vectorStoreId !== draft.vectorStoreId,
+    };
+  });
+  if (draft.vectorStoreId && !selected) {
+    options.unshift({
+      value: draft.vectorStoreId,
+      label: `Unavailable vector store — ${draft.vectorStoreId}`,
+      hint: "Preserved existing reference",
+      disabled: false,
+    });
+  }
+
+  const statusMessage =
+    catalog.kind === "loading"
+      ? "Loading vector-store catalog…"
+      : catalog.message;
+  const warning = draft.vectorStoreLegacyRef
+    ? `This rule uses the legacy vector-store reference “${draft.vectorStoreLegacyRef}”. It will be preserved until you explicitly select a UUID-backed store.`
+    : draft.vectorStoreId && !selected && catalog.kind !== "loading"
+      ? "The referenced vector store is unavailable, unauthorized, deleted, or not returned by this daemon. The UUID will be preserved."
+      : selected && !selected.enabled
+        ? "The selected vector store is disabled. It remains preserved for this rule but cannot be selected for a new binding."
+        : hasLegacyNameCollision
+          ? "Legacy duplicate display names were detected. Options are disambiguated with key and UUID; UUID remains authoritative."
+          : "";
+
+  return (
+    <div className="space-y-2">
+      {stores.length > 8 && (
+        <Field label="Search vector stores" value={filter} onChange={setFilter} />
+      )}
+      <Select
+        label="Vector store"
+        value={draft.vectorStoreId}
+        onChange={(value) =>
+          setDraft({
+            ...draft,
+            vectorStoreId: value,
+            vectorStoreLegacyRef: value ? "" : draft.vectorStoreLegacyRef,
+          })
+        }
+        options={options}
+        placeholder={
+          catalog.kind === "loading"
+            ? "Loading vector stores…"
+            : catalog.kind === "ready"
+              ? "Select vector store"
+              : catalog.kind === "empty"
+                ? "No vector stores available"
+                : "Vector-store catalog unavailable"
+        }
+        disabled={catalog.kind !== "ready" || options.length === 0}
+      />
+      {statusMessage && catalog.kind !== "ready" && (
+        <Text intent="muted" size="xs">
+          {statusMessage}
+        </Text>
+      )}
+      {warning && (
+        <div
+          role="alert"
+          className="text-xs font-medium text-amber-700 dark:text-amber-300"
+        >
+          {warning}
+        </div>
+      )}
+      {(catalog.kind === "empty" || catalog.kind === "ready") && (
+        <Link
+          to="/intelligence/vector-stores"
+          className="text-xs font-medium text-sky-700 underline underline-offset-2 dark:text-sky-300"
+        >
+          Manage vector stores
+        </Link>
+      )}
+      {mode === "create" && !draft.vectorStoreId && (
+        <Text intent="muted" size="xs">
+          Select an enabled UUID-backed vector store before validating or creating this rule.
+        </Text>
+      )}
     </div>
   );
 }

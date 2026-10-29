@@ -1,6 +1,8 @@
-import type {
-  SemanticGenerationRule,
-  SemanticGenerationRuleSummary,
+import {
+  semanticTriggerEvents,
+  type SemanticGenerationRule,
+  type SemanticGenerationRuleSummary,
+  type SemanticTriggerEvent,
 } from "../../../../types/semantic";
 import type { RuleDraft } from "./pageTypes";
 
@@ -10,8 +12,42 @@ export function csv(value: string) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+const triggerEventSet = new Set<string>(semanticTriggerEvents);
+
+function canonicalTriggerEvents(values: string[]): SemanticTriggerEvent[] {
+  const unique = new Set(values);
+  return semanticTriggerEvents.filter((event) => unique.has(event));
+}
+
+export function resolveTriggerEvents(
+  trigger: SemanticGenerationRule["trigger"],
+): { events: string[]; problem: string } {
+  const events = trigger?.events || [];
+  const unsupported = events.filter((event) => !triggerEventSet.has(event));
+  const selected = events.length > 0 ? [...events] : ["changed"];
+  if (unsupported.length > 0) {
+    return {
+      events: selected,
+      problem: `Unsupported trigger event values: ${unsupported.join(", ")}`,
+    };
+  }
+  return { events: canonicalTriggerEvents(selected), problem: "" };
+}
+
 export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
+  const unsupported = draft.triggerEvents.filter(
+    (event) => !triggerEventSet.has(event),
+  );
+  if (draft.triggerEventProblem || unsupported.length > 0) {
+    throw new Error(
+      draft.triggerEventProblem ||
+        `Unsupported trigger event values: ${unsupported.join(", ")}`,
+    );
+  }
   const labels = csv(draft.labels);
+  const triggerEvents: SemanticTriggerEvent[] = draft.triggerEvents.length
+    ? canonicalTriggerEvents(draft.triggerEvents)
+    : ["changed"];
   const selectorMode = draft.selectorMode || "node_type";
   const maxResults = Number(draft.maxResults) || 0;
   const selector =
@@ -50,9 +86,7 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
     description: draft.description,
     enabled: draft.enabled,
     trigger: {
-      events: csv(draft.triggerEvents).length
-        ? csv(draft.triggerEvents)
-        : ["changed"],
+      events: triggerEvents,
       labels,
       debounce: draft.dirtyCooldown,
     },
@@ -71,9 +105,11 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
         purpose: draft.purpose,
         intelligenceProfile: draft.intelligenceProfile,
         intelligenceProfileId: "",
-        vectorStore: draft.vectorStore,
-        vectorStoreId: "",
+        vectorStore: draft.vectorStoreId ? "" : draft.vectorStoreLegacyRef,
+        vectorStoreId: draft.vectorStoreId,
         enabled: true,
+        metadata: draft.bindingMetadata,
+        providerBudget: draft.providerBudget,
       },
     ],
     maintenance: {
@@ -89,6 +125,7 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
 }
 export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
   const binding = rule.embeddings[0];
+  const trigger = resolveTriggerEvents(rule.trigger);
   return {
     semanticRuleId: rule.semanticRuleId || "",
     spaceId: rule.spaceId,
@@ -98,7 +135,8 @@ export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
     description: rule.description,
     enabled: rule.enabled,
     labels: (rule.selector?.labels || rule.trigger?.labels || []).join(","),
-    triggerEvents: (rule.trigger?.events || ["changed"]).join(","),
+    triggerEvents: trigger.events,
+    triggerEventProblem: trigger.problem,
     dirtyCooldown:
       rule.maintenance?.dirtyCooldown || rule.trigger?.debounce || "30s",
     selectorMode: rule.selector?.mode || "node_type",
@@ -114,7 +152,10 @@ export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
     purpose: binding?.purpose || "search",
     intelligenceProfile:
       binding?.intelligenceProfile || binding?.intelligenceProfileId || "",
-    vectorStore: binding?.vectorStore || binding?.vectorStoreId || "mycel-file",
+    vectorStoreId: binding?.vectorStoreId || "",
+    vectorStoreLegacyRef: binding?.vectorStore || "",
+    bindingMetadata: binding?.metadata,
+    providerBudget: binding?.providerBudget,
     searchable: rule.storage?.searchable ?? true,
     physicalIndex: rule.storage?.physicalIndex || "exact",
   };

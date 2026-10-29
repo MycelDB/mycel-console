@@ -1,7 +1,7 @@
 use mycel_sdk::proto::admin::v1::{DeleteDomainSchemaRequest, GetDomainSchemaRequest};
 use tauri::State;
-use tonic::Request;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -38,15 +38,14 @@ pub async fn admin_get_domain_schema(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    let response = session
-        ._client
-        .schema
-        .get_domain_schema(Request::new(GetDomainSchemaRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        schema.get_domain_schema(GetDomainSchemaRequest {
             domain_id: domain_id.clone(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
 
     Ok(DomainSchemaInfo {
         domain_id,
@@ -69,11 +68,10 @@ pub async fn admin_delete_domain_schema(
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
 
-    session
-        ._client
-        .schema
-        .delete_domain_schema(Request::new(DeleteDomainSchemaRequest { domain_id }))
-        .await
-        .map_err(|err| err.to_string())?;
+    authenticated_rpc!(
+        session._client,
+        schema.delete_domain_schema(DeleteDomainSchemaRequest { domain_id })
+    )
+    .map_err(|err| err.to_string())?;
     Ok(())
 }

@@ -20,7 +20,30 @@ test("prefills stored login hints without a password", () => {
 
   expect(screen.getByLabelText(/cluster grpc address/i)).toHaveValue("10.0.0.5:9091");
   expect(screen.getByLabelText(/principal username/i)).toHaveValue("operator");
-  expect(screen.getByLabelText(/password/i)).toHaveValue("");
+  expect(screen.getByLabelText(/^password$/i)).toHaveValue("");
+});
+
+test("shows and hides the entered password without changing its value or submitting", async () => {
+  const onSubmit = jest.fn().mockResolvedValue(undefined);
+  render(<LoginForm {...defaultProps} onSubmit={onSubmit} />);
+
+  const password = screen.getByLabelText(/^password$/i);
+  expect(password).toHaveAttribute("type", "password");
+  expect(screen.getByRole("button", { name: "Show" })).toHaveAttribute("aria-pressed", "false");
+
+  await userEvent.type(password, "secret");
+  await userEvent.click(screen.getByRole("button", { name: "Show" }));
+
+  expect(password).toHaveAttribute("type", "text");
+  expect(password).toHaveValue("secret");
+  expect(screen.getByRole("button", { name: "Hide" })).toHaveAttribute("aria-pressed", "true");
+  expect(onSubmit).not.toHaveBeenCalled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Hide" }));
+
+  expect(password).toHaveAttribute("type", "password");
+  expect(password).toHaveValue("secret");
+  expect(onSubmit).not.toHaveBeenCalled();
 });
 
 test("submits cluster address, username, and password", async () => {
@@ -30,7 +53,7 @@ test("submits cluster address, username, and password", async () => {
   await userEvent.clear(screen.getByLabelText(/cluster grpc address/i));
   await userEvent.type(screen.getByLabelText(/cluster grpc address/i), "10.0.0.5:9091");
   await userEvent.type(screen.getByLabelText(/principal username/i), "operator");
-  await userEvent.type(screen.getByLabelText(/password/i), "secret");
+  await userEvent.type(screen.getByLabelText(/^password$/i), "secret");
   await userEvent.click(screen.getByRole("button", { name: /login/i }));
 
   expect(onSubmit).toHaveBeenCalledWith({
@@ -90,6 +113,7 @@ test("disables fields and submit button while loading", () => {
 
   expect(screen.getByLabelText(/cluster grpc address/i)).toBeDisabled();
   expect(screen.getByLabelText(/principal username/i)).toBeDisabled();
-  expect(screen.getByLabelText(/password/i)).toBeDisabled();
+  expect(screen.getByLabelText(/^password$/i)).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Show" })).toBeDisabled();
   expect(screen.getByRole("button", { name: /logging in/i })).toBeDisabled();
 });

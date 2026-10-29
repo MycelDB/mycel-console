@@ -11,6 +11,7 @@ use prost_types::{value::Kind, ListValue, Struct, Value as ProstValue};
 use serde_json::{json, Map, Value};
 use tauri::State;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::{AppState, ClientQuerySession, ClientQuerySessionInfo};
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -184,21 +185,21 @@ async fn execute_gql_with_client(
     client: &mut mycel_sdk::Client,
     input: ExecuteGqlInput,
 ) -> Result<ExecuteGqlResponseInfo, String> {
-    let graph_session = client
-        .session
-        .open_session(tonic::Request::new(OpenSessionRequest {
+    let graph_session = authenticated_rpc!(
+        client,
+        session.open_session(OpenSessionRequest {
             space_id: input.space_id,
             domain_id: input.domain_id,
             requested_idle_timeout: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .session
-        .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = client
-        .transaction
-        .begin_transaction(tonic::Request::new(BeginTransactionRequest {
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .session
+    .ok_or_else(|| "OpenSession returned no session".to_string())?;
+    let tx = authenticated_rpc!(
+        client,
+        transaction.begin_transaction(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
             mode: if input.read_write {
                 TransactionMode::ReadWrite as i32
@@ -206,51 +207,51 @@ async fn execute_gql_with_client(
                 TransactionMode::ReadOnly as i32
             },
             operation_id: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .transaction
-        .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .transaction
+    .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
 
-    let response = client
-        .query
-        .execute_gql(tonic::Request::new(ExecuteGqlRequest {
+    let response = authenticated_rpc!(
+        client,
+        query.execute_gql(ExecuteGqlRequest {
             transaction_id: tx.transaction_id.clone(),
             query: input.query,
             params: Default::default(),
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
             read_options: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     if input.read_write {
-        client
-            .transaction
-            .commit_transaction(tonic::Request::new(CommitTransactionRequest {
+        authenticated_rpc!(
+            client,
+            transaction.commit_transaction(CommitTransactionRequest {
                 transaction_id: tx.transaction_id,
                 idempotency_key: String::new(),
                 space_id: String::new(),
                 domain_id: String::new(),
-            }))
-            .await
-            .map_err(|err| err.to_string())?;
+            })
+        )
+        .map_err(|err| err.to_string())?;
     } else {
-        let _ = client
-            .transaction
-            .close_transaction(tonic::Request::new(CloseTransactionRequest {
+        let _ = authenticated_rpc!(
+            client,
+            transaction.close_transaction(CloseTransactionRequest {
                 transaction_id: tx.transaction_id,
-            }))
-            .await;
+            })
+        );
     }
-    let _ = client
-        .session
-        .close_session(tonic::Request::new(CloseSessionRequest {
+    let _ = authenticated_rpc!(
+        client,
+        session.close_session(CloseSessionRequest {
             session_id: graph_session.session_id,
-        }))
-        .await;
+        })
+    );
 
     Ok(ExecuteGqlResponseInfo {
         result: response
@@ -290,21 +291,21 @@ async fn execute_gql_script_with_client(
     client: &mut mycel_sdk::Client,
     input: ExecuteGqlScriptInput,
 ) -> Result<ExecuteGqlScriptResponseInfo, String> {
-    let graph_session = client
-        .session
-        .open_session(tonic::Request::new(OpenSessionRequest {
+    let graph_session = authenticated_rpc!(
+        client,
+        session.open_session(OpenSessionRequest {
             space_id: input.space_id,
             domain_id: input.domain_id,
             requested_idle_timeout: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .session
-        .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = client
-        .transaction
-        .begin_transaction(tonic::Request::new(BeginTransactionRequest {
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .session
+    .ok_or_else(|| "OpenSession returned no session".to_string())?;
+    let tx = authenticated_rpc!(
+        client,
+        transaction.begin_transaction(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
             mode: if input.read_write {
                 TransactionMode::ReadWrite as i32
@@ -312,55 +313,55 @@ async fn execute_gql_script_with_client(
                 TransactionMode::ReadOnly as i32
             },
             operation_id: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .transaction
-        .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
-    let response = client
-        .query
-        .execute_gql_script(tonic::Request::new(ExecuteGqlScriptRequest {
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .transaction
+    .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
+    let response = authenticated_rpc!(
+        client,
+        query.execute_gql_script(ExecuteGqlScriptRequest {
             transaction_id: tx.transaction_id.clone(),
             script: input.script,
             params: Default::default(),
             stop_on_error: input.stop_on_error,
             page_size: input.page_size.unwrap_or(100),
             read_options: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     if input.read_write
         && response
             .statements
             .iter()
             .all(|statement| statement.success)
     {
-        client
-            .transaction
-            .commit_transaction(tonic::Request::new(CommitTransactionRequest {
+        authenticated_rpc!(
+            client,
+            transaction.commit_transaction(CommitTransactionRequest {
                 transaction_id: tx.transaction_id,
                 idempotency_key: String::new(),
                 space_id: String::new(),
                 domain_id: String::new(),
-            }))
-            .await
-            .map_err(|err| err.to_string())?;
+            })
+        )
+        .map_err(|err| err.to_string())?;
     } else {
-        let _ = client
-            .transaction
-            .close_transaction(tonic::Request::new(CloseTransactionRequest {
+        let _ = authenticated_rpc!(
+            client,
+            transaction.close_transaction(CloseTransactionRequest {
                 transaction_id: tx.transaction_id,
-            }))
-            .await;
+            })
+        );
     }
-    let _ = client
-        .session
-        .close_session(tonic::Request::new(CloseSessionRequest {
+    let _ = authenticated_rpc!(
+        client,
+        session.close_session(CloseSessionRequest {
             session_id: graph_session.session_id,
-        }))
-        .await;
+        })
+    );
     Ok(ExecuteGqlScriptResponseInfo {
         statements: Value::Array(
             response
@@ -436,41 +437,41 @@ async fn create_blob_attachment_with_client(
     client: &mut mycel_sdk::Client,
     input: CreateBlobAttachmentInput,
 ) -> Result<CreateBlobAttachmentResponseInfo, String> {
-    let graph_session = client
-        .session
-        .open_session(tonic::Request::new(OpenSessionRequest {
+    let graph_session = authenticated_rpc!(
+        client,
+        session.open_session(OpenSessionRequest {
             space_id: input.space_id.trim().to_string(),
             domain_id: input.domain_id.trim().to_string(),
             requested_idle_timeout: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .session
-        .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = client
-        .transaction
-        .begin_transaction(tonic::Request::new(BeginTransactionRequest {
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .session
+    .ok_or_else(|| "OpenSession returned no session".to_string())?;
+    let tx = authenticated_rpc!(
+        client,
+        transaction.begin_transaction(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
             mode: TransactionMode::ReadWrite as i32,
             operation_id: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .transaction
-        .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .transaction
+    .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
 
     let result = async {
-        client
-            .graph
-            .get_node(tonic::Request::new(GetNodeRequest {
+        authenticated_rpc!(
+            client,
+            graph.get_node(GetNodeRequest {
                 transaction_id: tx.transaction_id.clone(),
                 node_id: input.parent_node_id.trim().to_string(),
                 read_options: None,
-            }))
-            .await
-            .map_err(|err| err.to_string())?;
+            })
+        )
+        .map_err(|err| err.to_string())?;
 
         let labels = attachment_labels(input.labels);
         let mut payload = Map::new();
@@ -480,7 +481,7 @@ async fn create_blob_attachment_with_client(
         );
         payload.insert("attachment_kind".to_string(), json!("file"));
 
-        let stream = tokio_stream::iter(vec![
+        let request_parts = vec![
             CreateBlobNodeRequest {
                 part: Some(create_blob_node_request::Part::Metadata(
                     CreateBlobNodeMetadata {
@@ -498,10 +499,12 @@ async fn create_blob_attachment_with_client(
             CreateBlobNodeRequest {
                 part: Some(create_blob_node_request::Part::Chunk(input.content)),
             },
-        ]);
+        ];
         let blob_response = client
-            .graph
-            .create_blob_node(tonic::Request::new(stream))
+            .authenticated_call(|client| {
+                let stream = tokio_stream::iter(request_parts.clone());
+                Box::pin(client.graph.create_blob_node(tonic::Request::new(stream)))
+            })
             .await
             .map_err(|err| err.to_string())?
             .into_inner();
@@ -511,9 +514,9 @@ async fn create_blob_attachment_with_client(
         let blob = blob_response
             .blob
             .ok_or_else(|| "CreateBlobNode returned no blob".to_string())?;
-        let edge_response = client
-            .graph
-            .create_edge(tonic::Request::new(CreateEdgeRequest {
+        let edge_response = authenticated_rpc!(
+            client,
+            graph.create_edge(CreateEdgeRequest {
                 transaction_id: tx.transaction_id.clone(),
                 edge: Some(EdgeCreate {
                     edge_id: None,
@@ -530,23 +533,23 @@ async fn create_blob_attachment_with_client(
                     payload: None,
                     meta: None,
                 }),
-            }))
-            .await
-            .map_err(|err| err.to_string())?
-            .into_inner()
-            .edge
-            .ok_or_else(|| "CreateEdge returned no edge".to_string())?;
+            })
+        )
+        .map_err(|err| err.to_string())?
+        .into_inner()
+        .edge
+        .ok_or_else(|| "CreateEdge returned no edge".to_string())?;
 
-        client
-            .transaction
-            .commit_transaction(tonic::Request::new(CommitTransactionRequest {
+        authenticated_rpc!(
+            client,
+            transaction.commit_transaction(CommitTransactionRequest {
                 transaction_id: tx.transaction_id.clone(),
                 idempotency_key: String::new(),
                 space_id: String::new(),
                 domain_id: String::new(),
-            }))
-            .await
-            .map_err(|err| err.to_string())?;
+            })
+        )
+        .map_err(|err| err.to_string())?;
 
         Ok(CreateBlobAttachmentResponseInfo {
             node: node_json(&node),
@@ -557,19 +560,19 @@ async fn create_blob_attachment_with_client(
     .await;
 
     if result.is_err() {
-        let _ = client
-            .transaction
-            .close_transaction(tonic::Request::new(CloseTransactionRequest {
+        let _ = authenticated_rpc!(
+            client,
+            transaction.close_transaction(CloseTransactionRequest {
                 transaction_id: tx.transaction_id,
-            }))
-            .await;
+            })
+        );
     }
-    let _ = client
-        .session
-        .close_session(tonic::Request::new(CloseSessionRequest {
+    let _ = authenticated_rpc!(
+        client,
+        session.close_session(CloseSessionRequest {
             session_id: graph_session.session_id,
-        }))
-        .await;
+        })
+    );
 
     result
 }
@@ -579,55 +582,55 @@ async fn execute_graph_query_with_client(
     input: ExecuteGraphQueryInput,
     query: GraphQuery,
 ) -> Result<ExecuteGraphQueryResponseInfo, String> {
-    let graph_session = client
-        .session
-        .open_session(tonic::Request::new(OpenSessionRequest {
+    let graph_session = authenticated_rpc!(
+        client,
+        session.open_session(OpenSessionRequest {
             space_id: input.space_id,
             domain_id: input.domain_id,
             requested_idle_timeout: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .session
-        .ok_or_else(|| "OpenSession returned no session".to_string())?;
-    let tx = client
-        .transaction
-        .begin_transaction(tonic::Request::new(BeginTransactionRequest {
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .session
+    .ok_or_else(|| "OpenSession returned no session".to_string())?;
+    let tx = authenticated_rpc!(
+        client,
+        transaction.begin_transaction(BeginTransactionRequest {
             session_id: graph_session.session_id.clone(),
             mode: TransactionMode::ReadOnly as i32,
             operation_id: String::new(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner()
-        .transaction
-        .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner()
+    .transaction
+    .ok_or_else(|| "BeginTransaction returned no transaction".to_string())?;
 
-    let result = client
-        .query
-        .execute_query(tonic::Request::new(ExecuteQueryRequest {
+    let result = authenticated_rpc!(
+        client,
+        query.execute_query(ExecuteQueryRequest {
             transaction_id: tx.transaction_id.clone(),
             query: Some(query),
             page_size: input.page_size.unwrap_or(100),
             page_token: input.page_token.unwrap_or_default(),
             read_options: None,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
-    let _ = client
-        .transaction
-        .close_transaction(tonic::Request::new(CloseTransactionRequest {
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
+    let _ = authenticated_rpc!(
+        client,
+        transaction.close_transaction(CloseTransactionRequest {
             transaction_id: tx.transaction_id,
-        }))
-        .await;
-    let _ = client
-        .session
-        .close_session(tonic::Request::new(CloseSessionRequest {
+        })
+    );
+    let _ = authenticated_rpc!(
+        client,
+        session.close_session(CloseSessionRequest {
             session_id: graph_session.session_id,
-        }))
-        .await;
+        })
+    );
 
     Ok(ExecuteGraphQueryResponseInfo {
         rows: Value::String(format!("{:#?}", result.rows)),

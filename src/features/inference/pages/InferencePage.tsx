@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Button,
@@ -90,61 +90,38 @@ import type {
   GrantDraft,
   InferenceSection,
   InferenceTab,
+  ModelCatalogTab,
   PolicyDraft,
   ProfileDraft,
 } from "../model/pageTypes";
-import { inferenceOperationOptions } from "../model/pageTypes";
+import {
+  generativeInferenceOperationOptions,
+  inferenceOperationOptions,
+  isModelCatalogKind,
+  modelCatalogKind,
+  modelCatalogTab,
+} from "../model/pageTypes";
 
-const inferenceTabs: Array<{
+const accessTabs: Array<{
   id: InferenceTab;
   label: string;
-  description: string;
 }> = [
-  {
-    id: "endpoints",
-    label: "Endpoints",
-    description: "Reachable model service endpoints.",
-  },
-  {
-    id: "models",
-    label: "Models",
-    description: "Inference models and their endpoint operations.",
-  },
-  {
-    id: "credentials",
-    label: "Credentials",
-    description:
-      "Credential records and secret references. Secret values are never displayed.",
-  },
-  {
-    id: "grants",
-    label: "Grants",
-    description: "Credential grant scopes for spaces and workloads.",
-  },
-  {
-    id: "policies",
-    label: "Policies",
-    description: "Inference allow/deny/restrict policy records.",
-  },
-  {
-    id: "profiles",
-    label: "Profiles",
-    description:
-      "Space-scoped inference profiles used by automation and semantic work.",
-  },
-  {
-    id: "packages",
-    label: "Import history",
-    description: "Install-only package records and import history.",
-  },
+  { id: "credentials", label: "Credentials" },
+  { id: "grants", label: "Grants" },
+  { id: "policies", label: "Policies" },
+  { id: "profiles", label: "Profiles" },
 ];
 
-const modelTabs = inferenceTabs.filter((tab) =>
-  ["endpoints", "models", "packages"].includes(tab.id),
-);
-const accessTabs = inferenceTabs.filter((tab) =>
-  ["credentials", "grants", "policies", "profiles"].includes(tab.id),
-);
+const catalogTabs: Array<{
+  id: ModelCatalogTab;
+  label: string;
+}> = [
+  { id: "generative", label: "Generative" },
+  { id: "embedding", label: "Embedding" },
+  { id: "other", label: "Other" },
+  { id: "endpoints", label: "Endpoints" },
+  { id: "packages", label: "Import history" },
+];
 
 export type InferencePageProps = {
   listInferencePackagesService?: (
@@ -226,6 +203,7 @@ export function InferencePage({
   section = "models",
 }: InferencePageProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [packages, setPackages] = useState<InferencePackageInfo[]>([]);
   const [nextPageToken, setNextPageToken] = useState("");
   const [loading, setLoading] = useState(true);
@@ -236,10 +214,10 @@ export function InferencePage({
   const [summary, setSummary] = useState<ApplyInferencePackageResponse | null>(
     null,
   );
-  const availableTabs = section === "access" ? accessTabs : modelTabs;
-  const [activeTab, setActiveTab] = useState<InferenceTab>(
-    section === "access" ? "credentials" : "endpoints",
-  );
+  const [postImportRefreshing, setPostImportRefreshing] = useState(false);
+  const [postImportRefreshError, setPostImportRefreshError] = useState("");
+  const [accessActiveTab, setAccessActiveTab] =
+    useState<InferenceTab>("credentials");
   const [endpoints, setEndpoints] = useState<ModelEndpointInfo[]>([]);
   const [models, setModels] = useState<InferenceModelInfo[]>([]);
   const [capabilities, setCapabilities] = useState<
@@ -248,8 +226,56 @@ export function InferencePage({
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
+  const catalogRequestId = useRef(0);
   const [includeDisabledCatalog, setIncludeDisabledCatalog] = useState(false);
   const [operationFilter, setOperationFilter] = useState("");
+  const modelCounts = useMemo(
+    () => countModelsByKind(models, includeDisabledCatalog),
+    [includeDisabledCatalog, models],
+  );
+  const selectedCatalogTab = modelCatalogTab(searchParams.get("tab"));
+  const activeTab =
+    section === "access" ? accessActiveTab : selectedCatalogTab;
+  const availableTabs = useMemo(
+    () =>
+      section === "access"
+        ? accessTabs
+        : countedCatalogTabs(modelCounts, selectedCatalogTab),
+    [modelCounts, section, selectedCatalogTab],
+  );
+  const setActiveTab = useCallback(
+    (tab: InferenceTab) => {
+      if (section === "access") {
+        setAccessActiveTab(tab);
+        return;
+      }
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", tab);
+      setSearchParams(next);
+    },
+    [searchParams, section, setSearchParams],
+  );
+  const visibleCapabilities = useMemo(
+    () => capabilitiesForCatalogTab(activeTab, capabilities, operationFilter),
+    [activeTab, capabilities, operationFilter],
+  );
+  const visibleModels = useMemo(
+    () =>
+      modelsForCatalogTab(
+        activeTab,
+        models,
+        visibleCapabilities,
+        operationFilter,
+        includeDisabledCatalog,
+      ),
+    [
+      activeTab,
+      includeDisabledCatalog,
+      models,
+      operationFilter,
+      visibleCapabilities,
+    ],
+  );
   const [detail, setDetail] = useState<{ title: string; data: unknown } | null>(
     null,
   );
@@ -279,7 +305,7 @@ export function InferencePage({
     displayName: "Summarize page",
     operation: "chat",
     purpose: "automation",
-    modelRefs: ["openai/gpt-5.6-mini"],
+    modelRefs: ["openai/gpt-5.6-terra"],
     endpointRefs: ["openai"],
     maxOutputTokens: "512",
   });
@@ -339,7 +365,7 @@ export function InferencePage({
     profileKey: "summarize-page",
     credentialKey: "openai-default",
     secretValue: "",
-    modelRef: "openai/gpt-5.6-mini",
+    modelRef: "openai/gpt-5.6-terra",
     operation: "chat",
     purpose: "automation",
   });
@@ -364,14 +390,19 @@ export function InferencePage({
     if (!availableTabs.some((tab) => tab.id === activeTab)) {
       setActiveTab(availableTabs[0]?.id ?? "endpoints");
     }
-  }, [activeTab, availableTabs]);
+  }, [activeTab, availableTabs, setActiveTab]);
 
   const loadPackages = useCallback(
     async ({
       append = false,
       pageToken = "",
-    }: { append?: boolean; pageToken?: string } = {}) => {
-      setError("");
+      reportError = true,
+    }: {
+      append?: boolean;
+      pageToken?: string;
+      reportError?: boolean;
+    } = {}) => {
+      if (reportError) setError("");
       if (append) setLoadingMore(true);
       else setLoading(true);
       try {
@@ -383,8 +414,14 @@ export function InferencePage({
           append ? [...current, ...response.packages] : response.packages,
         );
         setNextPageToken(response.nextPageToken);
+        return "";
       } catch (err) {
-        setError(errorMessage(err, "Failed to load inference packages"));
+        const message = errorMessage(
+          err,
+          "Failed to load inference packages",
+        );
+        if (reportError) setError(message);
+        return message;
       } finally {
         if (append) setLoadingMore(false);
         else setLoading(false);
@@ -397,55 +434,72 @@ export function InferencePage({
     void loadPackages();
   }, [loadPackages]);
 
-  useEffect(() => {
-    if (activeTab === "packages") return;
-    let cancelled = false;
-    async function loadCatalog() {
+  const loadCatalog = useCallback(
+    async (tab: InferenceTab) => {
+      const requestId = ++catalogRequestId.current;
       setCatalogLoading(true);
       setCatalogError("");
       try {
-        if (activeTab === "endpoints") {
-          const response = await listModelEndpointsService({
-            pageSize: 100,
-            includeDisabled: includeDisabledCatalog,
-          });
-          if (!cancelled) setEndpoints(response.modelEndpoints);
-        } else if (activeTab === "models") {
+        if (tab === "endpoints") {
+          const [endpointsResponse, modelsResponse] = await Promise.all([
+            listModelEndpointsService({
+              pageSize: 100,
+              includeDisabled: includeDisabledCatalog,
+            }),
+            loadAllModels(listModelsService),
+          ]);
+          if (requestId === catalogRequestId.current) {
+            setEndpoints(endpointsResponse.modelEndpoints);
+            setModels(modelsResponse.models);
+          }
+        } else if (isModelCatalogKind(tab)) {
+          const capabilityOperation =
+            tab === "generative" ? operationFilter : "";
           const [modelsResponse, capabilitiesResponse] = await Promise.all([
-            listModelsService({ pageSize: 100 }),
-            listModelEndpointCapabilitiesService({
-              pageSize: 500,
-              operation: operationFilter,
+            loadAllModels(listModelsService),
+            loadAllCapabilities(listModelEndpointCapabilitiesService, {
+              operation: capabilityOperation,
               includeDisabled: includeDisabledCatalog,
             }),
           ]);
-          if (!cancelled) {
+          if (requestId === catalogRequestId.current) {
             setModels(modelsResponse.models);
             setCapabilities(capabilitiesResponse.modelEndpointCapabilities);
           }
+        } else if (tab === "packages") {
+          const modelsResponse = await loadAllModels(listModelsService);
+          if (requestId === catalogRequestId.current) {
+            setModels(modelsResponse.models);
+          }
         }
+        return "";
       } catch (err) {
-        if (!cancelled)
-          setCatalogError(
-            errorMessage(err, "Failed to load inference catalog"),
-          );
+        const message = errorMessage(
+          err,
+          "Failed to load inference catalog",
+        );
+        if (requestId === catalogRequestId.current) setCatalogError(message);
+        return message;
       } finally {
-        if (!cancelled) setCatalogLoading(false);
+        if (requestId === catalogRequestId.current) setCatalogLoading(false);
       }
-    }
-    void loadCatalog();
+    },
+    [
+      includeDisabledCatalog,
+      listModelEndpointCapabilitiesService,
+      listModelEndpointsService,
+      listModelsService,
+      operationFilter,
+    ],
+  );
+
+  useEffect(() => {
+    if (section !== "models") return;
+    void loadCatalog(activeTab);
     return () => {
-      cancelled = true;
+      catalogRequestId.current += 1;
     };
-  }, [
-    activeTab,
-    catalogRefreshKey,
-    includeDisabledCatalog,
-    listModelEndpointCapabilitiesService,
-    listModelEndpointsService,
-    listModelsService,
-    operationFilter,
-  ]);
+  }, [activeTab, catalogRefreshKey, loadCatalog, section]);
 
   const loadSetupTab = useCallback(async () => {
     setSetupError("");
@@ -1013,14 +1067,41 @@ export function InferencePage({
     setCatalogRefreshKey((current) => current + 1);
   }
 
+  async function refreshPostImportData() {
+    setPostImportRefreshing(true);
+    setPostImportRefreshError("");
+    try {
+      const [packageError, catalogError] = await Promise.all([
+        loadPackages({ reportError: false }),
+        loadCatalog(activeTab),
+      ]);
+      const failures = [
+        packageError ? `Package history: ${packageError}` : "",
+        catalogError ? `Catalog: ${catalogError}` : "",
+      ].filter(Boolean);
+      if (failures.length > 0) {
+        setPostImportRefreshError(
+          `Import succeeded, but the follow-up refresh failed. ${failures.join(" ")}`,
+        );
+      }
+    } catch (err) {
+      setPostImportRefreshError(
+        `Import succeeded, but the follow-up refresh failed. ${errorMessage(err, "Refresh failed")}`,
+      );
+    } finally {
+      setPostImportRefreshing(false);
+    }
+  }
+
   async function handleImport(document: InferencePackageDocument) {
     setImporting(true);
     setError("");
+    setPostImportRefreshError("");
     try {
       const result = await applyInferencePackageService(document);
       setImportOpen(false);
       setSummary(result);
-      await loadPackages();
+      await refreshPostImportData();
     } catch (err) {
       throw err instanceof Error
         ? err
@@ -1052,7 +1133,9 @@ export function InferencePage({
               disabled={
                 (activeTab === "packages"
                   ? loading || loadingMore
-                  : catalogLoading || setupLoading) || importing
+                  : catalogLoading || setupLoading) ||
+                importing ||
+                postImportRefreshing
               }
             >
               Refresh
@@ -1070,7 +1153,7 @@ export function InferencePage({
               <Button
                 variant="secondary"
                 onClick={() => setImportOpen(true)}
-                disabled={importing}
+                disabled={importing || postImportRefreshing}
               >
                 Import package JSON
               </Button>
@@ -1232,19 +1315,23 @@ export function InferencePage({
               )}
             </>
           )}
-          {(activeTab === "models" || activeTab === "profiles") && (
+          {(activeTab === "generative" || activeTab === "profiles") && (
             <div className="min-w-48">
               <SelectField
                 label="Filter operation"
                 value={operationFilter}
                 onChange={setOperationFilter}
-                options={inferenceOperationOptions}
+                options={
+                  activeTab === "generative"
+                    ? generativeInferenceOperationOptions
+                    : inferenceOperationOptions
+                }
                 placeholder="All operations"
               />
             </div>
           )}
           {(activeTab === "endpoints" ||
-            activeTab === "models" ||
+            isModelCatalogKind(activeTab) ||
             activeTab === "profiles" ||
             activeTab === "credentials" ||
             activeTab === "grants" ||
@@ -1388,7 +1475,7 @@ export function InferencePage({
         <div
           className={`rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-8 text-center`}
         >
-          <Text intent="muted">Loading inference catalog…</Text>
+          <Text intent="muted">{catalogLoadingMessage(activeTab)}</Text>
         </div>
       ) : catalogError ? (
         <Alert>{catalogError}</Alert>
@@ -1402,10 +1489,11 @@ export function InferencePage({
             })
           }
         />
-      ) : activeTab === "models" ? (
+      ) : isModelCatalogKind(activeTab) ? (
         <InferenceModelTable
-          models={models}
-          capabilities={capabilities}
+          models={visibleModels}
+          capabilities={visibleCapabilities}
+          kind={activeTab}
           onViewDetails={(item) =>
             setDetail({
               title: item.key || item.modelName || "Model",
@@ -1450,18 +1538,166 @@ export function InferencePage({
 
       <ImportInferencePackageSummaryDialog
         result={summary}
-        onClose={() => setSummary(null)}
+        refreshing={postImportRefreshing}
+        refreshError={postImportRefreshError}
+        onRetryRefresh={() => void refreshPostImportData()}
+        onClose={() => {
+          setSummary(null);
+          setPostImportRefreshError("");
+        }}
         onViewCatalog={(target) => {
           setSummary(null);
+          setPostImportRefreshError("");
           if (target === "vectorStores") {
             navigate("/intelligence/vector-stores");
             return;
           }
-          setActiveTab(target);
+          setActiveTab(target === "models" ? "generative" : target);
+          setCatalogRefreshKey((current) => current + 1);
         }}
       />
     </section>
   );
+}
+
+type ModelKindCounts = Record<"generative" | "embedding" | "other", number>;
+type ListModelsService = NonNullable<InferencePageProps["listModelsService"]>;
+type ListCapabilitiesService = NonNullable<
+  InferencePageProps["listModelEndpointCapabilitiesService"]
+>;
+
+async function loadAllModels(
+  service: ListModelsService,
+): Promise<ListModelsResponse> {
+  const models: InferenceModelInfo[] = [];
+  const seenPageTokens = new Set<string>();
+  let pageToken = "";
+  do {
+    const response = await service({
+      pageSize: 100,
+      ...(pageToken ? { pageToken } : {}),
+    });
+    models.push(...response.models);
+    pageToken = response.nextPageToken;
+    if (pageToken && seenPageTokens.has(pageToken)) {
+      throw new Error("Model catalog pagination returned a repeated page token");
+    }
+    if (pageToken) seenPageTokens.add(pageToken);
+  } while (pageToken);
+  return { models, nextPageToken: "" };
+}
+
+async function loadAllCapabilities(
+  service: ListCapabilitiesService,
+  input: Pick<
+    ListModelEndpointCapabilitiesInput,
+    "operation" | "includeDisabled"
+  >,
+): Promise<ListModelEndpointCapabilitiesResponse> {
+  const modelEndpointCapabilities: ModelEndpointCapabilityInfo[] = [];
+  const seenPageTokens = new Set<string>();
+  let pageToken = "";
+  do {
+    const response = await service({
+      ...input,
+      pageSize: 500,
+      ...(pageToken ? { pageToken } : {}),
+    });
+    modelEndpointCapabilities.push(...response.modelEndpointCapabilities);
+    pageToken = response.nextPageToken;
+    if (pageToken && seenPageTokens.has(pageToken)) {
+      throw new Error(
+        "Model capability pagination returned a repeated page token",
+      );
+    }
+    if (pageToken) seenPageTokens.add(pageToken);
+  } while (pageToken);
+  return { modelEndpointCapabilities, nextPageToken: "" };
+}
+
+function countModelsByKind(
+  models: InferenceModelInfo[],
+  includeDisabled: boolean,
+): ModelKindCounts {
+  const counts: ModelKindCounts = { generative: 0, embedding: 0, other: 0 };
+  for (const model of models) {
+    if (!includeDisabled && model.enabled === false) continue;
+    counts[modelCatalogKind(model.kind)] += 1;
+  }
+  return counts;
+}
+
+function countedCatalogTabs(
+  counts: ModelKindCounts,
+  selectedTab: ModelCatalogTab,
+) {
+  return catalogTabs
+    .filter(
+      (tab) =>
+        tab.id !== "other" || counts.other > 0 || selectedTab === "other",
+    )
+    .map((tab) => {
+      if (!isModelCatalogKind(tab.id)) return tab;
+      return { ...tab, label: `${tab.label} (${counts[tab.id]})` };
+    });
+}
+
+function capabilitiesForCatalogTab(
+  tab: InferenceTab,
+  capabilities: ModelEndpointCapabilityInfo[],
+  operationFilter: string,
+) {
+  if (tab === "embedding") {
+    return capabilities.filter(
+      (capability) =>
+        normalizedOperation(capability.operation) === "embeddings",
+    );
+  }
+  if (tab !== "generative") return capabilities;
+  return capabilities.filter((capability) => {
+    const operation = normalizedOperation(capability.operation);
+    return (
+      operation !== "embeddings" &&
+      (!operationFilter || operation === operationFilter)
+    );
+  });
+}
+
+function modelsForCatalogTab(
+  tab: InferenceTab,
+  models: InferenceModelInfo[],
+  capabilities: ModelEndpointCapabilityInfo[],
+  operationFilter: string,
+  includeDisabled: boolean,
+) {
+  if (!isModelCatalogKind(tab)) return [];
+  const matchingKind = models.filter(
+    (model) =>
+      modelCatalogKind(model.kind) === tab &&
+      (includeDisabled || model.enabled !== false),
+  );
+  if (tab !== "generative" || !operationFilter) return matchingKind;
+  const supportedModelIds = new Set(
+    capabilities
+      .filter((capability) => includeDisabled || capability.enabled)
+      .map((capability) => capability.modelId),
+  );
+  return matchingKind.filter((model) => supportedModelIds.has(model.modelId));
+}
+
+function normalizedOperation(operation: string) {
+  return operation
+    .trim()
+    .toLowerCase()
+    .replace(/^inference_operation_/, "");
+}
+
+function catalogLoadingMessage(tab: InferenceTab) {
+  if (tab === "generative") return "Loading generative models…";
+  if (tab === "embedding") return "Loading embedding models…";
+  if (tab === "other") return "Loading unrecognized model kinds…";
+  if (tab === "endpoints") return "Loading model endpoints…";
+  return "Loading inference catalog…";
 }
 
 function ConfirmCredentialRevokeDialog({

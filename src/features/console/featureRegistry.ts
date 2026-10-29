@@ -148,8 +148,8 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
   },
   {
     id: "semantic",
-    label: "Semantic",
-    route: "/intelligence/semantic",
+    label: "Semantic Rules",
+    route: "/intelligence/semantic-rules",
     navGroup: "intelligence",
     requirements: [
       { capability: "semantic.search" },
@@ -158,7 +158,7 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     ],
     fallback: "hide",
     description:
-      "Semantic generation rules, indexes, maintenance, and token usage.",
+      "Semantic generation rules, index health, maintenance, and token usage.",
     order: 30,
   },
 ];

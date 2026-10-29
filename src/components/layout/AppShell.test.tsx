@@ -168,6 +168,11 @@ jest.mock("../../services/adminService", () => ({
   listSemanticRules: jest
     .fn()
     .mockResolvedValue({ rules: [], nextPageToken: "" }),
+  listInferenceProfiles: jest.fn().mockResolvedValue({
+    inferenceProfiles: [],
+    nextPageToken: "",
+  }),
+  summarizeInferenceUsage: jest.fn().mockResolvedValue({ summaries: [] }),
   retrySemanticMaintenanceWork: jest.fn().mockResolvedValue({}),
   listSpaces: jest.fn().mockResolvedValue({ spaces: [], nextPageToken: "" }),
   listPrincipals: jest.fn().mockResolvedValue({
@@ -340,10 +345,12 @@ test("redirects inference route to Models", async () => {
   expect(
     screen.getByRole("heading", { name: /^models$/i }),
   ).toBeInTheDocument();
-  expect(await screen.findByRole("tab", { name: "Endpoints" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  expect(
+    await screen.findByText("No generative models found."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("tab", { name: /Generative \(\d+\)/ }),
+  ).toHaveAttribute("aria-selected", "true");
 });
 
 test("renders vector stores route", async () => {
@@ -354,6 +361,25 @@ test("renders vector stores route", async () => {
   ).toBeInTheDocument();
   expect(
     await screen.findByText("No vector stores found."),
+  ).toBeInTheDocument();
+});
+
+test("renders Semantic Rules list and create routes", async () => {
+  renderShell("/intelligence/semantic-rules");
+  expect(
+    screen.getByRole("heading", { name: "Semantic Rules" }),
+  ).toBeInTheDocument();
+  expect(await screen.findByText("No semantic generation rules found.")).toBeInTheDocument();
+});
+
+test("does not redirect the retired Semantic route", async () => {
+  renderShell("/intelligence/semantic");
+
+  expect(
+    screen.queryByRole("heading", { name: "Semantic Rules" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText(/capability-oriented console for a mycel cluster/i),
   ).toBeInTheDocument();
 });
 

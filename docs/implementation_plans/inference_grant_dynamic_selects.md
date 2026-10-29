@@ -70,7 +70,7 @@ Before submit, show a compact summary:
 
 ```text
 Grant credential openai-default for space Research / domain Main.
-Endpoint openai, model openai/gpt-5.6-mini.
+Endpoint openai, model openai/gpt-5.6-terra.
 Operations chat, summarize, classify.
 Background/automation use allowed.
 ```

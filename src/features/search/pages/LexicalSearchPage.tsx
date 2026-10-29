@@ -55,7 +55,8 @@ export function LexicalSearchPage({
   const [domains, setDomains] = useState<DomainInfo[]>([]);
   const [spaceId, setSpaceId] = useState("");
   const [domainId, setDomainId] = useState("");
-  const [query, setQuery] = useState("");
+  const [lexicalQuery, setLexicalQuery] = useState("");
+  const [semanticQuery, setSemanticQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("lexical");
   const [pageSize, setPageSize] = useState(20);
   const [pageToken, setPageToken] = useState("");
@@ -147,7 +148,7 @@ export function LexicalSearchPage({
 
   async function submitSearch(event?: FormEvent<HTMLFormElement>, nextPageToken = pageToken) {
     event?.preventDefault();
-    if (!spaceId || !domainId || !query.trim()) return;
+    if (!spaceId || !domainId || !searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth)) return;
     setError("");
     setRebuildNotice("");
     setSearchLoading(true);
@@ -155,10 +156,11 @@ export function LexicalSearchPage({
       const response = await lexicalSearchService({
         spaceId,
         domainId,
-        query: query.trim(),
+        lexicalQuery: lexicalQuery.trim(),
+        semanticQuery: mode === "hybrid" ? semanticQuery.trim() || undefined : undefined,
         mode,
         pageSize,
-        pageToken: mode === "hybrid" ? "" : nextPageToken,
+        pageToken: nextPageToken,
         allowStale,
         includeDiagnostics,
         lexicalWeight: mode === "hybrid" ? lexicalWeight : undefined,
@@ -191,7 +193,7 @@ export function LexicalSearchPage({
         });
       }
     } catch (err) {
-      setError(errorMessage(err, "Lexical search failed"));
+      setError(errorMessage(err, "Search failed"));
     } finally {
       setSearchLoading(false);
     }
@@ -218,12 +220,13 @@ export function LexicalSearchPage({
   }
 
   const scopeReady = Boolean(spaceId && domainId);
+  const queriesReady = searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth);
   const canMaintainLexical = canUseCapability(principalContext, "system.maintain_space");
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Search"
+        eyebrow="Data"
         title="Search"
         description="Run lexical or hybrid lexical + semantic search, inspect index freshness, and trigger maintenance rebuilds."
       />
@@ -275,12 +278,16 @@ export function LexicalSearchPage({
             ]}
           />
           <label className="space-y-2">
-            <Text as="span" size="sm" intent="subtle">Query</Text>
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
+            <Text as="span" size="sm" intent="subtle">Lexical query</Text>
+            <Input value={lexicalQuery} onChange={(event) => setLexicalQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
           </label>
         </div>
         {mode === "hybrid" ? (
           <div className="mt-4 grid gap-4 md:grid-cols-4">
+            <label className="space-y-2 md:col-span-4">
+              <Text as="span" size="sm" intent="subtle">Semantic query</Text>
+              <Input value={semanticQuery} onChange={(event) => setSemanticQuery(event.target.value)} placeholder="How does vector search recover after a raft restart?" />
+            </label>
             <label className="space-y-2">
               <Text as="span" size="sm" intent="subtle">Lexical weight</Text>
               <Input type="number" min={0} step={0.1} value={lexicalWeight} onChange={(event) => setLexicalWeight(Number(event.target.value) || 0)} />
@@ -334,7 +341,7 @@ export function LexicalSearchPage({
             <input type="checkbox" checked={includeDiagnostics} onChange={(event) => setIncludeDiagnostics(event.target.checked)} />
             Include diagnostics
           </label>
-          <Button type="submit" disabled={!scopeReady || !query.trim() || searchLoading}>{searchLoading ? "Searching…" : "Search"}</Button>
+          <Button type="submit" disabled={!scopeReady || !queriesReady || searchLoading}>{searchLoading ? "Searching…" : "Search"}</Button>
         </div>
       </form>
 
@@ -395,12 +402,28 @@ export function LexicalSearchPage({
           ))}
         </div>
         {searchResponse && searchResponse.results.length === 0 ? <Text intent="muted" size="sm">No search matches.</Text> : null}
-        {searchResponse?.nextPageToken && mode !== "hybrid" ? (
+        {searchResponse?.nextPageToken ? (
           <Button className="mt-4" variant="secondary" onClick={() => void submitSearch(undefined, searchResponse.nextPageToken)} disabled={searchLoading}>Next page</Button>
         ) : null}
       </section>
     </div>
   );
+}
+
+function searchQueriesReady(
+  mode: SearchMode,
+  lexicalQuery: string,
+  semanticQuery: string,
+  lexicalWeight: number,
+  semanticWeight: number,
+  requireBoth: boolean,
+): boolean {
+  if (mode === "lexical") return Boolean(lexicalQuery.trim());
+  const useDefaults = lexicalWeight === 0 && semanticWeight === 0;
+  const lexicalEnabled = useDefaults || lexicalWeight > 0 || requireBoth;
+  const semanticEnabled = useDefaults || semanticWeight > 0 || requireBoth;
+  return (!lexicalEnabled || Boolean(lexicalQuery.trim()))
+    && (!semanticEnabled || Boolean(semanticQuery.trim()));
 }
 
 function buildSearchFilters(labelText: string, propertyText: string): LexicalSearchInput["filters"] | undefined {

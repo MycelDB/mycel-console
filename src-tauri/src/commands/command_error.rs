@@ -22,6 +22,13 @@ pub fn sdk_error(err: mycel_sdk::Error) -> ConsoleCommandError {
     mycel_sdk::classify_error(&err).into()
 }
 
+pub fn sdk_error_code(err: &mycel_sdk::Error) -> Option<tonic::Code> {
+    match err {
+        mycel_sdk::Error::Status(status) => Some(status.code()),
+        _ => None,
+    }
+}
+
 pub fn validation_error(message: impl Into<String>) -> ConsoleCommandError {
     ConsoleCommandError {
         kind: mycel_sdk::ErrorKind::Validation.as_str().to_string(),
@@ -30,6 +37,20 @@ pub fn validation_error(message: impl Into<String>) -> ConsoleCommandError {
         detail: None,
     }
 }
+
+macro_rules! authenticated_rpc {
+    ($client:expr, $service:ident.$method:ident($request:expr $(,)?)) => {{
+        let request = $request;
+        $client
+            .authenticated_call(|client| {
+                let request = request.clone();
+                Box::pin(client.$service.$method(tonic::Request::new(request)))
+            })
+            .await
+    }};
+}
+
+pub(crate) use authenticated_rpc;
 
 #[cfg(test)]
 mod tests {
@@ -61,5 +82,40 @@ mod tests {
         assert_eq!(err.kind, "validation");
         assert_eq!(err.severity, "warning");
         assert_eq!(err.message, "Cluster gRPC address is required");
+    }
+
+    #[test]
+    fn console_login_shares_one_auth_coordinator() {
+        let source = include_str!("auth.rs");
+        assert!(source.contains("client.data_client()"));
+        assert!(!source.contains("access_token: client.access_token()"));
+        assert!(!source.contains("refresh_token: client.refresh_token()"));
+    }
+
+    #[test]
+    fn authenticated_commands_do_not_invoke_generated_clients_directly() {
+        let guarded_sources = [
+            include_str!("activity.rs"),
+            include_str!("auth.rs"),
+            include_str!("automations.rs"),
+            include_str!("backups.rs"),
+            include_str!("cluster.rs"),
+            include_str!("domains.rs"),
+            include_str!("inference.rs"),
+            include_str!("lexical.rs"),
+            include_str!("schemas.rs"),
+            include_str!("semantic.rs"),
+            include_str!("semantic_maintenance.rs"),
+            include_str!("spaces.rs"),
+            include_str!("users.rs"),
+        ];
+        for source in guarded_sources {
+            assert!(!source.contains("Request::new("));
+        }
+
+        let client_query = include_str!("client_query.rs");
+        assert_eq!(client_query.matches("Request::new(").count(), 1);
+        assert!(client_query.contains(".authenticated_call(|client|"));
+        assert!(!include_str!("cluster.rs").contains(".cluster.clone()"));
     }
 }

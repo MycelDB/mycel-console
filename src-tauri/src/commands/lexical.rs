@@ -6,6 +6,7 @@ use mycel_sdk::proto::client::v1::{
 };
 use tauri::State;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -13,7 +14,9 @@ use crate::state::AppState;
 pub struct LexicalSearchInput {
     pub space_id: String,
     pub domain_id: String,
-    pub query: String,
+    pub lexical_query: String,
+    #[serde(default)]
+    pub semantic_query: Option<String>,
     #[serde(default)]
     pub mode: Option<String>,
     #[serde(default)]
@@ -163,65 +166,12 @@ pub async fn client_lexical_search(
     input: LexicalSearchInput,
     state: State<'_, AppState>,
 ) -> Result<LexicalSearchResponseInfo, String> {
-    let space_id = input.space_id.trim().to_string();
-    let domain_id = input.domain_id.trim().to_string();
-    let query = input.query.trim().to_string();
-    if space_id.is_empty() || domain_id.is_empty() {
-        return Err("Space ID and domain ID are required".to_string());
-    }
-    if query.is_empty() {
-        return Err("Search query is required".to_string());
-    }
+    let request = build_search_request(input)?;
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let mode = search_mode(input.mode.as_deref())?;
-    let is_hybrid = mode == SearchMode::Hybrid as i32;
-    let filters = search_filters(input.filters)?;
-    let response = session
-        ._data_client
-        .search
-        .search(tonic::Request::new(SearchRequest {
-            space_id,
-            domain_id,
-            mode,
-            query,
-            filters,
-            page_size: input.page_size.unwrap_or(20),
-            page_token: if is_hybrid {
-                String::new()
-            } else {
-                input.page_token.unwrap_or_default()
-            },
-            include_diagnostics: input.include_diagnostics,
-            allow_stale: input.allow_stale,
-            max_revision_lag: input.max_revision_lag.unwrap_or(0),
-            hybrid: if is_hybrid {
-                Some(HybridSearchOptions {
-                    lexical_weight: input.lexical_weight.unwrap_or(0.5),
-                    semantic_weight: input.semantic_weight.unwrap_or(0.5),
-                    fusion_strategy: HybridFusionStrategy::WeightedReciprocalRank as i32,
-                    require_both: input.require_both,
-                })
-            } else {
-                None
-            },
-            semantic: if is_hybrid {
-                Some(SemanticSearchOptions {
-                    semantic_rule_id: trim_optional(input.semantic_rule_id),
-                    embedding_binding_key: trim_optional(input.embedding_binding_key),
-                    min_score: input.semantic_min_score,
-                    candidate_count: input.semantic_candidates.unwrap_or(0),
-                })
-            } else {
-                None
-            },
-            lexical: Some(LexicalSearchOptions {
-                candidate_count: input.lexical_candidates.unwrap_or(0),
-            }),
-        }))
-        .await
+    let response = authenticated_rpc!(session._data_client, search.search(request))
         .map_err(|err| err.to_string())?
         .into_inner();
     Ok(LexicalSearchResponseInfo {
@@ -257,16 +207,15 @@ pub async fn client_get_lexical_index_status(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._data_client
-        .search
-        .get_lexical_index_status(tonic::Request::new(GetLexicalIndexStatusRequest {
+    let response = authenticated_rpc!(
+        session._data_client,
+        search.get_lexical_index_status(GetLexicalIndexStatusRequest {
             space_id,
             domain_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     Ok(status_info(response.status.unwrap_or_default()))
 }
 
@@ -284,18 +233,17 @@ pub async fn admin_rebuild_lexical_index(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .lexical_maintenance
-        .rebuild_lexical_index(tonic::Request::new(RebuildLexicalIndexRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        lexical_maintenance.rebuild_lexical_index(RebuildLexicalIndexRequest {
             space_id,
             domain_id,
             force: input.force,
             dry_run: input.dry_run,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     let state = response.state().as_str_name().to_string();
     Ok(RebuildLexicalIndexResponseInfo {
         space_id: response.space_id,
@@ -330,6 +278,90 @@ fn search_source_info(source: SearchResultSource) -> SearchResultSourceInfo {
         rank: source.rank,
         normalized_score: source.normalized_score,
     }
+}
+
+fn build_search_request(input: LexicalSearchInput) -> Result<SearchRequest, String> {
+    let space_id = input.space_id.trim().to_string();
+    let domain_id = input.domain_id.trim().to_string();
+    let lexical_query = input.lexical_query.trim().to_string();
+    let semantic_query = trim_optional(input.semantic_query);
+    if space_id.is_empty() || domain_id.is_empty() {
+        return Err("Space ID and domain ID are required".to_string());
+    }
+    let mode = search_mode(input.mode.as_deref())?;
+    let is_hybrid = mode == SearchMode::Hybrid as i32;
+    let lexical_weight = input.lexical_weight.unwrap_or(0.5);
+    let semantic_weight = input.semantic_weight.unwrap_or(0.5);
+    if !is_hybrid && lexical_query.is_empty() {
+        return Err("Lexical query is required".to_string());
+    }
+    if is_hybrid {
+        validate_hybrid_queries(
+            &lexical_query,
+            semantic_query.as_deref(),
+            lexical_weight,
+            semantic_weight,
+            input.require_both,
+        )?;
+    }
+    Ok(SearchRequest {
+        space_id,
+        domain_id,
+        mode,
+        filters: search_filters(input.filters)?,
+        page_size: input.page_size.unwrap_or(20),
+        page_token: input.page_token.unwrap_or_default(),
+        include_diagnostics: input.include_diagnostics,
+        allow_stale: input.allow_stale,
+        max_revision_lag: input.max_revision_lag.unwrap_or(0),
+        hybrid: if is_hybrid {
+            Some(HybridSearchOptions {
+                lexical_weight,
+                semantic_weight,
+                fusion_strategy: HybridFusionStrategy::WeightedReciprocalRank as i32,
+                require_both: input.require_both,
+            })
+        } else {
+            None
+        },
+        semantic: if is_hybrid {
+            Some(SemanticSearchOptions {
+                semantic_rule_id: trim_optional(input.semantic_rule_id),
+                embedding_binding_key: trim_optional(input.embedding_binding_key),
+                min_score: input.semantic_min_score,
+                candidate_count: input.semantic_candidates.unwrap_or(0),
+                query: semantic_query,
+            })
+        } else {
+            None
+        },
+        lexical: Some(LexicalSearchOptions {
+            candidate_count: input.lexical_candidates.unwrap_or(0),
+            query: (!lexical_query.is_empty()).then_some(lexical_query),
+        }),
+    })
+}
+
+fn validate_hybrid_queries(
+    lexical_query: &str,
+    semantic_query: Option<&str>,
+    lexical_weight: f64,
+    semantic_weight: f64,
+    require_both: bool,
+) -> Result<(), String> {
+    if lexical_weight < 0.0 || semantic_weight < 0.0 {
+        return Err("Hybrid weights must be non-negative".to_string());
+    }
+    let use_defaults = lexical_weight == 0.0 && semantic_weight == 0.0;
+    let lexical_enabled = use_defaults || lexical_weight > 0.0 || require_both;
+    let semantic_enabled = use_defaults || semantic_weight > 0.0 || require_both;
+    if lexical_enabled && lexical_query.is_empty() {
+        return Err("Lexical query is required when lexical retrieval is enabled".to_string());
+    }
+    if semantic_enabled && semantic_query.is_none() {
+        return Err("Semantic query is required when semantic retrieval is enabled".to_string());
+    }
+    Ok(())
 }
 
 fn search_mode(raw: Option<&str>) -> Result<i32, String> {
@@ -415,5 +447,59 @@ fn status_info(status: LexicalIndexStatus) -> LexicalIndexStatusInfo {
         updated_at: status.updated_at,
         last_rebuild_at: status.last_rebuild_at,
         last_error: status.last_error,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn input(mode: &str) -> LexicalSearchInput {
+        LexicalSearchInput {
+            space_id: "space-id".to_string(),
+            domain_id: "domain-id".to_string(),
+            lexical_query: "  title:raft  ".to_string(),
+            semantic_query: Some("  how does raft recover?  ".to_string()),
+            mode: Some(mode.to_string()),
+            ..LexicalSearchInput::default()
+        }
+    }
+
+    #[test]
+    fn lexical_request_owns_its_query() {
+        let request = build_search_request(input("lexical")).expect("lexical request");
+        assert_eq!(
+            request.lexical.and_then(|options| options.query),
+            Some("title:raft".to_string())
+        );
+        assert!(request.semantic.is_none());
+    }
+
+    #[test]
+    fn hybrid_request_populates_distinct_channel_queries() {
+        let request = build_search_request(input("hybrid")).expect("hybrid request");
+        assert_eq!(
+            request.lexical.and_then(|options| options.query),
+            Some("title:raft".to_string())
+        );
+        assert_eq!(
+            request.semantic.and_then(|options| options.query),
+            Some("how does raft recover?".to_string())
+        );
+    }
+
+    #[test]
+    fn hybrid_request_requires_each_enabled_channel_query() {
+        let mut missing_semantic = input("hybrid");
+        missing_semantic.semantic_query = None;
+        assert_eq!(
+            build_search_request(missing_semantic).unwrap_err(),
+            "Semantic query is required when semantic retrieval is enabled"
+        );
+
+        let mut semantic_only = input("hybrid");
+        semantic_only.lexical_query.clear();
+        semantic_only.lexical_weight = Some(0.0);
+        assert!(build_search_request(semantic_only).is_ok());
     }
 }

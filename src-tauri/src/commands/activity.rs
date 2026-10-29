@@ -3,8 +3,8 @@ use mycel_sdk::proto::admin::v1::{
 };
 use prost_types::Timestamp;
 use tauri::State;
-use tonic::Request;
 
+use crate::commands::command_error::authenticated_rpc;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -66,15 +66,14 @@ pub async fn admin_get_activity_event(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .activity
-        .get_activity_event(Request::new(GetActivityEventRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        activity.get_activity_event(GetActivityEventRequest {
             event_id: input.event_id,
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     response
         .event
         .map(map_event)
@@ -90,10 +89,9 @@ pub async fn admin_list_activity_events(
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = session
-        ._client
-        .activity
-        .list_activity_events(Request::new(ListActivityEventsRequest {
+    let response = authenticated_rpc!(
+        session._client,
+        activity.list_activity_events(ListActivityEventsRequest {
             since: timestamp_from_seconds(input.since_seconds),
             until: timestamp_from_seconds(input.until_seconds),
             severities: input.severities.unwrap_or_default(),
@@ -109,10 +107,10 @@ pub async fn admin_list_activity_events(
             correlation_id: String::new(),
             page_size: input.page_size.unwrap_or(50),
             page_token: input.page_token.unwrap_or_default(),
-        }))
-        .await
-        .map_err(|err| err.to_string())?
-        .into_inner();
+        })
+    )
+    .map_err(|err| err.to_string())?
+    .into_inner();
     let summary = response.summary.unwrap_or_default();
     Ok(ListActivityEventsResponseInfo {
         events: response.events.into_iter().map(map_event).collect(),

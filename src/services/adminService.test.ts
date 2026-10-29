@@ -88,9 +88,11 @@ test("login normalizes legacy string errors", async () => {
   await expect(login(input)).rejects.toEqual({ kind: "unknown", severity: "error", message: "transport error: connection refused" });
 });
 
-test("detects expired authorization token errors", () => {
+test("detects access and refresh session authentication failures", () => {
   expect(isAuthExpiredError("rpc error: code = Unauthenticated desc = authorization token is expired")).toBe(true);
   expect(isAuthExpiredError(new Error("access token is expired"))).toBe(true);
+  expect(isAuthExpiredError("status: Unauthenticated, message: refresh token revoked")).toBe(true);
+  expect(isAuthExpiredError({ kind: "authentication", severity: "warning", message: "session revoked" })).toBe(true);
   expect(isAuthExpiredError("permission denied")).toBe(false);
 });
 
@@ -103,6 +105,20 @@ test("emits auth expired event for protected command failures", async () => {
 
   expect(listener).toHaveBeenCalledTimes(1);
   expect(listener.mock.calls[0][0]).toMatchObject({ detail: { message: expect.stringContaining("authorization token is expired") } });
+  window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
+});
+
+test("emits auth expired event when refresh session renewal fails", async () => {
+  const listener = jest.fn();
+  window.addEventListener(AUTH_EXPIRED_EVENT, listener);
+  invokeMock.mockRejectedValue("status: Unauthenticated, message: refresh token revoked");
+
+  await expect(getClusterStatus()).rejects.toMatch("refresh token revoked");
+
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener.mock.calls[0][0]).toMatchObject({
+    detail: { message: expect.stringContaining("refresh token revoked") },
+  });
   window.removeEventListener(AUTH_EXPIRED_EVENT, listener);
 });
 
@@ -637,7 +653,7 @@ test("semanticSearch invokes client semantic search command", async () => {
 
 test("lexicalSearch invokes client lexical search command", async () => {
   const response = { results: [], nextPageToken: "", freshness: null, warnings: [] };
-  const input = { spaceId: "sp1", domainId: "dom1", query: "graph memory", pageSize: 10 };
+  const input = { spaceId: "sp1", domainId: "dom1", lexicalQuery: "graph AND memory", pageSize: 10 };
   invokeMock.mockResolvedValue(response);
 
   await expect(lexicalSearch(input)).resolves.toEqual(response);

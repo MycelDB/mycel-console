@@ -1,6 +1,9 @@
 import type { DomainInfo } from "../../../../types/domains";
 import type { SpaceInfo } from "../../../../types/spaces";
-import type { SemanticGenerationRuleSummary } from "../../../../types/semantic";
+import type {
+  SemanticGenerationRuleSummary,
+  SemanticProviderBudgetPolicy,
+} from "../../../../types/semantic";
 import type {
   SemanticMaintenanceStatusInfo,
   SemanticMaintenanceWorkItemInfo,
@@ -39,6 +42,14 @@ export type ProfileOption = {
 
 export type DraftMode = "create" | "edit";
 
+export type VectorStoreCatalogState =
+  | { kind: "loading"; message: string }
+  | { kind: "ready"; message: string }
+  | { kind: "empty"; message: string }
+  | { kind: "unauthorized"; message: string }
+  | { kind: "unsupported"; message: string }
+  | { kind: "error"; message: string };
+
 export type RuleDraft = {
   semanticRuleId: string;
   spaceId: string;
@@ -48,7 +59,8 @@ export type RuleDraft = {
   description: string;
   enabled: boolean;
   labels: string;
-  triggerEvents: string;
+  triggerEvents: string[];
+  triggerEventProblem: string;
   dirtyCooldown: string;
   selectorMode: string;
   selectorGql: string;
@@ -61,19 +73,12 @@ export type RuleDraft = {
   bindingKey: string;
   purpose: string;
   intelligenceProfile: string;
-  vectorStore: string;
+  vectorStoreId: string;
+  vectorStoreLegacyRef: string;
+  bindingMetadata?: Record<string, unknown> | null;
+  providerBudget?: SemanticProviderBudgetPolicy | null;
   searchable: boolean;
   physicalIndex: string;
-};
-
-export type SearchDraft = {
-  spaceId: string;
-  domainId: string;
-  semanticRuleId: string;
-  embeddingBindingKey: string;
-  query: string;
-  limit: string;
-  minScore: string;
 };
 
 export type SemanticTab = "rules" | "activity";

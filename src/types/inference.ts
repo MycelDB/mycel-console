@@ -45,6 +45,9 @@ export type InferenceModelInfo = {
   inputModalities: string[];
   outputModalities: string[];
   vectorSpaceKey: string;
+  contextTokens?: number;
+  maxOutputTokens?: number;
+  enabled?: boolean;
   metadata?: JsonObject | null;
 };
 
@@ -145,6 +148,7 @@ export type InferenceModelInput = {
 };
 
 export type VectorStoreInput = {
+  vector_store_id?: string;
   key: string;
   name?: string;
   type?: string;

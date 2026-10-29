@@ -1,16 +1,28 @@
-import { Button, H2, Text, themeClasses } from "../../../components/typography";
+import {
+  Alert,
+  Button,
+  H2,
+  Text,
+  themeClasses,
+} from "../../../components/typography";
 import type { ApplyInferencePackageResponse } from "../../../types/inference";
 
 export type ImportSummaryTarget = "endpoints" | "models" | "vectorStores";
 
 export type ImportInferencePackageSummaryDialogProps = {
   result: ApplyInferencePackageResponse | null;
+  refreshing?: boolean;
+  refreshError?: string;
+  onRetryRefresh?: () => void;
   onClose: () => void;
   onViewCatalog?: (target: ImportSummaryTarget) => void;
 };
 
 export function ImportInferencePackageSummaryDialog({
   result,
+  refreshing = false,
+  refreshError = "",
+  onRetryRefresh,
   onClose,
   onViewCatalog,
 }: ImportInferencePackageSummaryDialogProps) {
@@ -40,12 +52,34 @@ export function ImportInferencePackageSummaryDialog({
           <SummaryItem label="Vector stores" value={result.vectorStoreCount} />
           <SummaryItem label="Capabilities" value={result.capabilityCount} />
         </dl>
+        {refreshing && (
+          <div className="mt-5" role="status" aria-live="polite">
+            <Text intent="muted" size="sm">
+              Refreshing package history and catalog…
+            </Text>
+          </div>
+        )}
+        {refreshError && (
+          <div className="mt-5 space-y-3">
+            <Alert>{refreshError}</Alert>
+            {onRetryRefresh && (
+              <Button
+                variant="secondary"
+                onClick={onRetryRefresh}
+                disabled={refreshing}
+              >
+                Retry refresh
+              </Button>
+            )}
+          </div>
+        )}
         {onViewCatalog && (
           <div className="mt-5 flex flex-wrap gap-2">
             {result.modelEndpointCount > 0 && (
               <Button
                 variant="secondary"
                 onClick={() => onViewCatalog("endpoints")}
+                disabled={refreshing}
               >
                 View endpoints
               </Button>
@@ -54,6 +88,7 @@ export function ImportInferencePackageSummaryDialog({
               <Button
                 variant="secondary"
                 onClick={() => onViewCatalog("models")}
+                disabled={refreshing}
               >
                 View models
               </Button>
@@ -62,6 +97,7 @@ export function ImportInferencePackageSummaryDialog({
               <Button
                 variant="secondary"
                 onClick={() => onViewCatalog("vectorStores")}
+                disabled={refreshing}
               >
                 View vector stores
               </Button>
@@ -70,6 +106,7 @@ export function ImportInferencePackageSummaryDialog({
               <Button
                 variant="secondary"
                 onClick={() => onViewCatalog("models")}
+                disabled={refreshing}
               >
                 View models
               </Button>
@@ -77,7 +114,9 @@ export function ImportInferencePackageSummaryDialog({
           </div>
         )}
         <div className="mt-6 flex justify-end">
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose} disabled={refreshing}>
+            Done
+          </Button>
         </div>
       </div>
     </div>

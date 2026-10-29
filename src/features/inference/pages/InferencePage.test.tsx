@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { InferencePage } from "./InferencePage";
 import type {
   ApplyInferencePackageResponse,
@@ -13,7 +13,7 @@ const packagesResponse: ListInferencePackagesResponse = {
     {
       inferencePackageId: "pkg-1",
       name: "standard-openai-chat",
-      version: "2026-06",
+      version: "2026-10",
       source: "standard-openai-chat.json",
       checksum: "abc",
       definitionCounts: { model_endpoints: 1, models: 2 },
@@ -24,8 +24,63 @@ const packagesResponse: ListInferencePackagesResponse = {
   nextPageToken: "",
 };
 
+function catalogEndpoint(key: string) {
+  return {
+    modelEndpointId: key,
+    key,
+    name: `Endpoint ${key}`,
+    connectorType: "openai-compatible",
+    endpointUrl: `https://${key}.example.test/v1`,
+    networkClass: "external_https",
+    privacyClass: "third_party",
+    authModes: ["api_key"],
+    operations: ["chat"],
+    enabled: true,
+  };
+}
+
+function catalogModel(modelId: string) {
+  return {
+    modelId,
+    key: `provider/${modelId}`,
+    kind: "generative",
+    modelName: modelId,
+    connectorTypes: ["custom"],
+    dimensions: 0,
+    inputModalities: ["text"],
+    outputModalities: ["text"],
+    vectorSpaceKey: "",
+  };
+}
+
+function catalogCapability(
+  modelEndpointCapabilityId: string,
+  modelId: string,
+  operation: string,
+) {
+  return {
+    modelEndpointCapabilityId,
+    modelEndpointId: "endpoint",
+    modelId,
+    operation,
+    enabled: true,
+  };
+}
+
+function LocationView() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}{location.search}</div>
+      <button type="button" onClick={() => navigate(-1)}>Browser back</button>
+    </>
+  );
+}
+
 function renderPage(
   overrides: Partial<Parameters<typeof InferencePage>[0]> = {},
+  initialEntry = "/intelligence/models",
 ) {
   const services = {
     listInferencePackagesService: jest
@@ -73,6 +128,21 @@ function renderPage(
           outputModalities: ["embedding"],
           vectorSpaceKey: "openai/text-embedding-3-small",
         },
+        {
+          modelId: "m2",
+          key: "openai/gpt-5.6-terra",
+          kind: "generative",
+          modelName: "gpt-5.6-terra",
+          connectorTypes: ["openai-compatible"],
+          dimensions: 0,
+          inputModalities: ["text", "image"],
+          outputModalities: ["text", "json"],
+          vectorSpaceKey: "",
+          metadata: {
+            context_tokens: 1_050_000,
+            max_output_tokens: 128_000,
+          },
+        },
       ],
       nextPageToken: "",
     }),
@@ -100,14 +170,24 @@ function renderPage(
           operation: "embeddings",
           enabled: true,
         },
+        {
+          modelEndpointCapabilityId: "cap2",
+          modelEndpointId: "ep1",
+          modelEndpointKey: "openai",
+          modelId: "m2",
+          modelKey: "openai/gpt-5.6-terra",
+          operation: "chat",
+          enabled: true,
+        },
       ],
       nextPageToken: "",
     }),
     ...overrides,
   };
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <InferencePage {...services} />
+      <LocationView />
     </MemoryRouter>,
   );
   return services;
@@ -116,97 +196,346 @@ function renderPage(
 function renderAccessPage(
   overrides: Partial<Parameters<typeof InferencePage>[0]> = {},
 ) {
-  return renderPage({ section: "access", ...overrides });
+  return renderPage(
+    { section: "access", ...overrides },
+    "/intelligence/access",
+  );
 }
 
-test("renders import history as the last tab", async () => {
+async function submitInferencePackageImport() {
+  await userEvent.click(
+    screen.getByRole("button", { name: /import package json/i }),
+  );
+  fireEvent.change(screen.getByLabelText(/or paste package json/i), {
+    target: {
+      value: JSON.stringify({
+        name: "standard-openai-chat",
+        version: "2026-10",
+        model_endpoints: [{ key: "openai", enabled: true }],
+      }),
+    },
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: /^import package$/i }),
+  );
+}
+
+test("uses a supported concrete OpenAI model in the setup wizard", async () => {
+  renderAccessPage();
+
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Configure OpenAI" }),
+  );
+
+  expect(screen.getByLabelText("Model ref")).toHaveValue(
+    "openai/gpt-5.6-terra",
+  );
+});
+
+test("renders counted model-kind tabs without a nested model tab row", async () => {
   renderPage();
 
-  expect(await screen.findByText("Openai Compatible")).toBeInTheDocument();
-  expect(screen.getByRole("tab", { name: "Endpoints" })).toHaveAttribute(
+  expect(await screen.findByText("openai/gpt-5.6-terra")).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: /^models$/i }),
+  ).toBeInTheDocument();
+  const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+  expect(tabs).toEqual([
+    "Generative (1)",
+    "Embedding (1)",
+    "Endpoints",
+    "Import history",
+  ]);
+  expect(screen.getByRole("tab", { name: "Generative (1)" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
-  const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
-  expect(tabs).toEqual(["Endpoints", "Models", "Import history"]);
-  expect(
-    screen.queryByRole("tab", { name: "Credentials" }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole("tab", { name: "Vector stores" }),
-  ).not.toBeInTheDocument();
-  expect(screen.queryByRole("tab", { name: "Usage" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("tab", { name: "Models" })).not.toBeInTheDocument();
+  expect(screen.getAllByRole("tablist")).toHaveLength(1);
 
   await userEvent.click(screen.getByRole("tab", { name: "Import history" }));
 
   expect(await screen.findByText("standard-openai-chat")).toBeInTheDocument();
-  expect(screen.getByText("2026-06")).toBeInTheDocument();
+  expect(screen.getByText("2026-10")).toBeInTheDocument();
   expect(screen.getByText(/Model Endpoints: 1/)).toBeInTheDocument();
 });
 
-test("renders catalog tabs and loads endpoint section", async () => {
+test("paginates models before reporting tab counts", async () => {
+  const listModelsService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      models: [
+        {
+          modelId: "m2",
+          key: "provider/generative",
+          kind: "generative",
+          modelName: "generative",
+          connectorTypes: ["custom"],
+          dimensions: 0,
+          inputModalities: ["text"],
+          outputModalities: ["text"],
+          vectorSpaceKey: "",
+        },
+      ],
+      nextPageToken: "model-page-2",
+    })
+    .mockResolvedValueOnce({
+      models: [
+        {
+          modelId: "m1",
+          key: "provider/embedding",
+          kind: "embedding",
+          modelName: "embedding",
+          connectorTypes: ["custom"],
+          dimensions: 768,
+          inputModalities: ["text"],
+          outputModalities: ["embedding"],
+          vectorSpaceKey: "provider/embedding",
+        },
+      ],
+      nextPageToken: "",
+    });
+  renderPage({ listModelsService });
+
+  expect(
+    await screen.findByRole("tab", { name: "Generative (1)" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("tab", { name: "Embedding (1)" }),
+  ).toBeInTheDocument();
+  expect(listModelsService).toHaveBeenNthCalledWith(1, { pageSize: 100 });
+  expect(listModelsService).toHaveBeenNthCalledWith(2, {
+    pageSize: 100,
+    pageToken: "model-page-2",
+  });
+});
+
+test("links catalog tabs through the URL and honors browser navigation", async () => {
   const services = renderPage();
 
+  await screen.findByText("openai/gpt-5.6-terra");
+  await userEvent.click(screen.getByRole("tab", { name: "Endpoints" }));
+
   expect(await screen.findByText("Openai Compatible")).toBeInTheDocument();
-  expect(
-    screen.getByRole("heading", { name: /^models$/i }),
-  ).toBeInTheDocument();
-  expect(screen.getByRole("tab", { name: "Endpoints" })).toHaveAttribute(
-    "aria-selected",
-    "true",
+  expect(screen.getByTestId("location")).toHaveTextContent(
+    "/intelligence/models?tab=endpoints",
   );
-  expect(await screen.findByText("Openai Compatible")).toBeInTheDocument();
   expect(services.listModelEndpointsService).toHaveBeenCalledWith({
     pageSize: 100,
     includeDisabled: false,
   });
+
+  await userEvent.click(screen.getByRole("button", { name: "Browser back" }));
+
+  expect(
+    await screen.findByRole("tab", { name: "Generative (1)" }),
+  ).toHaveAttribute("aria-selected", "true");
 });
 
-test("sends catalog filter inputs", async () => {
-  const services = renderPage();
-
-  await screen.findByText("Openai Compatible");
-  await screen.findByText("Openai Compatible");
-  await userEvent.click(screen.getByLabelText(/include disabled/i));
-  await waitFor(() =>
-    expect(services.listModelEndpointsService).toHaveBeenLastCalledWith({
-      pageSize: 100,
-      includeDisabled: true,
+test("filters generative models only by applicable supported operations", async () => {
+  const summarizeModel = {
+    modelId: "m3",
+    key: "provider/summarizer",
+    kind: "generative",
+    modelName: "summarizer",
+    connectorTypes: ["openai-compatible"],
+    dimensions: 0,
+    inputModalities: ["text"],
+    outputModalities: ["text"],
+    vectorSpaceKey: "",
+  };
+  const services = renderPage({
+    listModelsService: jest.fn().mockResolvedValue({
+      models: [
+        {
+          ...summarizeModel,
+          modelId: "m2",
+          key: "provider/chat-only",
+          modelName: "chat-only",
+        },
+        summarizeModel,
+      ],
+      nextPageToken: "",
     }),
-  );
-
-  await userEvent.click(screen.getByRole("tab", { name: "Models" }));
-  await userEvent.selectOptions(
-    screen.getByLabelText(/operation/i),
-    "embeddings",
-  );
-  await waitFor(() =>
-    expect(services.listModelsService).toHaveBeenLastCalledWith({
-      pageSize: 100,
+    listModelEndpointCapabilitiesService: jest.fn().mockResolvedValue({
+      modelEndpointCapabilities: [
+        {
+          modelEndpointCapabilityId: "chat-cap",
+          modelEndpointId: "ep1",
+          modelEndpointKey: "provider",
+          modelId: "m2",
+          operation: "chat",
+          enabled: true,
+        },
+        {
+          modelEndpointCapabilityId: "summary-cap",
+          modelEndpointId: "ep1",
+          modelEndpointKey: "provider",
+          modelId: "m3",
+          operation: "summarize",
+          enabled: true,
+        },
+      ],
+      nextPageToken: "",
     }),
-  );
+  });
+
+  await screen.findByText("provider/chat-only");
+  const operation = screen.getByLabelText("Filter operation");
+  expect(within(operation).queryByRole("option", { name: "Embeddings" })).not.toBeInTheDocument();
+
+  await userEvent.selectOptions(operation, "summarize");
+
+  const summarizeKey = await screen.findByText("provider/summarizer");
+  expect(screen.queryByText("provider/chat-only")).not.toBeInTheDocument();
   expect(
-    services.listModelEndpointCapabilitiesService,
-  ).toHaveBeenLastCalledWith({
+    within(summarizeKey.closest("tr") as HTMLElement).getByText(
+      "Summarize · provider",
+    ),
+  ).toBeInTheDocument();
+  expect(services.listModelEndpointCapabilitiesService).toHaveBeenLastCalledWith({
     pageSize: 500,
-    operation: "embeddings",
-    includeDisabled: true,
+    operation: "summarize",
+    includeDisabled: false,
   });
 });
 
-test("loads models with capability chips", async () => {
-  const services = renderPage();
+test("filters canonical disabled models until Include disabled is selected", async () => {
+  renderPage({
+    listModelsService: jest.fn().mockResolvedValue({
+      models: [
+        {
+          modelId: "active-model",
+          key: "provider/active",
+          kind: "generative",
+          modelName: "active",
+          connectorTypes: ["custom"],
+          dimensions: 0,
+          inputModalities: ["text"],
+          outputModalities: ["text"],
+          vectorSpaceKey: "",
+          enabled: true,
+        },
+        {
+          modelId: "disabled-model",
+          key: "provider/disabled",
+          kind: "generative",
+          modelName: "disabled",
+          connectorTypes: ["custom"],
+          dimensions: 0,
+          inputModalities: ["text"],
+          outputModalities: ["text"],
+          vectorSpaceKey: "",
+          enabled: false,
+        },
+      ],
+      nextPageToken: "",
+    }),
+    listModelEndpointCapabilitiesService: jest.fn().mockResolvedValue({
+      modelEndpointCapabilities: [],
+      nextPageToken: "",
+    }),
+  });
 
-  await screen.findByText("Openai Compatible");
-  await userEvent.click(screen.getByRole("tab", { name: "Models" }));
-  expect(await screen.findByText("1536")).toBeInTheDocument();
+  expect(await screen.findByText("provider/active")).toBeInTheDocument();
+  expect(screen.queryByText("provider/disabled")).not.toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Generative (1)" })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByLabelText("Include disabled"));
+
+  expect(await screen.findByText("provider/disabled")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Generative (2)" })).toBeInTheDocument();
+});
+
+test("supports direct embedding navigation without generative controls", async () => {
+  const services = renderPage({}, "/intelligence/models?tab=embedding");
+
+  expect(await screen.findByText("1,536")).toBeInTheDocument();
   expect(screen.getByText("Embeddings · openai")).toBeInTheDocument();
-  expect(services.listModelsService).toHaveBeenCalledWith({ pageSize: 100 });
+  expect(screen.getByRole("tab", { name: "Embedding (1)" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  expect(screen.queryByLabelText("Filter operation")).not.toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Vector compatibility" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Availability" })).toBeInTheDocument();
   expect(services.listModelEndpointCapabilitiesService).toHaveBeenCalledWith({
     pageSize: 500,
     operation: "",
     includeDisabled: false,
   });
+
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await waitFor(() => expect(services.listModelsService).toHaveBeenCalledTimes(2));
+  expect(screen.getByRole("tab", { name: "Embedding (1)" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});
+
+test("uses a model-kind-specific loading state", async () => {
+  renderPage(
+    {
+      listModelsService: jest.fn().mockReturnValue(new Promise(() => {})),
+      listModelEndpointCapabilitiesService: jest
+        .fn()
+        .mockReturnValue(new Promise(() => {})),
+    },
+    "/intelligence/models?tab=embedding",
+  );
+
+  expect(
+    await screen.findByText("Loading embedding models…"),
+  ).toBeInTheDocument();
+});
+
+test("exposes unknown model kinds through a conditional Other tab", async () => {
+  renderPage({
+    listModelsService: jest.fn().mockResolvedValue({
+      models: [
+        {
+          modelId: "future-1",
+          key: "provider/reranker",
+          kind: "reranker",
+          modelName: "reranker",
+          connectorTypes: ["custom"],
+          dimensions: 0,
+          inputModalities: ["text"],
+          outputModalities: ["score"],
+          vectorSpaceKey: "",
+        },
+      ],
+      nextPageToken: "",
+    }),
+  });
+
+  const otherTab = await screen.findByRole("tab", { name: "Other (1)" });
+  await userEvent.click(otherTab);
+
+  expect(await screen.findByText("provider/reranker")).toBeInTheDocument();
+  expect(screen.getByText("Reranker")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Filter operation")).not.toBeInTheDocument();
+  expect(screen.getByTestId("location")).toHaveTextContent(
+    "/intelligence/models?tab=other",
+  );
+});
+
+test("supports keyboard navigation between model-kind tabs", async () => {
+  renderPage();
+
+  const generativeTab = await screen.findByRole("tab", {
+    name: "Generative (1)",
+  });
+  generativeTab.focus();
+  await userEvent.keyboard("{ArrowRight}");
+
+  expect(screen.getByRole("tab", { name: "Embedding (1)" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  expect(screen.getByTestId("location")).toHaveTextContent(
+    "/intelligence/models?tab=embedding",
+  );
 });
 
 test("creates credentials from pasted API keys", async () => {
@@ -597,9 +926,9 @@ test("uses multi-select endpoint and model refs for profile creation", async () 
     models: [
       {
         modelId: "m-chat",
-        key: "openai/gpt-5.6-mini",
+        key: "openai/gpt-5.6-terra",
         kind: "generative",
-        modelName: "gpt-5.6-mini",
+        modelName: "gpt-5.6-terra",
         connectorTypes: ["openai-compatible"],
         dimensions: 0,
         inputModalities: ["text"],
@@ -635,7 +964,7 @@ test("uses multi-select endpoint and model refs for profile creation", async () 
           modelEndpointId: "ep1",
           modelEndpointKey: "openai",
           modelId: "m-chat",
-          modelKey: "openai/gpt-5.6-mini",
+          modelKey: "openai/gpt-5.6-terra",
           operation: "chat",
           enabled: true,
         },
@@ -662,7 +991,7 @@ test("uses multi-select endpoint and model refs for profile creation", async () 
     "embeddings",
   );
 
-  expect(screen.queryByText("openai/gpt-5.6-mini")).not.toBeInTheDocument();
+  expect(screen.queryByText("openai/gpt-5.6-terra")).not.toBeInTheDocument();
   expect(
     await screen.findByText("openai/text-embedding-3-small"),
   ).toBeInTheDocument();
@@ -830,7 +1159,7 @@ test("renders empty package state", async () => {
       .mockResolvedValue({ packages: [], nextPageToken: "" }),
   });
 
-  await screen.findByText("Openai Compatible");
+  await screen.findByText("openai/gpt-5.6-terra");
   await userEvent.click(screen.getByRole("tab", { name: "Import history" }));
 
   expect(
@@ -860,7 +1189,7 @@ test("loads additional package pages", async () => {
     });
   renderPage({ listInferencePackagesService });
 
-  await screen.findByText("Openai Compatible");
+  await screen.findByText("openai/gpt-5.6-terra");
   await userEvent.click(screen.getByRole("tab", { name: "Import history" }));
   expect(await screen.findByText("standard-openai-chat")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /load more/i }));
@@ -872,9 +1201,11 @@ test("loads additional package pages", async () => {
   });
 });
 
-test("refresh invokes active catalog service", async () => {
+test("refresh invokes the selected catalog service", async () => {
   const services = renderPage();
 
+  await screen.findByText("openai/gpt-5.6-terra");
+  await userEvent.click(screen.getByRole("tab", { name: "Endpoints" }));
   await screen.findByText("Openai Compatible");
   await userEvent.click(screen.getByRole("button", { name: /refresh/i }));
 
@@ -901,39 +1232,23 @@ test("keeps inference catalog readable while hiding package import without manag
     },
   });
 
-  expect(await screen.findByText("Openai Compatible")).toBeInTheDocument();
+  expect(await screen.findByText("openai/gpt-5.6-terra")).toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: /import package json/i }),
   ).not.toBeInTheDocument();
-
-  expect(await screen.findByText("Openai Compatible")).toBeInTheDocument();
 });
 
 test("imports package JSON and shows summary", async () => {
   const services = renderPage();
 
-  await screen.findByText("Openai Compatible");
-  await userEvent.click(
-    screen.getByRole("button", { name: /import package json/i }),
-  );
-  fireEvent.change(screen.getByLabelText(/or paste package json/i), {
-    target: {
-      value: JSON.stringify({
-        name: "standard-openai-chat",
-        version: "2026-06",
-        model_endpoints: [{ key: "openai", enabled: true }],
-      }),
-    },
-  });
-  await userEvent.click(
-    screen.getByRole("button", { name: /^import package$/i }),
-  );
+  await screen.findByText("openai/gpt-5.6-terra");
+  await submitInferencePackageImport();
 
   await waitFor(() =>
     expect(services.applyInferencePackageService).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "standard-openai-chat",
-        version: "2026-06",
+        version: "2026-10",
       }),
     ),
   );
@@ -953,10 +1268,232 @@ test("imports package JSON and shows summary", async () => {
   );
 });
 
+test("refreshes an already-active endpoint catalog after import and from the summary action", async () => {
+  const listModelEndpointsService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      modelEndpoints: [catalogEndpoint("existing-endpoint")],
+      nextPageToken: "",
+    })
+    .mockResolvedValue({
+      modelEndpoints: [
+        catalogEndpoint("existing-endpoint"),
+        catalogEndpoint("imported-endpoint"),
+      ],
+      nextPageToken: "",
+    });
+  const services = renderPage({ listModelEndpointsService });
+
+  await userEvent.click(
+    await screen.findByRole("tab", { name: "Endpoints" }),
+  );
+  expect(await screen.findByText("existing-endpoint")).toBeInTheDocument();
+
+  await submitInferencePackageImport();
+
+  expect(await screen.findByText("imported-endpoint")).toBeInTheDocument();
+  expect(listModelEndpointsService).toHaveBeenCalledTimes(2);
+  expect(services.listInferencePackagesService).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /view endpoints/i }),
+  );
+  await waitFor(() =>
+    expect(listModelEndpointsService).toHaveBeenCalledTimes(3),
+  );
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("refreshes models and capabilities while the model tab remains active", async () => {
+  const existingModel = catalogModel("existing-model");
+  const importedModel = catalogModel("imported-model");
+  const listModelsService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      models: [existingModel],
+      nextPageToken: "",
+    })
+    .mockResolvedValue({
+      models: [existingModel, importedModel],
+      nextPageToken: "",
+    });
+  const listModelEndpointCapabilitiesService = jest
+    .fn()
+    .mockResolvedValueOnce({
+      modelEndpointCapabilities: [
+        catalogCapability("existing-capability", "existing-model", "chat"),
+      ],
+      nextPageToken: "",
+    })
+    .mockResolvedValue({
+      modelEndpointCapabilities: [
+        catalogCapability("existing-capability", "existing-model", "chat"),
+        catalogCapability(
+          "imported-capability",
+          "imported-model",
+          "summarize",
+        ),
+      ],
+      nextPageToken: "",
+    });
+  const services = renderPage({
+    listModelsService,
+    listModelEndpointCapabilitiesService,
+  });
+
+  expect(await screen.findByText("provider/existing-model")).toBeInTheDocument();
+  await submitInferencePackageImport();
+
+  expect(await screen.findByText("provider/imported-model")).toBeInTheDocument();
+  expect(screen.getByText("Summarize")).toBeInTheDocument();
+  expect(listModelsService).toHaveBeenCalledTimes(2);
+  expect(listModelEndpointCapabilitiesService).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /view models/i }),
+  );
+  await waitFor(() => expect(listModelsService).toHaveBeenCalledTimes(3));
+  expect(listModelEndpointCapabilitiesService).toHaveBeenCalledTimes(3);
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("preserves model filters while refreshing imported catalog data", async () => {
+  let imported = false;
+  const summarizingModel = catalogModel("summary-model");
+  const chatModel = catalogModel("imported-chat-model");
+  const listModelsService = jest.fn().mockImplementation(async () => ({
+    models: imported ? [summarizingModel, chatModel] : [summarizingModel],
+    nextPageToken: "",
+  }));
+  const listModelEndpointCapabilitiesService = jest
+    .fn()
+    .mockImplementation(async (input?: { operation?: string }) => ({
+      modelEndpointCapabilities:
+        input?.operation === "summarize"
+          ? [
+              catalogCapability(
+                "summary-capability",
+                "summary-model",
+                "summarize",
+              ),
+            ]
+          : [
+              catalogCapability(
+                "summary-capability",
+                "summary-model",
+                "summarize",
+              ),
+              ...(imported
+                ? [
+                    catalogCapability(
+                      "chat-capability",
+                      "imported-chat-model",
+                      "chat",
+                    ),
+                  ]
+                : []),
+            ],
+      nextPageToken: "",
+    }));
+  const applyInferencePackageService = jest.fn().mockImplementation(async () => {
+    imported = true;
+    return {
+      package: packagesResponse.packages[0],
+      modelEndpointCount: 1,
+      modelCount: 1,
+      vectorStoreCount: 0,
+      capabilityCount: 1,
+    };
+  });
+  renderPage({
+    applyInferencePackageService,
+    listModelsService,
+    listModelEndpointCapabilitiesService,
+  });
+
+  expect(await screen.findByText("provider/summary-model")).toBeInTheDocument();
+  await userEvent.selectOptions(
+    screen.getByLabelText("Filter operation"),
+    "summarize",
+  );
+  await waitFor(() =>
+    expect(listModelEndpointCapabilitiesService).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "summarize" }),
+    ),
+  );
+  const capabilityReadsBeforeImport =
+    listModelEndpointCapabilitiesService.mock.calls.length;
+
+  await submitInferencePackageImport();
+
+  await waitFor(() =>
+    expect(listModelEndpointCapabilitiesService.mock.calls.length).toBeGreaterThan(
+      capabilityReadsBeforeImport,
+    ),
+  );
+  await screen.findByText(/inference package imported/i);
+  expect(screen.getByLabelText("Filter operation")).toHaveValue("summarize");
+  expect(screen.getByText("provider/summary-model")).toBeInTheDocument();
+  expect(screen.queryByText("provider/imported-chat-model")).not.toBeInTheDocument();
+  expect(applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("preserves import success and offers retry when catalog refresh fails", async () => {
+  const existingModel = catalogModel("existing-model");
+  const importedModel = catalogModel("imported-model");
+  const listModelsService = jest
+    .fn()
+    .mockResolvedValueOnce({ models: [existingModel], nextPageToken: "" })
+    .mockRejectedValueOnce(new Error("catalog read unavailable"))
+    .mockResolvedValue({
+      models: [existingModel, importedModel],
+      nextPageToken: "",
+    });
+  const services = renderPage({ listModelsService });
+
+  expect(await screen.findByText("provider/existing-model")).toBeInTheDocument();
+  await submitInferencePackageImport();
+
+  expect(
+    await screen.findByText(/import succeeded, but the follow-up refresh failed/i),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText(/catalog read unavailable/i).length).toBeGreaterThan(
+    0,
+  );
+  expect(screen.getByText(/inference package imported/i)).toBeInTheDocument();
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /retry refresh/i }),
+  );
+
+  expect(await screen.findByText("provider/imported-model")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      screen.queryByText(/follow-up refresh failed/i),
+    ).not.toBeInTheDocument(),
+  );
+  expect(services.applyInferencePackageService).toHaveBeenCalledTimes(1);
+});
+
+test("routes the vector-store summary action to an authoritative catalog page", async () => {
+  renderPage();
+
+  await screen.findByText("openai/gpt-5.6-terra");
+  await submitInferencePackageImport();
+  await userEvent.click(
+    await screen.findByRole("button", { name: /view vector stores/i }),
+  );
+
+  expect(screen.getByTestId("location")).toHaveTextContent(
+    "/intelligence/vector-stores",
+  );
+});
+
 test("renders invalid JSON errors", async () => {
   renderPage();
 
-  await screen.findByText("Openai Compatible");
+  await screen.findByText("openai/gpt-5.6-terra");
   await userEvent.click(
     screen.getByRole("button", { name: /import package json/i }),
   );

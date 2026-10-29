@@ -6,6 +6,38 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.21.0] - 2026-10-29
+
+### Added
+
+- Added an accessible Show/Hide control to the login password field so operators can verify entered credentials without changing login behavior (#96).
+- Added list-first Semantic Rules routes for rule inventory, dedicated creation, and identity-backed editing, with editor-only catalog loading and in-app unsaved-change protection (#78).
+- Added an accessible semantic trigger-event checkbox group backed by the enum-only API field, with fail-closed handling of unknown projections (#75).
+- Added catalog-backed semantic-rule vector-store selection using authoritative UUID values and unique display-name labels, including search, disabled/empty states, legacy-name disambiguation, and unavailable-reference preservation (#76).
+
+### Changed
+
+- Replaced the shared Models catalog tab with URL-addressable counted Generative, Embedding, and conditional Other tabs, each with kind-specific filters, columns, loading, and empty states (#89).
+- Aligned the Search page header with the Data navigation section while retaining Search as the page title and sidebar label (#95).
+- Coordinated Admin and data RPC authentication through one rotating-token source and refresh lock, routed generated-client calls through guarded refresh/retry handling, and made terminal refresh-session failures return operators to login (#82, #83).
+- Replaced free-text space-owner entry with a capability-aware, paginated active-principal selector showing name-only options backed by authoritative principal IDs, while retaining an explicit manual username fallback (#80).
+- Renamed the Intelligence navigation entry from Semantic to Semantic Rules and removed semantic search controls from rule administration; search remains under the Search feature. The retired `/intelligence/semantic` route is not redirected (#78).
+- Made Semantic Rules scope cells name-first while preserving UUID-backed links, accessible exact-ID context, safe ID fallbacks, and concise collision disambiguation (#84).
+- Split the inference model catalog into type-aware generative, embedding, and fallback tables with relevant limits, vector metadata, and defensive missing-value presentation (#88).
+- Updated OpenAI profile and setup-wizard defaults to the concrete supported `openai/gpt-5.6-terra` catalog key instead of the removed `openai/gpt-5.6-mini` example (#261 in `mycel`).
+- Search now provides separate lexical-syntax and semantic-natural-language inputs in hybrid mode, places text only in the corresponding channel options, and carries bound continuation tokens without populating the removed top-level fallback (#64).
+
+### Fixed
+
+- Refresh package history and authoritative model catalog data after successful inference package imports, including explicit retry handling when a follow-up read fails (#81).
+
+### Compatibility
+
+- Search requires a daemon and Rust SDK implementing channel-specific queries; older top-level-query-only Search contracts are not supported.
+- Semantic rule requests and responses require the enum-only `trigger.events` contract. The Console no longer reads or dual-writes legacy trigger strings and requires matching regenerated SDK and daemon versions.
+- Older, unauthorized, or temporarily unavailable vector-store catalogs are surfaced explicitly. Existing UUID or legacy key references remain unchanged during unrelated edits; new rules require selection of an enabled UUID-backed store.
+- Semantic-rule edits preserve opaque embedding metadata and daemon-owned provider-budget policy fields even though this Console release does not expose budget configuration controls.
+
 ## [v0.20.0] - 2026-10-20
 
 ### Changed

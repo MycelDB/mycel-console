@@ -96,6 +96,41 @@ test("draftToRule fails closed for unresolved trigger events", () => {
   ).toThrow(/unsupported/i);
 });
 
+test("unrelated edits preserve opaque binding metadata and provider budgets", () => {
+  const original = draftToRule({
+    ...draft,
+    bindingMetadata: { route: "embedding-primary", nested: { owner: "ops" } },
+    providerBudget: {
+      correlationId: "semantic-search-budget",
+      maxRequests: "128",
+      maxRetryAttempts: "4",
+      maxRetriesPerRequest: "1",
+      maxConcurrentProviderCalls: "2",
+      batchingMode: 1,
+      maxBatchItems: "1",
+      maxInputTokensPerRequest: "2048",
+      maxInputTokens: "20000",
+      requestTimeout: { seconds: "30", nanos: 0 },
+      totalTimeout: { seconds: "300", nanos: 0 },
+      cost: {
+        currency: "USD",
+        priceDefinitionVersion: "2026-10-01",
+        inputMicrosPerMillionTokens: "20",
+        maxEstimatedCostMicros: "1000000",
+      },
+    },
+  });
+
+  const changedDraft = { ...ruleToDraft(original), description: "Updated description" };
+  const updated = draftToRule(changedDraft);
+
+  expect(updated.description).toBe("Updated description");
+  expect(updated.embeddings[0].metadata).toEqual(original.embeddings[0].metadata);
+  expect(updated.embeddings[0].providerBudget).toEqual(
+    original.embeddings[0].providerBudget,
+  );
+});
+
 test("ruleToDraft and summaryToRule preserve editable fields", () => {
   const rule = draftToRule(draft) as SemanticGenerationRule;
   expect(ruleToDraft(rule)).toMatchObject({

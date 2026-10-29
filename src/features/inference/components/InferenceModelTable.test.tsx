@@ -154,6 +154,31 @@ test("keeps unknown kinds visible in a deterministic fallback section", () => {
   ]);
 });
 
+test("prefers canonical model limits when metadata is absent", () => {
+  render(
+    <InferenceModelTable
+      models={[
+        {
+          ...generativeModel,
+          contextTokens: 262_144,
+          maxOutputTokens: 32_768,
+          metadata: null,
+        },
+        {
+          ...embeddingModel,
+          contextTokens: 16_384,
+          metadata: null,
+        },
+      ]}
+      capabilities={capabilities}
+    />,
+  );
+
+  expect(sectionNamed("Generative models").getByText("262,144")).toBeInTheDocument();
+  expect(sectionNamed("Generative models").getByText("32,768")).toBeInTheDocument();
+  expect(sectionNamed("Embedding models").getByText("16,384")).toBeInTheDocument();
+});
+
 test("reports missing or malformed optional metadata without inventing zero values", () => {
   render(
     <InferenceModelTable

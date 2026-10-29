@@ -1,6 +1,9 @@
 import type { DomainInfo } from "../../../../types/domains";
 import type { SpaceInfo } from "../../../../types/spaces";
-import type { SemanticGenerationRuleSummary } from "../../../../types/semantic";
+import type {
+  SemanticGenerationRuleSummary,
+  SemanticProviderBudgetPolicy,
+} from "../../../../types/semantic";
 import type {
   SemanticMaintenanceStatusInfo,
   SemanticMaintenanceWorkItemInfo,
@@ -72,6 +75,8 @@ export type RuleDraft = {
   intelligenceProfile: string;
   vectorStoreId: string;
   vectorStoreLegacyRef: string;
+  bindingMetadata?: Record<string, unknown> | null;
+  providerBudget?: SemanticProviderBudgetPolicy | null;
   searchable: boolean;
   physicalIndex: string;
 };

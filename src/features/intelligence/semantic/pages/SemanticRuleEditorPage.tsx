@@ -251,19 +251,27 @@ export function SemanticRuleEditorPage({
 
   const resolveEditSpace = useCallback(async (availableSpaces: SpaceInfo[]) => {
     if (requestedSpaceId) return requestedSpaceId;
-    const results = await Promise.all(
-      availableSpaces.map(async (space) => ({
-        spaceId: space.spaceId,
-        rules: (await listSemanticRulesService({
+    for (const space of availableSpaces) {
+      const seenPageTokens = new Set<string>();
+      let pageToken = "";
+      do {
+        const response = await listSemanticRulesService({
           spaceId: space.spaceId,
           pageSize: 500,
           includeDisabled: true,
-        })).rules,
-      })),
-    );
-    return results.find(({ rules }) =>
-      rules.some((rule) => rule.semanticRuleId === ruleId),
-    )?.spaceId || "";
+          ...(pageToken ? { pageToken } : {}),
+        });
+        if (response.rules.some((rule) => rule.semanticRuleId === ruleId)) {
+          return space.spaceId;
+        }
+        pageToken = response.nextPageToken;
+        if (pageToken && seenPageTokens.has(pageToken)) {
+          throw new Error("Semantic rule pagination returned a repeated page token");
+        }
+        if (pageToken) seenPageTokens.add(pageToken);
+      } while (pageToken);
+    }
+    return "";
   }, [listSemanticRulesService, requestedSpaceId, ruleId]);
 
   useEffect(() => {
@@ -273,12 +281,23 @@ export function SemanticRuleEditorPage({
       setError("");
       setNotFound(false);
       try {
-        const spaceResponse = await listSpacesService({
-          pageSize: 100,
-          includeArchived: false,
-        });
+        const availableSpaces: SpaceInfo[] = [];
+        const seenSpacePageTokens = new Set<string>();
+        let spacePageToken = "";
+        do {
+          const spaceResponse = await listSpacesService({
+            pageSize: 100,
+            includeArchived: false,
+            ...(spacePageToken ? { pageToken: spacePageToken } : {}),
+          });
+          availableSpaces.push(...spaceResponse.spaces);
+          spacePageToken = spaceResponse.nextPageToken;
+          if (spacePageToken && seenSpacePageTokens.has(spacePageToken)) {
+            throw new Error("Space pagination returned a repeated page token");
+          }
+          if (spacePageToken) seenSpacePageTokens.add(spacePageToken);
+        } while (spacePageToken);
         if (cancelled) return;
-        const availableSpaces = spaceResponse.spaces;
         setSpaces(availableSpaces);
         const domainResults = await Promise.all(
           availableSpaces.map(async (space) =>

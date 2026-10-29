@@ -6,6 +6,8 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.21.0] - 2026-10-29
+
 ### Added
 
 - Added an accessible Show/Hide control to the login password field so operators can verify entered credentials without changing login behavior (#96).
@@ -34,6 +36,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 - Search requires a daemon and Rust SDK implementing channel-specific queries; older top-level-query-only Search contracts are not supported.
 - Semantic rule requests and responses require the enum-only `trigger.events` contract. The Console no longer reads or dual-writes legacy trigger strings and requires matching regenerated SDK and daemon versions.
 - Older, unauthorized, or temporarily unavailable vector-store catalogs are surfaced explicitly. Existing UUID or legacy key references remain unchanged during unrelated edits; new rules require selection of an enabled UUID-backed store.
+- Semantic-rule edits preserve opaque embedding metadata and daemon-owned provider-budget policy fields even though this Console release does not expose budget configuration controls.
 
 ## [v0.20.0] - 2026-10-20
 

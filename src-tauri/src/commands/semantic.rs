@@ -1,9 +1,10 @@
 use mycel_sdk::proto::admin::v1::{
     CreateSemanticRuleRequest, DeleteSemanticRuleRequest, GetSemanticRuleRequest,
     ListSemanticRulesRequest, SemanticEmbeddingBinding, SemanticGenerationRule,
-    SemanticMaintenancePolicy, SemanticSourceAssemblyPolicy, SemanticStoragePolicy,
-    SemanticTargetSelector, SemanticTriggerEventType, SemanticTriggerPolicy,
-    SetSemanticRuleEnabledRequest, UpdateSemanticRuleRequest, ValidateSemanticRuleRequest,
+    SemanticMaintenancePolicy, SemanticProviderBudgetPolicy, SemanticProviderCostLimit,
+    SemanticSourceAssemblyPolicy, SemanticStoragePolicy, SemanticTargetSelector,
+    SemanticTriggerEventType, SemanticTriggerPolicy, SetSemanticRuleEnabledRequest,
+    UpdateSemanticRuleRequest, ValidateSemanticRuleRequest,
 };
 use mycel_sdk::proto::client::v1::{
     Node, SearchIndexState, SearchIndexStatus, SemanticEmbeddingBindingSummary,
@@ -207,6 +208,46 @@ pub struct SemanticEmbeddingBindingInfo {
     pub vector_store_id: String,
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub metadata: Option<Value>,
+    #[serde(default)]
+    pub provider_budget: Option<SemanticProviderBudgetPolicyInfo>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticProviderBudgetPolicyInfo {
+    #[serde(default)]
+    pub correlation_id: String,
+    pub max_requests: Option<String>,
+    pub max_retry_attempts: Option<String>,
+    pub max_retries_per_request: Option<String>,
+    pub max_concurrent_provider_calls: Option<String>,
+    pub batching_mode: Option<i32>,
+    pub max_batch_items: Option<String>,
+    pub max_input_tokens_per_request: Option<String>,
+    pub max_input_tokens: Option<String>,
+    pub request_timeout: Option<SemanticDurationInfo>,
+    pub total_timeout: Option<SemanticDurationInfo>,
+    pub cost: Option<SemanticProviderCostLimitInfo>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticDurationInfo {
+    pub seconds: String,
+    pub nanos: i32,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticProviderCostLimitInfo {
+    #[serde(default)]
+    pub currency: String,
+    #[serde(default)]
+    pub price_definition_version: String,
+    pub input_micros_per_million_tokens: Option<String>,
+    pub max_estimated_cost_micros: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -603,18 +644,23 @@ fn rule_proto(rule: SemanticGenerationRuleInfo) -> Result<SemanticGenerationRule
         embeddings: rule
             .embeddings
             .into_iter()
-            .map(|item| SemanticEmbeddingBinding {
-                key: item.key,
-                purpose: item.purpose,
-                intelligence_profile: item.intelligence_profile,
-                intelligence_profile_id: item.intelligence_profile_id,
-                vector_store: item.vector_store,
-                vector_store_id: item.vector_store_id,
-                enabled: item.enabled,
-                metadata: None,
-                provider_budget: None,
+            .map(|item| {
+                Ok(SemanticEmbeddingBinding {
+                    key: item.key,
+                    purpose: item.purpose,
+                    intelligence_profile: item.intelligence_profile,
+                    intelligence_profile_id: item.intelligence_profile_id,
+                    vector_store: item.vector_store,
+                    vector_store_id: item.vector_store_id,
+                    enabled: item.enabled,
+                    metadata: item.metadata.map(struct_proto).transpose()?,
+                    provider_budget: item
+                        .provider_budget
+                        .map(provider_budget_proto)
+                        .transpose()?,
+                })
             })
-            .collect(),
+            .collect::<Result<Vec<_>, String>>()?,
         maintenance: rule.maintenance.map(|item| SemanticMaintenancePolicy {
             dirty_cooldown: item.dirty_cooldown,
             max_batch_size: item.max_batch_size,
@@ -629,6 +675,69 @@ fn rule_proto(rule: SemanticGenerationRuleInfo) -> Result<SemanticGenerationRule
         created_at: rule.created_at,
         updated_at: rule.updated_at,
     })
+}
+
+fn provider_budget_proto(
+    item: SemanticProviderBudgetPolicyInfo,
+) -> Result<SemanticProviderBudgetPolicy, String> {
+    Ok(SemanticProviderBudgetPolicy {
+        correlation_id: item.correlation_id,
+        max_requests: parse_optional_i64(item.max_requests, "maxRequests")?,
+        max_retry_attempts: parse_optional_i64(item.max_retry_attempts, "maxRetryAttempts")?,
+        max_retries_per_request: parse_optional_i64(
+            item.max_retries_per_request,
+            "maxRetriesPerRequest",
+        )?,
+        max_concurrent_provider_calls: parse_optional_i64(
+            item.max_concurrent_provider_calls,
+            "maxConcurrentProviderCalls",
+        )?,
+        batching_mode: item.batching_mode,
+        max_batch_items: parse_optional_i64(item.max_batch_items, "maxBatchItems")?,
+        max_input_tokens_per_request: parse_optional_i64(
+            item.max_input_tokens_per_request,
+            "maxInputTokensPerRequest",
+        )?,
+        max_input_tokens: parse_optional_i64(item.max_input_tokens, "maxInputTokens")?,
+        request_timeout: item.request_timeout.map(duration_proto).transpose()?,
+        total_timeout: item.total_timeout.map(duration_proto).transpose()?,
+        cost: item
+            .cost
+            .map(|cost| -> Result<SemanticProviderCostLimit, String> {
+                Ok(SemanticProviderCostLimit {
+                    currency: cost.currency,
+                    price_definition_version: cost.price_definition_version,
+                    input_micros_per_million_tokens: parse_optional_i64(
+                        cost.input_micros_per_million_tokens,
+                        "cost.inputMicrosPerMillionTokens",
+                    )?,
+                    max_estimated_cost_micros: parse_optional_i64(
+                        cost.max_estimated_cost_micros,
+                        "cost.maxEstimatedCostMicros",
+                    )?,
+                })
+            })
+            .transpose()?,
+    })
+}
+
+fn duration_proto(item: SemanticDurationInfo) -> Result<prost_types::Duration, String> {
+    Ok(prost_types::Duration {
+        seconds: item.seconds.parse::<i64>().map_err(|_| {
+            "Semantic provider budget duration seconds must be an integer".to_string()
+        })?,
+        nanos: item.nanos,
+    })
+}
+
+fn parse_optional_i64(value: Option<String>, field: &str) -> Result<Option<i64>, String> {
+    value
+        .map(|value| {
+            value
+                .parse::<i64>()
+                .map_err(|_| format!("Semantic provider budget {field} must be an integer string"))
+        })
+        .transpose()
 }
 
 fn trigger_policy_proto(item: SemanticTriggerPolicyInfo) -> Result<SemanticTriggerPolicy, String> {
@@ -727,6 +836,8 @@ fn rule_info(rule: SemanticGenerationRule) -> SemanticGenerationRuleInfo {
                 vector_store: item.vector_store,
                 vector_store_id: item.vector_store_id,
                 enabled: item.enabled,
+                metadata: item.metadata.as_ref().map(struct_json),
+                provider_budget: item.provider_budget.map(provider_budget_info),
             })
             .collect(),
         maintenance: rule.maintenance.map(|item| SemanticMaintenancePolicyInfo {
@@ -742,6 +853,43 @@ fn rule_info(rule: SemanticGenerationRule) -> SemanticGenerationRuleInfo {
         created_by_principal_id: rule.created_by_principal_id,
         created_at: rule.created_at,
         updated_at: rule.updated_at,
+    }
+}
+
+fn provider_budget_info(item: SemanticProviderBudgetPolicy) -> SemanticProviderBudgetPolicyInfo {
+    SemanticProviderBudgetPolicyInfo {
+        correlation_id: item.correlation_id,
+        max_requests: item.max_requests.map(|value| value.to_string()),
+        max_retry_attempts: item.max_retry_attempts.map(|value| value.to_string()),
+        max_retries_per_request: item.max_retries_per_request.map(|value| value.to_string()),
+        max_concurrent_provider_calls: item
+            .max_concurrent_provider_calls
+            .map(|value| value.to_string()),
+        batching_mode: item.batching_mode,
+        max_batch_items: item.max_batch_items.map(|value| value.to_string()),
+        max_input_tokens_per_request: item
+            .max_input_tokens_per_request
+            .map(|value| value.to_string()),
+        max_input_tokens: item.max_input_tokens.map(|value| value.to_string()),
+        request_timeout: item.request_timeout.map(duration_info),
+        total_timeout: item.total_timeout.map(duration_info),
+        cost: item.cost.map(|cost| SemanticProviderCostLimitInfo {
+            currency: cost.currency,
+            price_definition_version: cost.price_definition_version,
+            input_micros_per_million_tokens: cost
+                .input_micros_per_million_tokens
+                .map(|value| value.to_string()),
+            max_estimated_cost_micros: cost
+                .max_estimated_cost_micros
+                .map(|value| value.to_string()),
+        }),
+    }
+}
+
+fn duration_info(item: prost_types::Duration) -> SemanticDurationInfo {
+    SemanticDurationInfo {
+        seconds: item.seconds.to_string(),
+        nanos: item.nanos,
     }
 }
 
@@ -828,6 +976,39 @@ fn node_json(node: &Node) -> Value {
     })
 }
 
+fn struct_proto(value: Value) -> Result<prost_types::Struct, String> {
+    match value {
+        Value::Object(fields) => Ok(prost_types::Struct {
+            fields: fields
+                .into_iter()
+                .map(|(key, value)| (key, prost_value_proto(value)))
+                .collect(),
+        }),
+        _ => Err("Semantic embedding metadata must be a JSON object".to_string()),
+    }
+}
+
+fn prost_value_proto(value: Value) -> prost_types::Value {
+    let kind = match value {
+        Value::Null => prost_types::value::Kind::NullValue(0),
+        Value::Bool(value) => prost_types::value::Kind::BoolValue(value),
+        Value::Number(value) => {
+            prost_types::value::Kind::NumberValue(value.as_f64().unwrap_or_default())
+        }
+        Value::String(value) => prost_types::value::Kind::StringValue(value),
+        Value::Array(values) => prost_types::value::Kind::ListValue(prost_types::ListValue {
+            values: values.into_iter().map(prost_value_proto).collect(),
+        }),
+        Value::Object(fields) => prost_types::value::Kind::StructValue(prost_types::Struct {
+            fields: fields
+                .into_iter()
+                .map(|(key, value)| (key, prost_value_proto(value)))
+                .collect(),
+        }),
+    };
+    prost_types::Value { kind: Some(kind) }
+}
+
 fn struct_json(value: &prost_types::Struct) -> Value {
     Value::Object(
         value
@@ -890,5 +1071,76 @@ mod tests {
             semantic_trigger_event_name(SemanticTriggerEventType::NodeCreated as i32),
             "node.created"
         );
+    }
+
+    #[test]
+    fn semantic_binding_round_trip_preserves_metadata_and_provider_budget() {
+        let metadata = prost_types::Struct {
+            fields: [(
+                "route".to_string(),
+                prost_types::Value {
+                    kind: Some(prost_types::value::Kind::StringValue(
+                        "embedding-primary".to_string(),
+                    )),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let provider_budget = SemanticProviderBudgetPolicy {
+            correlation_id: "semantic-search-budget".to_string(),
+            max_requests: Some(128),
+            max_retry_attempts: Some(4),
+            max_retries_per_request: Some(1),
+            max_concurrent_provider_calls: Some(2),
+            batching_mode: Some(1),
+            max_batch_items: Some(1),
+            max_input_tokens_per_request: Some(2048),
+            max_input_tokens: Some(9_007_199_254_740_993),
+            request_timeout: Some(prost_types::Duration {
+                seconds: 30,
+                nanos: 0,
+            }),
+            total_timeout: Some(prost_types::Duration {
+                seconds: 300,
+                nanos: 0,
+            }),
+            cost: Some(SemanticProviderCostLimit {
+                currency: "USD".to_string(),
+                price_definition_version: "2026-10-01".to_string(),
+                input_micros_per_million_tokens: Some(20),
+                max_estimated_cost_micros: Some(1_000_000),
+            }),
+        };
+        let rule = SemanticGenerationRule {
+            semantic_rule_id: "rule-1".to_string(),
+            space_id: "space-1".to_string(),
+            domain_id: "domain-1".to_string(),
+            key: "search".to_string(),
+            description: "before".to_string(),
+            embeddings: vec![SemanticEmbeddingBinding {
+                key: "search".to_string(),
+                metadata: Some(metadata.clone()),
+                provider_budget: Some(provider_budget.clone()),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let mut info = rule_info(rule);
+        assert_eq!(
+            info.embeddings[0]
+                .provider_budget
+                .as_ref()
+                .and_then(|budget| budget.max_input_tokens.as_deref()),
+            Some("9007199254740993")
+        );
+        info.description = "after".to_string();
+        let round_tripped = rule_proto(info).expect("round-trip semantic rule");
+        let binding = &round_tripped.embeddings[0];
+
+        assert_eq!(round_tripped.description, "after");
+        assert_eq!(binding.metadata, Some(metadata));
+        assert_eq!(binding.provider_budget, Some(provider_budget));
     }
 }

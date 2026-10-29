@@ -400,6 +400,53 @@ test("filters generative models only by applicable supported operations", async 
   });
 });
 
+test("filters canonical disabled models until Include disabled is selected", async () => {
+  renderPage({
+    listModelsService: jest.fn().mockResolvedValue({
+      models: [
+        {
+          modelId: "active-model",
+          key: "provider/active",
+          kind: "generative",
+          modelName: "active",
+          connectorTypes: ["custom"],
+          dimensions: 0,
+          inputModalities: ["text"],
+          outputModalities: ["text"],
+          vectorSpaceKey: "",
+          enabled: true,
+        },
+        {
+          modelId: "disabled-model",
+          key: "provider/disabled",
+          kind: "generative",
+          modelName: "disabled",
+          connectorTypes: ["custom"],
+          dimensions: 0,
+          inputModalities: ["text"],
+          outputModalities: ["text"],
+          vectorSpaceKey: "",
+          enabled: false,
+        },
+      ],
+      nextPageToken: "",
+    }),
+    listModelEndpointCapabilitiesService: jest.fn().mockResolvedValue({
+      modelEndpointCapabilities: [],
+      nextPageToken: "",
+    }),
+  });
+
+  expect(await screen.findByText("provider/active")).toBeInTheDocument();
+  expect(screen.queryByText("provider/disabled")).not.toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Generative (1)" })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByLabelText("Include disabled"));
+
+  expect(await screen.findByText("provider/disabled")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Generative (2)" })).toBeInTheDocument();
+});
+
 test("supports direct embedding navigation without generative controls", async () => {
   const services = renderPage({}, "/intelligence/models?tab=embedding");
 

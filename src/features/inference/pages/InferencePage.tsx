@@ -229,7 +229,10 @@ export function InferencePage({
   const catalogRequestId = useRef(0);
   const [includeDisabledCatalog, setIncludeDisabledCatalog] = useState(false);
   const [operationFilter, setOperationFilter] = useState("");
-  const modelCounts = useMemo(() => countModelsByKind(models), [models]);
+  const modelCounts = useMemo(
+    () => countModelsByKind(models, includeDisabledCatalog),
+    [includeDisabledCatalog, models],
+  );
   const selectedCatalogTab = modelCatalogTab(searchParams.get("tab"));
   const activeTab =
     section === "access" ? accessActiveTab : selectedCatalogTab;
@@ -1612,9 +1615,15 @@ async function loadAllCapabilities(
   return { modelEndpointCapabilities, nextPageToken: "" };
 }
 
-function countModelsByKind(models: InferenceModelInfo[]): ModelKindCounts {
+function countModelsByKind(
+  models: InferenceModelInfo[],
+  includeDisabled: boolean,
+): ModelKindCounts {
   const counts: ModelKindCounts = { generative: 0, embedding: 0, other: 0 };
-  for (const model of models) counts[modelCatalogKind(model.kind)] += 1;
+  for (const model of models) {
+    if (!includeDisabled && model.enabled === false) continue;
+    counts[modelCatalogKind(model.kind)] += 1;
+  }
   return counts;
 }
 
@@ -1663,7 +1672,9 @@ function modelsForCatalogTab(
 ) {
   if (!isModelCatalogKind(tab)) return [];
   const matchingKind = models.filter(
-    (model) => modelCatalogKind(model.kind) === tab,
+    (model) =>
+      modelCatalogKind(model.kind) === tab &&
+      (includeDisabled || model.enabled !== false),
   );
   if (tab !== "generative" || !operationFilter) return matchingKind;
   const supportedModelIds = new Set(

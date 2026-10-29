@@ -167,6 +167,9 @@ pub struct InferenceModelInfo {
     pub input_modalities: Vec<String>,
     pub output_modalities: Vec<String>,
     pub vector_space_key: String,
+    pub context_tokens: i32,
+    pub max_output_tokens: i32,
+    pub enabled: bool,
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -2230,6 +2233,9 @@ fn inference_model_info(model: InferenceModel) -> InferenceModelInfo {
         input_modalities: model.input_modalities,
         output_modalities: model.output_modalities,
         vector_space_key: model.vector_space_key,
+        context_tokens: model.context_tokens,
+        max_output_tokens: model.max_output_tokens,
+        enabled: model.enabled,
         metadata: model.metadata.map(json_from_struct),
     }
 }
@@ -2454,6 +2460,22 @@ fn timestamp_string(timestamp: Option<Timestamp>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inference_model_info_exposes_canonical_limits_and_enabled_state() {
+        let info = inference_model_info(InferenceModel {
+            model_id: "model-1".to_string(),
+            key: "provider/model".to_string(),
+            context_tokens: 262_144,
+            max_output_tokens: 32_768,
+            enabled: false,
+            ..Default::default()
+        });
+
+        assert_eq!(info.context_tokens, 262_144);
+        assert_eq!(info.max_output_tokens, 32_768);
+        assert!(!info.enabled);
+    }
 
     #[test]
     fn preserves_vector_store_conflict_status_detail() {

@@ -130,6 +130,7 @@ function GenerativeModelsSection({
                     modelCapabilities,
                     ["context_tokens", "contextTokens"],
                     ["max_input_tokens", "maxInputTokens"],
+                    model.contextTokens,
                   ),
                 )}
               </td>
@@ -139,6 +140,8 @@ function GenerativeModelsSection({
                     model,
                     modelCapabilities,
                     ["max_output_tokens", "maxOutputTokens"],
+                    undefined,
+                    model.maxOutputTokens,
                   ),
                 )}
               </td>
@@ -200,6 +203,8 @@ function EmbeddingModelsSection({
                     model,
                     modelCapabilities,
                     ["max_input_tokens", "maxInputTokens"],
+                    undefined,
+                    model.contextTokens,
                   ),
                 )}
               </td>
@@ -526,7 +531,9 @@ function resolveLimit(
   capabilities: ModelEndpointCapabilityInfo[],
   modelKeys: string[],
   capabilityKeys = modelKeys,
+  canonicalValue?: number,
 ): ReportedNumber {
+  if (isPositiveInteger(canonicalValue)) return canonicalValue;
   const modelValue = metadataPositiveInteger(model.metadata, modelKeys);
   if (modelValue !== null) return modelValue;
 

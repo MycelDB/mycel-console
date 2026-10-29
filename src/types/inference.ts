@@ -45,6 +45,9 @@ export type InferenceModelInfo = {
   inputModalities: string[];
   outputModalities: string[];
   vectorSpaceKey: string;
+  contextTokens?: number;
+  maxOutputTokens?: number;
+  enabled?: boolean;
   metadata?: JsonObject | null;
 };
 

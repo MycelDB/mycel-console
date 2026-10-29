@@ -108,6 +108,8 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
         vectorStore: draft.vectorStoreId ? "" : draft.vectorStoreLegacyRef,
         vectorStoreId: draft.vectorStoreId,
         enabled: true,
+        metadata: draft.bindingMetadata,
+        providerBudget: draft.providerBudget,
       },
     ],
     maintenance: {
@@ -152,6 +154,8 @@ export function ruleToDraft(rule: SemanticGenerationRule): RuleDraft {
       binding?.intelligenceProfile || binding?.intelligenceProfileId || "",
     vectorStoreId: binding?.vectorStoreId || "",
     vectorStoreLegacyRef: binding?.vectorStore || "",
+    bindingMetadata: binding?.metadata,
+    providerBudget: binding?.providerBudget,
     searchable: rule.storage?.searchable ?? true,
     physicalIndex: rule.storage?.physicalIndex || "exact",
   };

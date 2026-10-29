@@ -154,6 +154,62 @@ test("loads edit values by authoritative route identity", async () => {
   });
 });
 
+test("resolves identity-only edit routes across paginated spaces and rules", async () => {
+  const secondSpace = { spaceId: "sp2", name: "Archive" };
+  const listSpacesService = jest
+    .fn()
+    .mockResolvedValueOnce({ spaces: [secondSpace], nextPageToken: "spaces-2" })
+    .mockResolvedValueOnce({ spaces: [space], nextPageToken: "" });
+  const listSemanticRulesService = jest.fn(async (input: {
+    spaceId: string;
+    pageToken?: string;
+  }) => {
+    if (input.spaceId === "sp2") return { rules: [], nextPageToken: "" };
+    if (!input.pageToken) return { rules: [], nextPageToken: "rules-2" };
+    return {
+      rules: [{
+        semanticRuleId: "rule1",
+        key: "page-summary",
+        displayName: "Page summary",
+        description: "Summaries for pages",
+        spaceId: "sp1",
+        domainId: "dom1",
+        enabled: true,
+        state: "SEMANTIC_RULE_STATE_ACTIVE",
+        bindings: [],
+      }],
+      nextPageToken: "",
+    };
+  });
+
+  const services = renderEditor(
+    "edit",
+    { listSpacesService, listSemanticRulesService },
+    "/intelligence/semantic-rules/rule1",
+  );
+
+  await screen.findByRole("heading", { name: "Edit semantic rule" });
+  expect(listSpacesService).toHaveBeenNthCalledWith(1, {
+    pageSize: 100,
+    includeArchived: false,
+  });
+  expect(listSpacesService).toHaveBeenNthCalledWith(2, {
+    pageSize: 100,
+    includeArchived: false,
+    pageToken: "spaces-2",
+  });
+  expect(listSemanticRulesService).toHaveBeenCalledWith({
+    spaceId: "sp1",
+    pageSize: 500,
+    includeDisabled: true,
+    pageToken: "rules-2",
+  });
+  expect(services.getSemanticRuleService).toHaveBeenCalledWith({
+    spaceId: "sp1",
+    semanticRuleId: "rule1",
+  });
+});
+
 test("saves a new rule and returns to the list", async () => {
   const services = renderEditor("create");
   await prepareCreate();

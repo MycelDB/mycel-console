@@ -78,7 +78,38 @@ export type SemanticTriggerPolicy = {
 };
 export type SemanticTargetSelector = { mode: string; labels: string[]; gql: string; targetAlias: string; maxResults: number; nodeIds: string[] };
 export type SemanticSourceAssemblyPolicy = { mode: string; includeProperties: string[]; excludeProperties: string[]; maxDepth?: number | null; minimumTextLength: number; contextGql: string };
-export type SemanticEmbeddingBinding = { key: string; purpose: string; intelligenceProfile: string; intelligenceProfileId: string; vectorStore: string; vectorStoreId: string; enabled: boolean; metadata?: Record<string, unknown> | null };
+export type SemanticDuration = { seconds: string; nanos: number };
+export type SemanticProviderCostLimit = {
+  currency: string;
+  priceDefinitionVersion: string;
+  inputMicrosPerMillionTokens?: string | null;
+  maxEstimatedCostMicros?: string | null;
+};
+export type SemanticProviderBudgetPolicy = {
+  correlationId: string;
+  maxRequests?: string | null;
+  maxRetryAttempts?: string | null;
+  maxRetriesPerRequest?: string | null;
+  maxConcurrentProviderCalls?: string | null;
+  batchingMode?: number | null;
+  maxBatchItems?: string | null;
+  maxInputTokensPerRequest?: string | null;
+  maxInputTokens?: string | null;
+  requestTimeout?: SemanticDuration | null;
+  totalTimeout?: SemanticDuration | null;
+  cost?: SemanticProviderCostLimit | null;
+};
+export type SemanticEmbeddingBinding = {
+  key: string;
+  purpose: string;
+  intelligenceProfile: string;
+  intelligenceProfileId: string;
+  vectorStore: string;
+  vectorStoreId: string;
+  enabled: boolean;
+  metadata?: Record<string, unknown> | null;
+  providerBudget?: SemanticProviderBudgetPolicy | null;
+};
 export type SemanticMaintenancePolicy = { dirtyCooldown: string; maxBatchSize: number; workerConcurrency: number };
 export type SemanticStoragePolicy = { searchable: boolean; physicalIndex: string };
 

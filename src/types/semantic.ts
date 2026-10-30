@@ -150,6 +150,39 @@ export type SetSemanticRuleEnabledResponse = { rule: SemanticGenerationRule | nu
 export type DeleteSemanticRuleInput = { spaceId: string; semanticRuleId: string; purgeVectors?: boolean };
 export type DeleteSemanticRuleResponse = { semanticRuleId: string; vectorsPurged: boolean; workItemsDeleted: number; policyDecisionsDeleted: number };
 
-export type SemanticSearchInput = { spaceId: string; domainId: string; semanticRuleId?: string; embeddingBindingKey?: string; query: string; limit?: number; minScore?: number };
+export type SemanticPropertyOperator = "equal" | "notEqual" | "exists" | "missing";
+export type SemanticPropertyValue =
+  | { type: "string"; value: string }
+  | { type: "number"; value: number }
+  | { type: "boolean"; value: boolean }
+  | { type: "null" };
+export type SemanticPropertyPredicate = {
+  key: string;
+  operator: SemanticPropertyOperator;
+  value?: SemanticPropertyValue;
+};
+export type SemanticEligibilityFilter = {
+  nodeLabels: string[];
+  nodeIds: string[];
+  properties: SemanticPropertyPredicate[];
+};
+export type SemanticSearchInput = {
+  spaceId: string;
+  domainId: string;
+  semanticRuleId?: string;
+  embeddingBindingKey?: string;
+  query: string;
+  limit?: number;
+  minScore?: number;
+  pageToken?: string;
+  filter?: SemanticEligibilityFilter;
+};
 export type SemanticSearchResult = { semanticRuleId: string; embeddingBindingKey: string; recordId: string; nodeId: string; score: number; node?: Record<string, unknown> | null; matchedChunkIds: string[]; snippet: string };
-export type SemanticSearchResponse = { results: SemanticSearchResult[]; warnings: string[] };
+export type SemanticSearchResponse = {
+  results: SemanticSearchResult[];
+  warnings: string[];
+  nextPageToken: string;
+  filterExecutionMode: string;
+  examinedSemanticCandidates: number;
+  eligibleSemanticCandidates: number;
+};

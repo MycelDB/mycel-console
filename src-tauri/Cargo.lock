@@ -1929,7 +1929,7 @@ dependencies = [
 
 [[package]]
 name = "mycel-sdk"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "myceldb-proto",
  "prost",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "myceldb-proto"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "prost",
  "prost-types",

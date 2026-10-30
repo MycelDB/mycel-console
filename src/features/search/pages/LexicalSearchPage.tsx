@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../../components/layout/PageHeader";
+import { DirectSemanticSearchPanel } from "../components/DirectSemanticSearchPanel";
 import {
   Alert,
   Button,
@@ -33,6 +34,7 @@ import type {
   RebuildLexicalIndexResponse,
 } from "../../../types/lexical";
 import type { ListSpacesInput, ListSpacesResponse, SpaceInfo } from "../../../types/spaces";
+import type { SemanticSearchInput, SemanticSearchResponse } from "../../../types/semantic";
 
 export type LexicalSearchPageProps = {
   listSpacesService?: (input?: ListSpacesInput) => Promise<ListSpacesResponse>;
@@ -40,6 +42,7 @@ export type LexicalSearchPageProps = {
   lexicalSearchService?: (input: LexicalSearchInput) => Promise<LexicalSearchResponse>;
   getLexicalIndexStatusService?: (input: LexicalIndexScopeInput) => Promise<LexicalIndexStatus>;
   rebuildLexicalIndexService?: (input: RebuildLexicalIndexInput) => Promise<RebuildLexicalIndexResponse>;
+  semanticSearchService?: (input: SemanticSearchInput) => Promise<SemanticSearchResponse>;
   principalContext?: ConsolePrincipalContext | null;
 };
 
@@ -49,6 +52,7 @@ export function LexicalSearchPage({
   lexicalSearchService = defaultLexicalSearch,
   getLexicalIndexStatusService = defaultGetLexicalIndexStatus,
   rebuildLexicalIndexService = defaultRebuildLexicalIndex,
+  semanticSearchService,
   principalContext,
 }: LexicalSearchPageProps) {
   const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
@@ -57,7 +61,7 @@ export function LexicalSearchPage({
   const [domainId, setDomainId] = useState("");
   const [lexicalQuery, setLexicalQuery] = useState("");
   const [semanticQuery, setSemanticQuery] = useState("");
-  const [mode, setMode] = useState<SearchMode>("lexical");
+  const [mode, setMode] = useState<SearchMode | "semantic">("lexical");
   const [pageSize, setPageSize] = useState(20);
   const [pageToken, setPageToken] = useState("");
   const [allowStale, setAllowStale] = useState(false);
@@ -148,6 +152,7 @@ export function LexicalSearchPage({
 
   async function submitSearch(event?: FormEvent<HTMLFormElement>, nextPageToken = pageToken) {
     event?.preventDefault();
+    if (mode === "semantic") return;
     if (!spaceId || !domainId || !searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth)) return;
     setError("");
     setRebuildNotice("");
@@ -220,15 +225,16 @@ export function LexicalSearchPage({
   }
 
   const scopeReady = Boolean(spaceId && domainId);
-  const queriesReady = searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth);
+  const queriesReady = mode !== "semantic" && searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth);
   const canMaintainLexical = canUseCapability(principalContext, "system.maintain_space");
+  const semanticVisibilityScopeKey = semanticSearchVisibilityKey(principalContext);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Data"
         title="Search"
-        description="Run lexical or hybrid lexical + semantic search, inspect index freshness, and trigger maintenance rebuilds."
+        description="Run lexical, hybrid, or direct semantic search with authorization-safe filters and opaque pagination."
       />
       {error ? <ErrorGroup errors={[{ id: "lexical-search", source: "Lexical search", message: error }]} /> : null}
       {rebuildNotice ? <Alert variant="success">{rebuildNotice}</Alert> : null}
@@ -271,16 +277,23 @@ export function LexicalSearchPage({
           <Select
             label="Mode"
             value={mode}
-            onChange={(value) => setMode(value as SearchMode)}
+            onChange={(value) => setMode(value as SearchMode | "semantic")}
             options={[
               { value: "lexical", label: "Lexical" },
               { value: "hybrid", label: "Hybrid lexical + semantic" },
+              { value: "semantic", label: "Direct semantic" },
             ]}
           />
-          <label className="space-y-2">
-            <Text as="span" size="sm" intent="subtle">Lexical query</Text>
-            <Input value={lexicalQuery} onChange={(event) => setLexicalQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
-          </label>
+          {mode !== "semantic" ? (
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Lexical query</Text>
+              <Input value={lexicalQuery} onChange={(event) => setLexicalQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
+            </label>
+          ) : (
+            <Text intent="muted" size="sm" className="self-end pb-2">
+              Direct semantic mode uses the typed filter form below.
+            </Text>
+          )}
         </div>
         {mode === "hybrid" ? (
           <div className="mt-4 grid gap-4 md:grid-cols-4">
@@ -318,33 +331,48 @@ export function LexicalSearchPage({
             </label>
           </div>
         ) : null}
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <label className="space-y-2">
-            <Text as="span" size="sm" intent="subtle">Required labels</Text>
-            <Input value={labelFilters} onChange={(event) => setLabelFilters(event.target.value)} placeholder="comma separated, e.g. Note,Incident" />
-          </label>
-          <label className="space-y-2">
-            <Text as="span" size="sm" intent="subtle">Property filters</Text>
-            <Input value={propertyFilters} onChange={(event) => setPropertyFilters(event.target.value)} placeholder="tags:contains:k3s; status:equals:published" />
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-4">
-          <label className="space-y-2">
-            <Text as="span" size="sm" intent="subtle">Page size</Text>
-            <Input type="number" min={1} max={100} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value) || 20)} />
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={allowStale} onChange={(event) => setAllowStale(event.target.checked)} />
-            Allow stale results
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={includeDiagnostics} onChange={(event) => setIncludeDiagnostics(event.target.checked)} />
-            Include diagnostics
-          </label>
-          <Button type="submit" disabled={!scopeReady || !queriesReady || searchLoading}>{searchLoading ? "Searching…" : "Search"}</Button>
-        </div>
+        {mode !== "semantic" ? (
+          <>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="space-y-2">
+                <Text as="span" size="sm" intent="subtle">Required labels</Text>
+                <Input value={labelFilters} onChange={(event) => setLabelFilters(event.target.value)} placeholder="comma separated, e.g. Note,Incident" />
+              </label>
+              <label className="space-y-2">
+                <Text as="span" size="sm" intent="subtle">Property filters</Text>
+                <Input value={propertyFilters} onChange={(event) => setPropertyFilters(event.target.value)} placeholder="tags:contains:k3s; status:equals:published" />
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <label className="space-y-2">
+                <Text as="span" size="sm" intent="subtle">Page size</Text>
+                <Input type="number" min={1} max={100} value={pageSize} onChange={(event) => setPageSize(Number(event.target.value) || 20)} />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={allowStale} onChange={(event) => setAllowStale(event.target.checked)} />
+                Allow stale results
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={includeDiagnostics} onChange={(event) => setIncludeDiagnostics(event.target.checked)} />
+                Include diagnostics
+              </label>
+              <Button type="submit" disabled={!scopeReady || !queriesReady || searchLoading}>{searchLoading ? "Searching…" : "Search"}</Button>
+            </div>
+          </>
+        ) : null}
       </form>
 
+      {mode === "semantic" ? (
+        <DirectSemanticSearchPanel
+          key={`${spaceId}:${domainId}:${semanticVisibilityScopeKey}`}
+          spaceId={spaceId}
+          domainId={domainId}
+          semanticSearchService={semanticSearchService}
+          visibilityScopeKey={semanticVisibilityScopeKey}
+        />
+      ) : null}
+
+      {mode !== "semantic" ? (
       <section className={`rounded-xl border ${themeClasses.border.input} ${themeClasses.surface.panel} p-5`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Text as="h2" intent="primary" className="text-lg font-semibold">Index status</Text>
@@ -369,7 +397,9 @@ export function LexicalSearchPage({
           <Text intent="muted" size="sm" className="mt-3">Refresh status for the selected scope.</Text>
         )}
       </section>
+      ) : null}
 
+      {mode !== "semantic" ? (
       <section className={`rounded-xl border ${themeClasses.border.input} ${themeClasses.surface.panel} p-5`}>
         <Text as="h2" intent="primary" className="text-lg font-semibold">Results</Text>
         {searchResponse?.warnings.length ? (
@@ -406,8 +436,22 @@ export function LexicalSearchPage({
           <Button className="mt-4" variant="secondary" onClick={() => void submitSearch(undefined, searchResponse.nextPageToken)} disabled={searchLoading}>Next page</Button>
         ) : null}
       </section>
+      ) : null}
     </div>
   );
+}
+
+export function semanticSearchVisibilityKey(
+  principalContext: ConsolePrincipalContext | null | undefined,
+): string {
+  if (!principalContext) return "unauthenticated";
+  return JSON.stringify({
+    addr: principalContext.session.addr,
+    principalId: principalContext.session.principalId,
+    roles: principalContext.roles,
+    capabilities: principalContext.capabilities,
+    capabilityState: principalContext.capabilityState,
+  });
 }
 
 function searchQueriesReady(

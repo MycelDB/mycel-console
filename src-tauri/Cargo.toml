@@ -16,7 +16,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-mycel-sdk = { path = "../../mycel-rust-sdk/crates/mycel-sdk" }
+mycel-sdk = { version = "=0.21.1", path = "../../mycel-rust-sdk/crates/mycel-sdk" }
 prost = "0.13"
 prost-types = "0.13"
 serde = { version = "1", features = ["derive"] }

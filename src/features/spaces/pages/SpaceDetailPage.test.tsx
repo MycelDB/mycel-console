@@ -198,6 +198,22 @@ function semanticManagerContext(): ConsolePrincipalContext {
   };
 }
 
+function renderSemanticRebuild(getStatus: jest.Mock, rebuild: jest.Mock) {
+  renderDetail(
+    undefined,
+    undefined,
+    jest.fn().mockResolvedValue({ rules: [semanticRule()], nextPageToken: "" }),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    semanticManagerContext(),
+    undefined,
+    getStatus,
+    rebuild,
+  );
+}
+
 test("loads and renders selected space properties", async () => {
   const getSpaceService = jest.fn().mockResolvedValue({
     spaceId: "sp_main",
@@ -393,19 +409,7 @@ test("confirms rule identity before starting one semantic rebuild", async () => 
     failedCount: 0,
   });
 
-  renderDetail(
-    undefined,
-    undefined,
-    jest.fn().mockResolvedValue({ rules: [semanticRule()], nextPageToken: "" }),
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    semanticManagerContext(),
-    undefined,
-    getStatus,
-    rebuild,
-  );
+  renderSemanticRebuild(getStatus, rebuild);
 
   await screen.findByRole("heading", { name: "Main" });
   await userEvent.click(screen.getByRole("tab", { name: "Semantic" }));
@@ -441,19 +445,7 @@ test("reconciles a failed rebuild request without retrying the mutation", async 
     message: "semantic maintenance request failed",
   });
 
-  renderDetail(
-    undefined,
-    undefined,
-    jest.fn().mockResolvedValue({ rules: [semanticRule()], nextPageToken: "" }),
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    semanticManagerContext(),
-    undefined,
-    getStatus,
-    rebuild,
-  );
+  renderSemanticRebuild(getStatus, rebuild);
 
   await screen.findByRole("heading", { name: "Main" });
   await userEvent.click(screen.getByRole("tab", { name: "Semantic" }));

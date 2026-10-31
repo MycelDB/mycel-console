@@ -86,6 +86,7 @@ import type {
   ListSpacesResponse,
   SpaceInfo,
 } from "../../../../types/spaces";
+import { ProcedureInferenceAttemptsPanel } from "../components/ProcedureInferenceAttemptsPanel";
 import type {
   ListPrincipalsInput,
   ListPrincipalsResponse,
@@ -127,7 +128,7 @@ type RunRow = {
   automation: AutomationDefinitionSummaryInfo;
   invocation: AutomationInvocationSummaryInfo;
 };
-type AutomationTab = "procedures" | "automations" | "runs";
+type AutomationTab = "procedures" | "automations" | "runs" | "attempts";
 
 type AutomationEditorState = {
   mode: "create" | "edit";
@@ -878,40 +879,42 @@ export function AutomationsPage({
         <SummaryCard label="Usage tokens" value={totals.totalTokens} />
       </div>
 
-      <div
-        className={`grid gap-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4 md:grid-cols-3`}
-      >
-        <Select
-          label="Space"
-          value={selectedSpaceId}
-          onChange={(value) => setFilter("spaceId", value)}
-          options={spaces.map((space) => ({
-            value: space.spaceId,
-            label: space.name || space.spaceId,
-          }))}
-          placeholder="All spaces"
-          disabled={loading}
-        />
-        <Select
-          label="Domain"
-          value={selectedDomainId}
-          onChange={(value) => setFilter("domainId", value)}
-          options={filteredDomains.map((domain) => ({
-            value: domain.domainId,
-            label: `${domain.name || domain.key} (${domain.spaceId})`,
-          }))}
-          placeholder="All domains"
-          disabled={loading || filteredDomains.length === 0}
-        />
-        <Select
-          label="Status"
-          value={statusFilter}
-          onChange={(value) => setFilter("status", value)}
-          options={statusOptions}
-          placeholder="All statuses"
-          disabled={loading}
-        />
-      </div>
+      {activeTab !== "attempts" && (
+        <div
+          className={`grid gap-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4 md:grid-cols-3`}
+        >
+          <Select
+            label="Space"
+            value={selectedSpaceId}
+            onChange={(value) => setFilter("spaceId", value)}
+            options={spaces.map((space) => ({
+              value: space.spaceId,
+              label: space.name || space.spaceId,
+            }))}
+            placeholder="All spaces"
+            disabled={loading}
+          />
+          <Select
+            label="Domain"
+            value={selectedDomainId}
+            onChange={(value) => setFilter("domainId", value)}
+            options={filteredDomains.map((domain) => ({
+              value: domain.domainId,
+              label: `${domain.name || domain.key} (${domain.spaceId})`,
+            }))}
+            placeholder="All domains"
+            disabled={loading || filteredDomains.length === 0}
+          />
+          <Select
+            label="Status"
+            value={statusFilter}
+            onChange={(value) => setFilter("status", value)}
+            options={statusOptions}
+            placeholder="All statuses"
+            disabled={loading}
+          />
+        </div>
+      )}
 
       <div
         className={`overflow-hidden rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel}`}
@@ -923,6 +926,7 @@ export function AutomationsPage({
             { id: "procedures", label: "Procedures" },
             { id: "automations", label: "Automations" },
             { id: "runs", label: "Runs" },
+            { id: "attempts", label: "Inference attempts" },
           ]}
           active={activeTab}
           onChange={setTab}
@@ -1202,6 +1206,17 @@ export function AutomationsPage({
           </div>
         )}
 
+        {activeTab === "attempts" && (
+          <ProcedureInferenceAttemptsPanel
+            spaces={spaces}
+            domains={domains}
+            principals={principals}
+            principalContext={principalContext}
+            initialSpaceId={selectedSpaceId}
+            initialDomainId={selectedDomainId}
+          />
+        )}
+
         {activeTab === "runs" && (
           <div>
             <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -1388,7 +1403,9 @@ function compareAutomationRows(a: AutomationRow, b: AutomationRow) {
 }
 
 function automationTab(value: string | null): AutomationTab {
-  return value === "procedures" || value === "runs" ? value : "automations";
+  return value === "procedures" || value === "runs" || value === "attempts"
+    ? value
+    : "automations";
 }
 
 function LegacyAutomationTable({

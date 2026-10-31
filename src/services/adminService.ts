@@ -25,6 +25,14 @@ import type {
   ListGraphAutomationBindingsResponseInfo,
 } from "../types/automations";
 import type {
+  GetProcedureInferenceAttemptInput,
+  ListProcedureInferenceAttemptChangesInput,
+  ListProcedureInferenceAttemptChangesResponseInfo,
+  ListProcedureInferenceAttemptsInput,
+  ListProcedureInferenceAttemptsResponseInfo,
+  ProcedureInferenceAttemptInfo,
+} from "../types/procedureInference";
+import type {
   BackupPolicyInfo,
   BackupStatusResponse,
   CancelClusterBackupInput,
@@ -790,6 +798,33 @@ export async function getAutomationRun(
   input: GetAutomationRunInput,
 ): Promise<AutomationRunInfo> {
   return invoke<AutomationRunInfo>("admin_get_automation_run", { input });
+}
+
+export async function getProcedureInferenceAttempt(
+  input: GetProcedureInferenceAttemptInput,
+): Promise<ProcedureInferenceAttemptInfo> {
+  return invoke<ProcedureInferenceAttemptInfo>(
+    "admin_get_procedure_inference_attempt",
+    { input },
+  );
+}
+
+export async function listProcedureInferenceAttempts(
+  input: ListProcedureInferenceAttemptsInput,
+): Promise<ListProcedureInferenceAttemptsResponseInfo> {
+  return invoke<ListProcedureInferenceAttemptsResponseInfo>(
+    "admin_list_procedure_inference_attempts",
+    { input },
+  );
+}
+
+export async function listProcedureInferenceAttemptChanges(
+  input: ListProcedureInferenceAttemptChangesInput,
+): Promise<ListProcedureInferenceAttemptChangesResponseInfo> {
+  return invoke<ListProcedureInferenceAttemptChangesResponseInfo>(
+    "admin_list_procedure_inference_attempt_changes",
+    { input },
+  );
 }
 
 export async function listGraphProcedures(

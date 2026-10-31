@@ -103,6 +103,7 @@ mod tests {
             include_str!("domains.rs"),
             include_str!("inference.rs"),
             include_str!("lexical.rs"),
+            include_str!("procedure_inference.rs"),
             include_str!("schemas.rs"),
             include_str!("semantic.rs"),
             include_str!("semantic_maintenance.rs"),

@@ -65,6 +65,24 @@ export type GetSemanticReliabilityStatusResponse = {
   status?: SemanticReliabilityStatusInfo | null;
 };
 
+export type RebuildSemanticRuleInput = {
+  spaceId: string;
+  semanticRuleId: string;
+  embeddingBindingKey: string;
+  backfillLimit?: number;
+  maintenanceBatchLimit?: number;
+  maxCatchupIterations?: number;
+};
+
+export type RebuildSemanticRuleResponse = {
+  rebuild: SemanticRebuildStatusInfo;
+  reliability: SemanticReliabilityStatusInfo;
+  selectedCount: number;
+  generatedCount: number;
+  skippedCount: number;
+  failedCount: number;
+};
+
 export type SemanticMaintenanceWorkItemInfo = {
   workItemId: string;
   spaceId: string;

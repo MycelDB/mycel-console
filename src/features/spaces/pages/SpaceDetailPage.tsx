@@ -4,6 +4,7 @@ import { PageHeader } from "../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
+  ConfirmationDialog,
   errorMessage,
   DomainLabel,
   EnumBadge,
@@ -45,9 +46,11 @@ import {
   listSemanticMaintenanceWork as defaultListSemanticMaintenanceWork,
   lookupSpaceRoute as defaultLookupSpaceRoute,
   processSemanticDirtyWork as defaultProcessSemanticDirtyWork,
+  rebuildSemanticRule as defaultRebuildSemanticRule,
   retrySemanticMaintenanceWork as defaultRetrySemanticMaintenanceWork,
   updateAutomation as defaultUpdateAutomation,
   validateAutomation as defaultValidateAutomation,
+  normalizeAppError,
 } from "../../../services/adminService";
 import type {
   AutomationActionInput,
@@ -102,6 +105,8 @@ import type {
   ListSemanticMaintenanceWorkInput,
   ListSemanticMaintenanceWorkResponse,
   ProcessSemanticDirtyWorkInput,
+  RebuildSemanticRuleInput,
+  RebuildSemanticRuleResponse,
   SemanticMaintenanceStatusInfo,
   SemanticMaintenanceWorkActionInput,
   SemanticMaintenanceWorkItemInfo,
@@ -115,6 +120,8 @@ import type {
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
 import {
   SemanticReliabilityDiagnostics,
+  semanticRebuildTargetKey,
+  type SemanticRebuildNotice,
   type SemanticReliabilityDiagnostic,
 } from "../components/SemanticReliabilityDiagnostics";
 import { QueryResultView } from "../components/QueryResultView";
@@ -166,6 +173,9 @@ export type SpaceDetailPageProps = {
   backfillSemanticRuleService?: (
     input: BackfillSemanticRuleInput,
   ) => Promise<unknown>;
+  rebuildSemanticRuleService?: (
+    input: RebuildSemanticRuleInput,
+  ) => Promise<RebuildSemanticRuleResponse>;
   lookupSpaceRouteService?: (
     input: LookupSpaceRouteInput,
   ) => Promise<LookupSpaceRouteResult>;
@@ -210,6 +220,26 @@ export type SpaceDetailPageProps = {
   principalContext?: ConsolePrincipalContext | null;
 };
 
+function matchingSemanticReliabilityStatus(
+  response: GetSemanticReliabilityStatusResponse,
+  input: GetSemanticReliabilityStatusInput,
+) {
+  if (!response.supported) {
+    throw new Error("Semantic reliability diagnostics are unavailable on this daemon");
+  }
+  if (!response.status) {
+    throw new Error("Semantic reliability response did not include status");
+  }
+  if (
+    response.status.spaceId !== input.spaceId ||
+    response.status.semanticRuleId !== input.semanticRuleId ||
+    response.status.embeddingBindingKey !== input.embeddingBindingKey
+  ) {
+    throw new Error("Semantic reliability response identity did not match the requested binding");
+  }
+  return response.status;
+}
+
 export function SpaceDetailPage({
   getSpaceService = defaultGetSpace,
   listDomainsService = defaultListDomains,
@@ -223,6 +253,7 @@ export function SpaceDetailPage({
   analyzeSemanticDirtyWorkService = defaultAnalyzeSemanticDirtyWork,
   processSemanticDirtyWorkService = defaultProcessSemanticDirtyWork,
   backfillSemanticRuleService = defaultBackfillSemanticRule,
+  rebuildSemanticRuleService = defaultRebuildSemanticRule,
   lookupSpaceRouteService = defaultLookupSpaceRoute,
   listAutomationsService = defaultListAutomations,
   getAutomationService = defaultGetAutomation,
@@ -267,6 +298,12 @@ export function SpaceDetailPage({
   const [semanticReliabilityLoading, setSemanticReliabilityLoading] =
     useState(false);
   const [semanticReliabilityError, setSemanticReliabilityError] = useState("");
+  const [confirmSemanticRebuild, setConfirmSemanticRebuild] =
+    useState<SemanticReliabilityDiagnostic | null>(null);
+  const [semanticRebuildLoadingTargetKey, setSemanticRebuildLoadingTargetKey] =
+    useState("");
+  const [semanticRebuildNotice, setSemanticRebuildNotice] =
+    useState<SemanticRebuildNotice | null>(null);
   const [maintenanceWork, setMaintenanceWork] = useState<
     SemanticMaintenanceWorkItemInfo[]
   >([]);
@@ -715,6 +752,8 @@ export function SpaceDetailPage({
       setSemanticReliability([]);
       setSemanticReliabilitySupported(null);
       setSemanticReliabilityError("");
+      setSemanticRebuildNotice(null);
+      setConfirmSemanticRebuild(null);
       try {
         const response = await listSemanticRulesService({
           spaceId,
@@ -746,6 +785,8 @@ export function SpaceDetailPage({
       setSemanticReliabilitySupported(null);
       setSemanticReliabilityLoading(false);
       setSemanticReliabilityError("");
+      setSemanticRebuildNotice(null);
+      setConfirmSemanticRebuild(null);
       return;
     }
     if (semanticLoading) return;
@@ -787,19 +828,17 @@ export function SpaceDetailPage({
         }
         const diagnostics = responses.map((response, index) => {
           const target = targets[index];
-          if (!target || !response.status) {
-            throw new Error("Semantic reliability response did not include status");
+          if (!target) {
+            throw new Error("Semantic reliability response target is missing");
           }
-          if (
-            response.status.spaceId !== spaceId ||
-            response.status.semanticRuleId !== target.rule.semanticRuleId ||
-            response.status.embeddingBindingKey !== target.binding.key
-          ) {
-            throw new Error("Semantic reliability response identity did not match the requested binding");
-          }
+          const input = {
+            spaceId,
+            semanticRuleId: target.rule.semanticRuleId,
+            embeddingBindingKey: target.binding.key,
+          };
           return {
             ...target,
-            status: response.status,
+            status: matchingSemanticReliabilityStatus(response, input),
           };
         });
         setSemanticReliability(diagnostics);
@@ -830,6 +869,83 @@ export function SpaceDetailPage({
     semanticRules,
     spaceId,
   ]);
+
+  function replaceSemanticReliabilityStatus(
+    input: GetSemanticReliabilityStatusInput,
+    status: GetSemanticReliabilityStatusResponse["status"],
+  ) {
+    if (!status) return;
+    setSemanticReliability((current) =>
+      current.map((diagnostic) =>
+        diagnostic.rule.semanticRuleId === input.semanticRuleId &&
+        diagnostic.binding.key === input.embeddingBindingKey
+          ? { ...diagnostic, status }
+          : diagnostic,
+      ),
+    );
+  }
+
+  async function confirmGuardedSemanticRebuild() {
+    const target = confirmSemanticRebuild;
+    if (!target || !spaceId) return;
+    const input: RebuildSemanticRuleInput = {
+      spaceId,
+      semanticRuleId: target.rule.semanticRuleId,
+      embeddingBindingKey: target.binding.key,
+    };
+    const targetKey = semanticRebuildTargetKey(
+      input.semanticRuleId,
+      input.embeddingBindingKey,
+    );
+    setSemanticRebuildLoadingTargetKey(targetKey);
+    setSemanticRebuildNotice(null);
+    setConfirmSemanticRebuild(null);
+
+    try {
+      const response = await rebuildSemanticRuleService(input);
+      const reliability = matchingSemanticReliabilityStatus(
+        { supported: true, status: response.reliability },
+        input,
+      );
+      replaceSemanticReliabilityStatus(input, reliability);
+      setSemanticRebuildNotice({
+        targetKey,
+        tone: response.failedCount > 0 ? "warning" : "success",
+        message: `Rebuild ${response.rebuild.state || "completed"}. Selected ${response.selectedCount}, generated ${response.generatedCount}, skipped ${response.skippedCount}, failed ${response.failedCount}.`,
+      });
+    } catch (err) {
+      const original = normalizeAppError(err, "Semantic rebuild request failed");
+      let reconciliation =
+        "The daemon status could not be reconciled; do not retry until status is known.";
+      let tone: SemanticRebuildNotice["tone"] = "danger";
+      try {
+        const statusResponse = await getSemanticReliabilityStatusService(input);
+        const status = matchingSemanticReliabilityStatus(statusResponse, input);
+        replaceSemanticReliabilityStatus(input, status);
+        const state =
+          status.rebuild?.state ||
+          (status.rebuildRequired ? "required" : "not recorded");
+        const epoch = status.rebuild?.rebuildEpoch
+          ? `, epoch ${status.rebuild.rebuildEpoch}`
+          : "";
+        reconciliation = `Reconciled daemon state: ${state}${epoch}.`;
+        tone = "warning";
+      } catch (reconciliationError) {
+        const reconciled = normalizeAppError(
+          reconciliationError,
+          "Failed to reconcile semantic rebuild status",
+        );
+        reconciliation = `Status reconciliation failed (${reconciled.kind}): ${reconciled.message}. Do not retry until status is known.`;
+      }
+      setSemanticRebuildNotice({
+        targetKey,
+        tone,
+        message: `Rebuild request failed (${original.kind}): ${original.message}. No automatic mutation retry was attempted. ${reconciliation}`,
+      });
+    } finally {
+      setSemanticRebuildLoadingTargetKey("");
+    }
+  }
 
   useEffect(() => {
     if (!spaceId) return;
@@ -1118,6 +1234,9 @@ export function SpaceDetailPage({
             loading={semanticLoading || semanticReliabilityLoading}
             error={semanticReliabilityError}
             diagnostics={semanticReliability}
+            rebuildLoadingTargetKey={semanticRebuildLoadingTargetKey}
+            rebuildNotice={semanticRebuildNotice}
+            onRequestRebuild={setConfirmSemanticRebuild}
           />
 
           <SemanticRulesSection
@@ -1250,6 +1369,43 @@ export function SpaceDetailPage({
           onClose={() => setAutomationEditor(null)}
           onSave={() => void saveAutomationEditor()}
         />
+      )}
+
+      {confirmSemanticRebuild && (
+        <ConfirmationDialog
+          eyebrow="Semantic rebuild"
+          title="Rebuild semantic rule binding?"
+          confirmLabel="Start rebuild"
+          loadingLabel="Starting rebuild…"
+          loading={Boolean(semanticRebuildLoadingTargetKey)}
+          onCancel={() => setConfirmSemanticRebuild(null)}
+          onConfirm={() => void confirmGuardedSemanticRebuild()}
+          details={
+            <dl className="grid gap-2">
+              <div>
+                <dt className="font-medium">Space</dt>
+                <dd className="break-all">{spaceId}</dd>
+              </div>
+              <div>
+                <dt className="font-medium">Semantic rule</dt>
+                <dd className="break-all">
+                  {confirmSemanticRebuild.rule.semanticRuleId}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium">Embedding binding</dt>
+                <dd className="break-all">
+                  {confirmSemanticRebuild.binding.key}
+                </dd>
+              </div>
+            </dl>
+          }
+        >
+          This non-idempotent operation builds a new semantic baseline and
+          catches up daemon-owned maintenance work. Ambiguous failures are
+          reconciled through reliability status and are never retried
+          automatically.
+        </ConfirmationDialog>
       )}
 
       {confirmMaintenanceAction && (

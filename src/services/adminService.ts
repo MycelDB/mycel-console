@@ -183,6 +183,8 @@ import type {
   ListSemanticMaintenanceWorkResponse,
   ProcessSemanticDirtyWorkInput,
   ProcessSemanticDirtyWorkResponse,
+  RebuildSemanticRuleInput,
+  RebuildSemanticRuleResponse,
   SemanticMaintenanceStatusInfo,
   SemanticMaintenanceWorkActionInput,
   SemanticMaintenanceWorkItemInfo,
@@ -938,6 +940,16 @@ export async function getSemanticReliabilityStatus(
     "admin_get_semantic_reliability_status",
     { input },
   );
+}
+
+export async function rebuildSemanticRule(
+  input: RebuildSemanticRuleInput,
+): Promise<RebuildSemanticRuleResponse> {
+  try {
+    return await invoke<RebuildSemanticRuleResponse>("admin_rebuild_semantic_rule", { input });
+  } catch (err) {
+    throw normalizeAppError(err, "Failed to rebuild semantic rule");
+  }
 }
 
 export async function listSemanticMaintenanceWork(

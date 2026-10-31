@@ -37,6 +37,7 @@ import {
   cancelSemanticMaintenanceWork,
   getSemanticMaintenanceStatus,
   getSemanticReliabilityStatus,
+  rebuildSemanticRule,
   listSemanticMaintenanceWork,
   retrySemanticMaintenanceWork,
   listModels,
@@ -579,6 +580,15 @@ test("getSemanticReliabilityStatus sends rule binding input", async () => {
       embeddingBindingKey: "search",
     },
   });
+});
+
+test("rebuildSemanticRule sends one guarded mutation request and preserves error category", async () => {
+  const input = { spaceId: "sp_main", semanticRuleId: "rule_notes", embeddingBindingKey: "search" };
+  invokeMock.mockRejectedValue({ kind: "unavailable", severity: "error", message: "semantic maintenance request failed" });
+
+  await expect(rebuildSemanticRule(input)).rejects.toEqual({ kind: "unavailable", severity: "error", message: "semantic maintenance request failed", detail: undefined });
+  expect(invokeMock).toHaveBeenCalledTimes(1);
+  expect(invokeMock).toHaveBeenCalledWith("admin_rebuild_semantic_rule", { input });
 });
 
 test("retrySemanticMaintenanceWork sends action input", async () => {

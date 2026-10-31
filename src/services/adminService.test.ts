@@ -7,6 +7,8 @@ import {
   createSpace,
   deleteBackup,
   deleteSpace,
+  disableGraphProcedure,
+  enableGraphProcedure,
   getBackupPolicy,
   getBackupStatus,
   getClusterBackupStatus,
@@ -672,6 +674,34 @@ test("listVectorStores sends include disabled input", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_list_vector_stores", {
     input: { includeDisabled: true },
   });
+});
+
+test("procedure controls invoke typed enable and disable commands", async () => {
+  const input = { spaceId: "sp1", domainId: "dom1", procedureId: "procedure-1" };
+  const response = {
+    control: {
+      spaceId: "sp1",
+      domainId: "dom1",
+      procedureId: "procedure-1",
+      procedureVersion: 1,
+      targetStatus: "enabled",
+      controlEpoch: "18446744073709551615",
+      controllingPrincipalId: "principal-1",
+      affectedPartitions: [0, 1],
+      acknowledgedPartitions: [0, 1],
+      completed: true,
+      completionRevision: "18446744073709551614",
+      committedAt: "1793478000",
+      completedAt: "1793478001",
+    },
+  };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(enableGraphProcedure(input)).resolves.toEqual(response);
+  await expect(disableGraphProcedure(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenNthCalledWith(1, "admin_enable_graph_procedure", { input });
+  expect(invokeMock).toHaveBeenNthCalledWith(2, "admin_disable_graph_procedure", { input });
 });
 
 test("procedure inference attempt services preserve opaque snapshot and change cursors", async () => {

@@ -4,6 +4,7 @@ import { PageHeader } from "../../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
+  ConfirmationDialog,
   DomainLabel,
   ErrorGroup,
   errorMessage,
@@ -28,8 +29,10 @@ import {
   deleteAutomation as defaultDeleteAutomation,
   disableAutomation as defaultDisableAutomation,
   disableGraphAutomationBinding as defaultDisableGraphAutomationBinding,
+  disableGraphProcedure as defaultDisableGraphProcedure,
   enableAutomation as defaultEnableAutomation,
   enableGraphAutomationBinding as defaultEnableGraphAutomationBinding,
+  enableGraphProcedure as defaultEnableGraphProcedure,
   getAutomation as defaultGetAutomation,
   getAutomationRun as defaultGetAutomationRun,
   getGraphAutomationBinding as defaultGetGraphAutomationBinding,
@@ -42,6 +45,7 @@ import {
   listInferenceProfiles as defaultListInferenceProfiles,
   listPrincipals as defaultListPrincipals,
   listSpaces as defaultListSpaces,
+  normalizeAppError,
   summarizeInferenceUsage as defaultSummarizeInferenceUsage,
   updateAutomation as defaultUpdateAutomation,
   validateAutomation as defaultValidateAutomation,
@@ -59,8 +63,12 @@ import type {
   GraphAutomationBindingInfo,
   GraphAutomationBindingSummaryInfo,
   GraphProcedureActionInput,
+  GraphProcedureControlInput,
+  GraphProcedureControlResponseInfo,
   GraphProcedureInfo,
   GraphProcedureSummaryInfo,
+  ProcedureControlBarrierInfo,
+  ProcedureControlTargetStatus,
   ListAutomationInvocationsInput,
   ListAutomationInvocationsResponseInfo,
   ListAutomationsResponseInfo,
@@ -117,6 +125,14 @@ type ProcedureRow = {
   domain: DomainInfo;
   procedure: GraphProcedureSummaryInfo;
 };
+type ProcedureControlAction = {
+  row: ProcedureRow;
+  targetStatus: ProcedureControlTargetStatus;
+};
+type ProcedureControlResult = {
+  row: ProcedureRow;
+  control: ProcedureControlBarrierInfo;
+};
 type BindingRow = {
   space: SpaceInfo;
   domain: DomainInfo;
@@ -157,6 +173,12 @@ export type AutomationsPageProps = {
   getGraphProcedureService?: (
     input: GraphProcedureActionInput,
   ) => Promise<GraphProcedureInfo>;
+  enableGraphProcedureService?: (
+    input: GraphProcedureControlInput,
+  ) => Promise<GraphProcedureControlResponseInfo>;
+  disableGraphProcedureService?: (
+    input: GraphProcedureControlInput,
+  ) => Promise<GraphProcedureControlResponseInfo>;
   listGraphAutomationBindingsService?: (
     input: DomainAutomationInput,
   ) => Promise<ListGraphAutomationBindingsResponseInfo>;
@@ -210,6 +232,8 @@ export function AutomationsPage({
   listAutomationInvocationsService = defaultListAutomationInvocations,
   listGraphProceduresService = defaultListGraphProcedures,
   getGraphProcedureService = defaultGetGraphProcedure,
+  enableGraphProcedureService = defaultEnableGraphProcedure,
+  disableGraphProcedureService = defaultDisableGraphProcedure,
   listGraphAutomationBindingsService = defaultListGraphAutomationBindings,
   getGraphAutomationBindingService = defaultGetGraphAutomationBinding,
   enableGraphAutomationBindingService = defaultEnableGraphAutomationBinding,
@@ -246,6 +270,12 @@ export function AutomationsPage({
   );
   const [editor, setEditor] = useState<AutomationEditorState | null>(null);
   const [editorError, setEditorError] = useState("");
+  const [procedureControlAction, setProcedureControlAction] =
+    useState<ProcedureControlAction | null>(null);
+  const [procedureControlResult, setProcedureControlResult] =
+    useState<ProcedureControlResult | null>(null);
+  const [procedureControlError, setProcedureControlError] = useState("");
+  const [procedureControlLoading, setProcedureControlLoading] = useState(false);
 
   const selectedSpaceId = searchParams.get("spaceId") || "";
   const selectedDomainId = searchParams.get("domainId") || "";
@@ -605,6 +635,55 @@ export function AutomationsPage({
       });
     } catch (err) {
       setError(errorMessage(err, "Failed to load procedure"));
+    }
+  }
+
+  function openProcedureControl(
+    row: ProcedureRow,
+    targetStatus: ProcedureControlTargetStatus,
+  ) {
+    setProcedureControlError("");
+    setProcedureControlAction({ row, targetStatus });
+  }
+
+  async function confirmProcedureControl() {
+    if (!procedureControlAction) return;
+    const { row, targetStatus } = procedureControlAction;
+    const input = {
+      spaceId: row.space.spaceId,
+      domainId: row.domain.domainId,
+      procedureId: row.procedure.id,
+    };
+    setProcedureControlLoading(true);
+    setProcedureControlError("");
+    try {
+      const response =
+        targetStatus === "enabled"
+          ? await enableGraphProcedureService(input)
+          : await disableGraphProcedureService(input);
+      assertCompletedProcedureControl(input, targetStatus, response.control);
+      setProcedureControlResult({ row, control: response.control });
+      setProcedureControlAction(null);
+      setProcedureRows((current) =>
+        current.map((item) =>
+          item.domain.domainId === row.domain.domainId &&
+          item.procedure.id === row.procedure.id
+            ? {
+                ...item,
+                procedure: { ...item.procedure, status: targetStatus },
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setProcedureControlError(
+        normalizeAppError(
+          err,
+          `Failed to ${targetStatus === "enabled" ? "enable" : "disable"} procedure`,
+        ).message,
+      );
+    } finally {
+      setProcedureControlLoading(false);
     }
   }
 
@@ -1034,23 +1113,64 @@ export function AutomationsPage({
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="secondary"
-                          onClick={() =>
-                            void showProcedure(
-                              row.domain.domainId,
-                              row.procedure.id,
-                            )
-                          }
-                        >
-                          View JSON
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              void showProcedure(
+                                row.domain.domainId,
+                                row.procedure.id,
+                              )
+                            }
+                          >
+                            View JSON
+                          </Button>
+                          {canManage ? (
+                            <>
+                              <Button
+                                variant="secondary"
+                                onClick={() =>
+                                  openProcedureControl(row, "enabled")
+                                }
+                                disabled={procedureControlLoading}
+                              >
+                                {row.procedure.status === "enabled"
+                                  ? "Reconfirm enabled"
+                                  : "Enable"}
+                              </Button>
+                              <Button
+                                variant="danger"
+                                onClick={() =>
+                                  openProcedureControl(row, "disabled")
+                                }
+                                disabled={procedureControlLoading}
+                              >
+                                {row.procedure.status === "disabled"
+                                  ? "Reconfirm disabled"
+                                  : "Disable"}
+                              </Button>
+                            </>
+                          ) : (
+                            <span
+                              className={`self-center text-xs ${themeClasses.text.parts.mutedLight}`}
+                            >
+                              Read-only
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            {procedureControlResult && (
+              <ProcedureControlEvidence
+                result={procedureControlResult}
+                principalById={principalById}
+                onDismiss={() => setProcedureControlResult(null)}
+              />
+            )}
           </div>
         )}
 
@@ -1359,6 +1479,72 @@ export function AutomationsPage({
           onClose={() => setDetail(null)}
         />
       )}
+      {procedureControlAction && (
+        <ConfirmationDialog
+          eyebrow="Procedure control"
+          title={`${procedureControlAction.targetStatus === "enabled" ? "Enable" : "Disable"} procedure?`}
+          intent={
+            procedureControlAction.targetStatus === "disabled"
+              ? "danger"
+              : "default"
+          }
+          confirmLabel={
+            procedureControlAction.targetStatus === "enabled"
+              ? "Enable procedure"
+              : "Disable procedure"
+          }
+          loadingLabel="Waiting for control barrier…"
+          loading={procedureControlLoading}
+          error={procedureControlError || undefined}
+          onCancel={() => {
+            setProcedureControlAction(null);
+            setProcedureControlError("");
+          }}
+          onConfirm={() => void confirmProcedureControl()}
+          details={
+            <dl className="space-y-2">
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>Space</dt>
+                <dd>
+                  {procedureControlAction.row.space.name ||
+                    procedureControlAction.row.space.spaceId}{" "}
+                  ({procedureControlAction.row.space.spaceId})
+                </dd>
+              </div>
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>Domain</dt>
+                <dd>
+                  {procedureControlAction.row.domain.name ||
+                    procedureControlAction.row.domain.key ||
+                    procedureControlAction.row.domain.domainId}{" "}
+                  ({procedureControlAction.row.domain.domainId})
+                </dd>
+              </div>
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>
+                  Procedure
+                </dt>
+                <dd>
+                  {procedureControlAction.row.procedure.name ||
+                    procedureControlAction.row.procedure.id}{" "}
+                  ({procedureControlAction.row.procedure.id})
+                </dd>
+              </div>
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>
+                  Target state
+                </dt>
+                <dd>{formatEnumLabel(procedureControlAction.targetStatus)}</dd>
+              </div>
+            </dl>
+          }
+        >
+          {procedureControlAction.targetStatus === "disabled"
+            ? "Disabling prevents later provider starts and output publication at an older control epoch. Provider work that already started may finish, but unpublished output remains fenced."
+            : "Success is reported only after every affected partition acknowledges the completed enable barrier."}
+        </ConfirmationDialog>
+      )}
+
       {editor && (
         <AutomationEditorDialog
           editor={editor}
@@ -1587,6 +1773,151 @@ function LegacyAutomationTable({
       </tbody>
     </table>
   );
+}
+
+function ProcedureControlEvidence({
+  result,
+  principalById,
+  onDismiss,
+}: {
+  result: ProcedureControlResult;
+  principalById: Map<string, PrincipalInfo>;
+  onDismiss: () => void;
+}) {
+  const { row, control } = result;
+  const principal = principalById.get(control.controllingPrincipalId);
+  const principalName =
+    principal?.displayName ||
+    principal?.username ||
+    control.controllingPrincipalId;
+  return (
+    <section
+      className={`m-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-5`}
+      aria-label="Procedure control barrier evidence"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Text as="h3" className="font-semibold">
+            Procedure control completed
+          </Text>
+          <Text intent="muted" size="sm">
+            The daemon returned a completed cross-partition barrier for the
+            requested target state.
+          </Text>
+        </div>
+        <Button variant="secondary" onClick={onDismiss}>
+          Dismiss
+        </Button>
+      </div>
+      <Alert variant="success" className="mt-4">
+        {row.procedure.name || row.procedure.id} is confirmed{" "}
+        {control.targetStatus} at control epoch {control.controlEpoch}.
+      </Alert>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ControlEvidenceItem
+          label="Target state"
+          value={formatEnumLabel(control.targetStatus)}
+        />
+        <ControlEvidenceItem
+          label="Procedure version"
+          value={String(control.procedureVersion)}
+        />
+        <ControlEvidenceItem
+          label="Control epoch"
+          value={control.controlEpoch}
+        />
+        <ControlEvidenceItem
+          label="Completion revision"
+          value={control.completionRevision}
+        />
+        <ControlEvidenceItem
+          label="Committed"
+          value={formatTimestamp(control.committedAt)}
+        />
+        <ControlEvidenceItem
+          label="Completed"
+          value={formatTimestamp(control.completedAt)}
+        />
+        <ControlEvidenceItem
+          label="Affected partitions"
+          value={control.affectedPartitions.join(", ")}
+        />
+        <ControlEvidenceItem
+          label="Acknowledged partitions"
+          value={control.acknowledgedPartitions.join(", ")}
+        />
+        <div>
+          <Text intent="muted" size="sm">
+            Controlling principal
+          </Text>
+          <TextLink
+            to={`/principals/${encodeURIComponent(control.controllingPrincipalId)}`}
+          >
+            {principalName}
+          </TextLink>
+          {principalName !== control.controllingPrincipalId && (
+            <div className="text-xs">
+              <ResourceIdText value={control.controllingPrincipalId} />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ControlEvidenceItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <Text intent="muted" size="sm">
+        {label}
+      </Text>
+      <div className="break-all text-sm">{value || "—"}</div>
+    </div>
+  );
+}
+
+function assertCompletedProcedureControl(
+  input: GraphProcedureControlInput,
+  targetStatus: ProcedureControlTargetStatus,
+  control: ProcedureControlBarrierInfo,
+) {
+  const affected = new Set(control.affectedPartitions);
+  const acknowledged = new Set(control.acknowledgedPartitions);
+  const partitionsComplete =
+    affected.size > 0 &&
+    affected.size === control.affectedPartitions.length &&
+    acknowledged.size === control.acknowledgedPartitions.length &&
+    affected.size === acknowledged.size &&
+    [...affected].every((partition) => acknowledged.has(partition));
+  if (
+    !control.completed ||
+    control.spaceId !== input.spaceId ||
+    control.domainId !== input.domainId ||
+    control.procedureId !== input.procedureId ||
+    control.targetStatus !== targetStatus ||
+    control.procedureVersion <= 0 ||
+    !isPositiveUnsignedDecimal(control.controlEpoch) ||
+    !isPositiveUnsignedDecimal(control.completionRevision) ||
+    !control.controllingPrincipalId ||
+    !control.committedAt ||
+    !control.completedAt ||
+    !partitionsComplete
+  ) {
+    throw new Error(
+      "The daemon did not return valid completed procedure control barrier evidence. No success was recorded.",
+    );
+  }
+}
+
+function isPositiveUnsignedDecimal(value: string) {
+  return /^\d+$/.test(value) && /[1-9]/.test(value);
 }
 
 function automationUsageKey(domainId: string, automationId: string) {

@@ -18,6 +18,8 @@ import type {
   UpdateAutomationInput,
   ValidateAutomationInfo,
   GraphProcedureActionInput,
+  GraphProcedureControlInput,
+  GraphProcedureControlResponseInfo,
   GraphProcedureInfo,
   ListGraphProceduresResponseInfo,
   GraphAutomationBindingActionInput,
@@ -840,6 +842,24 @@ export async function getGraphProcedure(
   input: GraphProcedureActionInput,
 ): Promise<GraphProcedureInfo> {
   return invoke<GraphProcedureInfo>("admin_get_graph_procedure", { input });
+}
+
+export async function enableGraphProcedure(
+  input: GraphProcedureControlInput,
+): Promise<GraphProcedureControlResponseInfo> {
+  return invoke<GraphProcedureControlResponseInfo>(
+    "admin_enable_graph_procedure",
+    { input },
+  );
+}
+
+export async function disableGraphProcedure(
+  input: GraphProcedureControlInput,
+): Promise<GraphProcedureControlResponseInfo> {
+  return invoke<GraphProcedureControlResponseInfo>(
+    "admin_disable_graph_procedure",
+    { input },
+  );
 }
 
 export async function listGraphAutomationBindings(

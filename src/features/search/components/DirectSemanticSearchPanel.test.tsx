@@ -129,6 +129,16 @@ test("forwards typed filters and reuses the exact request for opaque continuatio
   expect(search).toHaveBeenCalledTimes(2);
 });
 
+test("keeps results usable when provenance is absent", async () => {
+  renderPanel();
+  await userEvent.type(screen.getByLabelText("Semantic query"), "raft recovery");
+  await userEvent.click(screen.getByRole("button", { name: "Search" }));
+
+  expect(await screen.findByText("Raft recovery")).toBeInTheDocument();
+  expect(screen.getByText("node-1")).toBeInTheDocument();
+  expect(screen.queryByText("Provenance details")).not.toBeInTheDocument();
+});
+
 test("normalizes a populated value when switching its type to boolean", async () => {
   const search = renderPanel();
   await userEvent.type(screen.getByLabelText("Semantic query"), "raft recovery");

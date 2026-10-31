@@ -712,6 +712,9 @@ export function SpaceDetailPage({
     async function loadSemanticRules() {
       setSemanticLoading(true);
       setSemanticError("");
+      setSemanticReliability([]);
+      setSemanticReliabilitySupported(null);
+      setSemanticReliabilityError("");
       try {
         const response = await listSemanticRulesService({
           spaceId,
@@ -1112,7 +1115,7 @@ export function SpaceDetailPage({
           <SemanticReliabilityDiagnostics
             authorized={canManageSemantic}
             supported={semanticReliabilitySupported}
-            loading={semanticReliabilityLoading}
+            loading={semanticLoading || semanticReliabilityLoading}
             error={semanticReliabilityError}
             diagnostics={semanticReliability}
           />

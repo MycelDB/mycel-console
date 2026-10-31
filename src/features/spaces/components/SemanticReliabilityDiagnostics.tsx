@@ -1,4 +1,5 @@
 import {
+  Button,
   EnumBadge,
   ResourceIdText,
   Text,
@@ -16,6 +17,28 @@ export type SemanticReliabilityDiagnostic = {
   binding: SemanticEmbeddingBindingSummary;
   status: SemanticReliabilityStatusInfo;
 };
+
+export type SemanticRebuildNotice = {
+  targetKey: string;
+  tone: "success" | "warning" | "danger";
+  message: string;
+};
+
+export function semanticRebuildTargetKey(
+  semanticRuleId: string,
+  embeddingBindingKey: string,
+): string {
+  return `${semanticRuleId}/${embeddingBindingKey}`;
+}
+
+export function hasPendingSemanticLifecycle(
+  rule: SemanticGenerationRuleSummary,
+): boolean {
+  const state = String(rule.state || "")
+    .trim()
+    .toLowerCase();
+  return state.includes("building") || state.includes("pending");
+}
 
 type ReliabilityAssessment = {
   badgeValue: string;
@@ -200,12 +223,18 @@ export function SemanticReliabilityDiagnostics({
   loading,
   error,
   diagnostics,
+  rebuildLoadingTargetKey = "",
+  rebuildNotice = null,
+  onRequestRebuild,
 }: {
   authorized: boolean;
   supported: boolean | null;
   loading: boolean;
   error: string;
   diagnostics: SemanticReliabilityDiagnostic[];
+  rebuildLoadingTargetKey?: string;
+  rebuildNotice?: SemanticRebuildNotice | null;
+  onRequestRebuild?: (diagnostic: SemanticReliabilityDiagnostic) => void;
 }) {
   return (
     <section
@@ -244,9 +273,22 @@ export function SemanticReliabilityDiagnostics({
         </Text>
       ) : (
         <div className="mt-5 space-y-4">
-          {diagnostics.map(({ rule, binding, status }) => {
+          {diagnostics.map((diagnostic) => {
+            const { rule, binding, status } = diagnostic;
             const assessment = assessSemanticReliability(rule, binding, status);
             const rebuild = status.rebuild;
+            const targetKey = semanticRebuildTargetKey(
+              rule.semanticRuleId,
+              binding.key,
+            );
+            const pendingLifecycle = hasPendingSemanticLifecycle(rule);
+            const rebuildRunning =
+              String(rebuild?.state || "")
+                .trim()
+                .toLowerCase() === "running";
+            const rebuilding = rebuildLoadingTargetKey === targetKey;
+            const rebuildDisabled =
+              rebuilding || rebuildRunning || pendingLifecycle;
             return (
               <article
                 key={`${rule.semanticRuleId}/${binding.key}`}
@@ -361,13 +403,35 @@ export function SemanticReliabilityDiagnostics({
                     <Text as="h4" className="font-medium">
                       Rebuild status
                     </Text>
-                    <EnumBadge
-                      value={
-                        rebuild?.state ||
-                        (status.rebuildRequired ? "required" : "not recorded")
-                      }
-                    />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <EnumBadge
+                        value={
+                          rebuild?.state ||
+                          (status.rebuildRequired ? "required" : "not recorded")
+                        }
+                      />
+                      {authorized && supported === true && onRequestRebuild ? (
+                        <Button
+                          variant="secondary"
+                          disabled={rebuildDisabled}
+                          onClick={() => onRequestRebuild(diagnostic)}
+                        >
+                          {rebuilding ? "Starting rebuild…" : "Rebuild"}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
+                  {pendingLifecycle ? (
+                    <Text intent="muted" size="sm" className="mt-2">
+                      Rebuild is unavailable while the semantic rule has a
+                      pending lifecycle transition.
+                    </Text>
+                  ) : rebuildRunning ? (
+                    <Text intent="muted" size="sm" className="mt-2">
+                      Rebuild is unavailable while the current rebuild epoch is
+                      running.
+                    </Text>
+                  ) : null}
                   {rebuild ? (
                     <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
                       <div>
@@ -403,6 +467,20 @@ export function SemanticReliabilityDiagnostics({
                       size="sm"
                     >
                       {rebuild.errorMessageSanitized}
+                    </Text>
+                  ) : null}
+                  {rebuildNotice?.targetKey === targetKey ? (
+                    <Text
+                      className={`mt-3 ${
+                        rebuildNotice.tone === "danger"
+                          ? "text-rose-700 dark:text-rose-300"
+                          : rebuildNotice.tone === "warning"
+                            ? "text-amber-700 dark:text-amber-300"
+                            : "text-emerald-700 dark:text-emerald-300"
+                      }`}
+                      size="sm"
+                    >
+                      {rebuildNotice.message}
                     </Text>
                   ) : null}
                 </div>

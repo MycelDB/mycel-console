@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { SpaceDetailPage } from "./SpaceDetailPage";
@@ -75,6 +75,7 @@ function renderDetail(
       },
     }),
   ),
+  rebuildSemanticRuleService = jest.fn(),
 ) {
   render(
     <MemoryRouter initialEntries={["/spaces/sp_main"]}>
@@ -93,6 +94,7 @@ function renderDetail(
               getSemanticReliabilityStatusService={
                 getSemanticReliabilityStatusService
               }
+              rebuildSemanticRuleService={rebuildSemanticRuleService}
               listSemanticMaintenanceWorkService={
                 listSemanticMaintenanceWorkService
               }
@@ -114,6 +116,85 @@ function renderDetail(
     listSemanticMaintenanceWorkService,
     lookupSpaceRouteService,
     getSemanticReliabilityStatusService,
+    rebuildSemanticRuleService,
+  };
+}
+
+function semanticRule() {
+  return {
+    semanticRuleId: "rule_notes",
+    key: "notes",
+    displayName: "Notes",
+    description: "",
+    spaceId: "sp_main",
+    domainId: "dom_default",
+    enabled: true,
+    state: "SEMANTIC_RULE_STATE_ACTIVE",
+    bindings: [{
+      key: "search",
+      purpose: "search",
+      intelligenceProfileId: "",
+      intelligenceProfileKey: "embeddings",
+      vectorStoreId: "",
+      vectorStoreKey: "vectors",
+      enabled: true,
+    }],
+  };
+}
+
+function semanticReliability() {
+  return {
+    spaceId: "sp_main",
+    semanticRuleId: "rule_notes",
+    embeddingBindingKey: "search",
+    latestObservedGraphRevision: "12",
+    analyzedThroughGraphRevision: "12",
+    freshThroughGraphRevision: "12",
+    unresolvedGapCount: "0",
+    oldestUnresolvedGraphRevision: "0",
+    configuredFrontierLimit: "4096",
+    retainedWorkItemCount: "0",
+    semanticGeneration: "1",
+    capacityState: "ok",
+    degraded: false,
+    degradedReason: "",
+    rebuildRequired: false,
+    configuredGapIntervalLimit: "128",
+    configuredRevisionSpanLimit: "8192",
+    configuredSerializedByteLimit: "65536",
+    retainedGapIntervalCount: "0",
+    retainedRevisionSpan: "0",
+    retainedSerializedBytes: "0",
+  };
+}
+
+function semanticRebuild(state: string, rebuildEpoch: string) {
+  return {
+    rebuildEpoch,
+    state,
+    pinnedTargetGraphRevision: "12",
+    deltaCatchupGraphRevision: state === "running" ? "0" : "12",
+    semanticGeneration: "1",
+    startedAt: "2026-01-01T00:00:00Z",
+    completedAt: state === "completed" ? "2026-01-01T00:01:00Z" : "",
+    errorMessageSanitized: "",
+  };
+}
+
+function semanticManagerContext(): ConsolePrincipalContext {
+  return {
+    session: {
+      addr: "127.0.0.1:19091",
+      principalId: "prn_admin",
+      username: "admin",
+    },
+    roles: [],
+    capabilities: ["semantic.manage"],
+    capabilityState: {
+      kind: "complete",
+      capabilities: [{ capability: "semantic.manage" }],
+    },
+    warnings: [],
   };
 }
 
@@ -298,6 +379,93 @@ test("loads and renders selected space properties", async () => {
   expect(
     screen.getByRole("heading", { name: "Domain schemas" }),
   ).toBeInTheDocument();
+});
+
+test("confirms rule identity before starting one semantic rebuild", async () => {
+  const reliability = semanticReliability();
+  const getStatus = jest.fn().mockResolvedValue({ supported: true, status: reliability });
+  const rebuild = jest.fn().mockResolvedValue({
+    rebuild: semanticRebuild("completed", "epoch_1"),
+    reliability: { ...reliability, rebuild: semanticRebuild("completed", "epoch_1") },
+    selectedCount: 4,
+    generatedCount: 4,
+    skippedCount: 0,
+    failedCount: 0,
+  });
+
+  renderDetail(
+    undefined,
+    undefined,
+    jest.fn().mockResolvedValue({ rules: [semanticRule()], nextPageToken: "" }),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    semanticManagerContext(),
+    undefined,
+    getStatus,
+    rebuild,
+  );
+
+  await screen.findByRole("heading", { name: "Main" });
+  await userEvent.click(screen.getByRole("tab", { name: "Semantic" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Rebuild" }));
+
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByText("sp_main")).toBeInTheDocument();
+  expect(within(dialog).getByText("rule_notes")).toBeInTheDocument();
+  expect(within(dialog).getByText("search")).toBeInTheDocument();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Start rebuild" }));
+
+  await waitFor(() => expect(rebuild).toHaveBeenCalledTimes(1));
+  expect(rebuild).toHaveBeenCalledWith({
+    spaceId: "sp_main",
+    semanticRuleId: "rule_notes",
+    embeddingBindingKey: "search",
+  });
+  expect(await screen.findByText(/Rebuild completed\. Selected 4, generated 4/i)).toBeInTheDocument();
+});
+
+test("reconciles a failed rebuild request without retrying the mutation", async () => {
+  const reliability = semanticReliability();
+  const getStatus = jest
+    .fn()
+    .mockResolvedValueOnce({ supported: true, status: reliability })
+    .mockResolvedValueOnce({
+      supported: true,
+      status: { ...reliability, rebuild: semanticRebuild("running", "epoch_ambiguous") },
+    });
+  const rebuild = jest.fn().mockRejectedValue({
+    kind: "unavailable",
+    severity: "error",
+    message: "semantic maintenance request failed",
+  });
+
+  renderDetail(
+    undefined,
+    undefined,
+    jest.fn().mockResolvedValue({ rules: [semanticRule()], nextPageToken: "" }),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    semanticManagerContext(),
+    undefined,
+    getStatus,
+    rebuild,
+  );
+
+  await screen.findByRole("heading", { name: "Main" });
+  await userEvent.click(screen.getByRole("tab", { name: "Semantic" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Rebuild" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Start rebuild" }));
+
+  expect(await screen.findByText(/No automatic mutation retry was attempted/i)).toBeInTheDocument();
+  expect(screen.getByText(/Rebuild request failed \(unavailable\)/i)).toBeInTheDocument();
+  expect(screen.getByText(/Reconciled daemon state: running, epoch epoch_ambiguous/i)).toBeInTheDocument();
+  expect(rebuild).toHaveBeenCalledTimes(1);
+  expect(getStatus).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole("button", { name: "Rebuild" })).toBeDisabled();
 });
 
 test("keeps semantic panels readable while hiding maintenance mutations without semantic manage capability", async () => {

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type {
   SemanticEmbeddingBindingSummary,
   SemanticGenerationRuleSummary,
@@ -148,6 +149,78 @@ test("shows rebuild-required and failed rebuild diagnostics", () => {
   expect(screen.getByText("Rebuild Required")).toBeInTheDocument();
   expect(screen.getByText("Failed")).toBeInTheDocument();
   expect(screen.getByText("rebuild storage unavailable")).toBeInTheDocument();
+});
+
+test("requests an explicit rebuild for the selected rule binding", async () => {
+  const onRequestRebuild = jest.fn();
+  const diagnostic = { rule, binding, status: healthyStatus };
+  render(
+    <SemanticReliabilityDiagnostics
+      authorized
+      supported
+      loading={false}
+      error=""
+      diagnostics={[diagnostic]}
+      onRequestRebuild={onRequestRebuild}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Rebuild" }));
+  expect(onRequestRebuild).toHaveBeenCalledWith(diagnostic);
+});
+
+test("disables rebuild during running and pending lifecycle states", () => {
+  const { rerender } = render(
+    <SemanticReliabilityDiagnostics
+      authorized
+      supported
+      loading={false}
+      error=""
+      diagnostics={[
+        {
+          rule,
+          binding,
+          status: {
+            ...healthyStatus,
+            rebuild: {
+              rebuildEpoch: "epoch_running",
+              state: "running",
+              pinnedTargetGraphRevision: "41",
+              deltaCatchupGraphRevision: "41",
+              semanticGeneration: "1",
+              startedAt: "2026-01-01T00:00:00Z",
+              completedAt: "",
+              errorMessageSanitized: "",
+            },
+          },
+        },
+      ]}
+      onRequestRebuild={jest.fn()}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Rebuild" })).toBeDisabled();
+  expect(
+    screen.getByText(/current rebuild epoch is running/i),
+  ).toBeInTheDocument();
+
+  rerender(
+    <SemanticReliabilityDiagnostics
+      authorized
+      supported
+      loading={false}
+      error=""
+      diagnostics={[
+        {
+          rule: { ...rule, state: "SEMANTIC_RULE_STATE_BUILDING" },
+          binding,
+          status: healthyStatus,
+        },
+      ]}
+      onRequestRebuild={jest.fn()}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Rebuild" })).toBeDisabled();
+  expect(screen.getByText(/pending lifecycle transition/i)).toBeInTheDocument();
 });
 
 test("gracefully explains older daemons and missing capability", () => {

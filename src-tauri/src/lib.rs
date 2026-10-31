@@ -59,7 +59,8 @@ use commands::semantic_maintenance::{
     admin_analyze_semantic_dirty_work, admin_backfill_semantic_rule,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,
     admin_get_semantic_reliability_status, admin_list_semantic_maintenance_work,
-    admin_process_semantic_dirty_work, admin_retry_semantic_maintenance_work,
+    admin_process_semantic_dirty_work, admin_rebuild_semantic_rule,
+    admin_retry_semantic_maintenance_work,
 };
 use commands::spaces::{
     admin_create_space, admin_delete_space, admin_get_space, admin_list_spaces,
@@ -142,6 +143,7 @@ pub fn run() {
             admin_rebuild_lexical_index,
             admin_get_semantic_maintenance_status,
             admin_get_semantic_reliability_status,
+            admin_rebuild_semantic_rule,
             admin_list_semantic_maintenance_work,
             admin_retry_semantic_maintenance_work,
             admin_cancel_semantic_maintenance_work,

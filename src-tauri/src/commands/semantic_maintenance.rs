@@ -4,12 +4,14 @@ use mycel_sdk::proto::admin::v1::{
     GetSemanticMaintenanceStatusRequest, GetSemanticMaintenanceStatusResponse,
     GetSemanticReliabilityStatusRequest, GetSemanticReliabilityStatusResponse,
     ListSemanticMaintenanceWorkRequest, ProcessSemanticDirtyWorkRequest,
-    ProcessSemanticDirtyWorkResponse, RetrySemanticMaintenanceWorkRequest,
-    SemanticMaintenanceWorkItem, SemanticRebuildStatus,
+    ProcessSemanticDirtyWorkResponse, RebuildSemanticRuleRequest, RebuildSemanticRuleResponse,
+    RetrySemanticMaintenanceWorkRequest, SemanticMaintenanceWorkItem, SemanticRebuildStatus,
 };
 use tauri::State;
 
-use crate::commands::command_error::{authenticated_rpc, sdk_error_code};
+use crate::commands::command_error::{
+    authenticated_rpc, sdk_error, sdk_error_code, validation_error, ConsoleCommandError,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -31,6 +33,20 @@ pub struct SemanticReliabilityStatusInput {
 pub struct SemanticMaintenanceWorkActionInput {
     pub space_id: String,
     pub work_item_id: String,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RebuildSemanticRuleInput {
+    pub space_id: String,
+    pub semantic_rule_id: String,
+    pub embedding_binding_key: String,
+    #[serde(default)]
+    pub backfill_limit: Option<i32>,
+    #[serde(default)]
+    pub maintenance_batch_limit: Option<i32>,
+    #[serde(default)]
+    pub max_catchup_iterations: Option<i32>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -196,6 +212,17 @@ pub struct ProcessSemanticDirtyWorkResponseInfo {
 pub struct BackfillSemanticRuleResponseInfo {
     pub semantic_rule_id: String,
     pub embedding_binding_key: String,
+    pub selected_count: i32,
+    pub generated_count: i32,
+    pub skipped_count: i32,
+    pub failed_count: i32,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RebuildSemanticRuleResponseInfo {
+    pub rebuild: SemanticRebuildStatusInfo,
+    pub reliability: SemanticReliabilityStatusInfo,
     pub selected_count: i32,
     pub generated_count: i32,
     pub skipped_count: i32,
@@ -434,6 +461,48 @@ pub async fn admin_get_semantic_reliability_status(
 }
 
 #[tauri::command]
+pub async fn admin_rebuild_semantic_rule(
+    input: RebuildSemanticRuleInput,
+    state: State<'_, AppState>,
+) -> Result<RebuildSemanticRuleResponseInfo, ConsoleCommandError> {
+    let space_id = input.space_id.trim().to_string();
+    let semantic_rule_id = input.semantic_rule_id.trim().to_string();
+    let embedding_binding_key = input.embedding_binding_key.trim().to_string();
+    if space_id.is_empty() {
+        return Err(validation_error("Space ID is required"));
+    }
+    if semantic_rule_id.is_empty() {
+        return Err(validation_error("Semantic rule ID is required"));
+    }
+    if embedding_binding_key.is_empty() {
+        return Err(validation_error("Embedding binding key is required"));
+    }
+
+    let mut guard = state.admin.write().await;
+    let session = guard.as_mut().ok_or_else(|| ConsoleCommandError {
+        kind: mycel_sdk::ErrorKind::Authentication.as_str().to_string(),
+        severity: mycel_sdk::ErrorSeverity::Warning.as_str().to_string(),
+        message: "Not authenticated".to_string(),
+        detail: None,
+    })?;
+    let response: RebuildSemanticRuleResponse = authenticated_rpc!(
+        session._client,
+        semantic_maintenance.rebuild_semantic_rule(RebuildSemanticRuleRequest {
+            space_id,
+            semantic_rule_id,
+            embedding_binding_key,
+            backfill_limit: input.backfill_limit.unwrap_or_default(),
+            maintenance_batch_limit: input.maintenance_batch_limit.unwrap_or_default(),
+            max_catchup_iterations: input.max_catchup_iterations.unwrap_or_default(),
+        })
+    )
+    .map_err(semantic_rebuild_error)?
+    .into_inner();
+
+    rebuild_response_info(response)
+}
+
+#[tauri::command]
 pub async fn admin_list_semantic_maintenance_work(
     input: ListSemanticMaintenanceWorkInput,
     state: State<'_, AppState>,
@@ -462,6 +531,41 @@ pub async fn admin_list_semantic_maintenance_work(
 
     Ok(ListSemanticMaintenanceWorkResponseInfo {
         items: response.items.into_iter().map(work_item_info).collect(),
+    })
+}
+
+fn semantic_rebuild_error(err: mycel_sdk::Error) -> ConsoleCommandError {
+    let code = sdk_error_code(&err);
+    let mut mapped = sdk_error(err);
+    if code == Some(tonic::Code::FailedPrecondition) {
+        mapped.kind = mycel_sdk::ErrorKind::Conflict.as_str().to_string();
+        mapped.severity = mycel_sdk::ErrorSeverity::Warning.as_str().to_string();
+    }
+    mapped
+}
+
+fn rebuild_response_info(
+    response: RebuildSemanticRuleResponse,
+) -> Result<RebuildSemanticRuleResponseInfo, ConsoleCommandError> {
+    let rebuild = response.rebuild.ok_or_else(|| ConsoleCommandError {
+        kind: mycel_sdk::ErrorKind::Internal.as_str().to_string(),
+        severity: mycel_sdk::ErrorSeverity::Error.as_str().to_string(),
+        message: "Semantic rebuild response did not include rebuild status".to_string(),
+        detail: None,
+    })?;
+    let reliability = response.reliability.ok_or_else(|| ConsoleCommandError {
+        kind: mycel_sdk::ErrorKind::Internal.as_str().to_string(),
+        severity: mycel_sdk::ErrorSeverity::Error.as_str().to_string(),
+        message: "Semantic rebuild response did not include reliability status".to_string(),
+        detail: None,
+    })?;
+    Ok(RebuildSemanticRuleResponseInfo {
+        rebuild: rebuild_status_info(rebuild),
+        reliability: reliability_status_info(reliability),
+        selected_count: response.selected_count,
+        generated_count: response.generated_count,
+        skipped_count: response.skipped_count,
+        failed_count: response.failed_count,
     })
 }
 
@@ -550,6 +654,24 @@ fn work_item_info(item: SemanticMaintenanceWorkItem) -> SemanticMaintenanceWorkI
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn semantic_rebuild_failed_precondition_preserves_conflict_category() {
+        let mapped = semantic_rebuild_error(mycel_sdk::Error::from(
+            tonic::Status::failed_precondition("semantic maintenance state changed"),
+        ));
+        assert_eq!(mapped.kind, "conflict");
+        assert_eq!(mapped.severity, "warning");
+    }
+
+    #[test]
+    fn semantic_rebuild_leadership_failure_preserves_unavailable_category() {
+        let mapped = semantic_rebuild_error(mycel_sdk::Error::from(tonic::Status::unavailable(
+            "semantic raft partition has no leader",
+        )));
+        assert_eq!(mapped.kind, "unavailable");
+        assert_eq!(mapped.severity, "error");
+    }
 
     #[test]
     fn semantic_reliability_mapping_preserves_exact_numeric_identities() {

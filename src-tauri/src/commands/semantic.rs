@@ -7,8 +7,12 @@ use mycel_sdk::proto::admin::v1::{
     UpdateSemanticRuleRequest, ValidateSemanticRuleRequest,
 };
 use mycel_sdk::proto::client::v1::{
-    Node, SearchIndexState, SearchIndexStatus, SemanticEmbeddingBindingSummary,
-    SemanticGenerationRuleSummary, SemanticRuleState, SemanticRuleStatus, SemanticSearchRequest,
+    Node, SearchIndexState, SearchIndexStatus, SemanticEligibilityFilter,
+    SemanticEmbeddingBindingSummary, SemanticGenerationRuleSummary, SemanticRuleState,
+    SemanticRuleStatus, SemanticSearchRequest,
+};
+use mycel_sdk::semantic::{
+    bool_value, null_value, number_value, string_value, SemanticEligibilityFilterBuilder,
 };
 use serde_json::{json, Value};
 use tauri::State;
@@ -88,6 +92,48 @@ pub struct SemanticSearchInput {
     pub limit: Option<i32>,
     #[serde(default)]
     pub min_score: Option<f64>,
+    #[serde(default)]
+    pub page_token: Option<String>,
+    #[serde(default)]
+    pub filter: Option<SemanticEligibilityFilterInput>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticEligibilityFilterInput {
+    #[serde(default)]
+    pub node_labels: Vec<String>,
+    #[serde(default)]
+    pub node_ids: Vec<String>,
+    #[serde(default)]
+    pub properties: Vec<SemanticPropertyPredicateInput>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticPropertyPredicateInput {
+    pub key: String,
+    pub operator: SemanticPropertyOperatorInput,
+    #[serde(default)]
+    pub value: Option<SemanticPropertyValueInput>,
+}
+
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SemanticPropertyOperatorInput {
+    Equal,
+    NotEqual,
+    Exists,
+    Missing,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "camelCase")]
+pub enum SemanticPropertyValueInput {
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Null,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -95,6 +141,10 @@ pub struct SemanticSearchInput {
 pub struct SemanticSearchResponseInfo {
     pub results: Vec<SemanticSearchResultInfo>,
     pub warnings: Vec<String>,
+    pub next_page_token: String,
+    pub filter_execution_mode: String,
+    pub examined_semantic_candidates: i32,
+    pub eligible_semantic_candidates: i32,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -401,38 +451,16 @@ pub async fn client_semantic_search(
     input: SemanticSearchInput,
     state: State<'_, AppState>,
 ) -> Result<SemanticSearchResponseInfo, String> {
-    let space_id = input.space_id.trim().to_string();
-    let domain_id = input.domain_id.trim().to_string();
-    let query = input.query.trim().to_string();
-    if space_id.is_empty() {
-        return Err("Space ID is required".to_string());
-    }
-    if domain_id.is_empty() {
-        return Err("Domain ID is required".to_string());
-    }
-    if query.is_empty() {
-        return Err("Search text is required".to_string());
-    }
+    let request = semantic_search_request(input)?;
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
         .ok_or_else(|| "Not authenticated".to_string())?;
-    let response = authenticated_rpc!(
-        session._data_client,
-        semantic.semantic_search(SemanticSearchRequest {
-            space_id,
-            domain_id,
-            semantic_rule_id: clean_optional(input.semantic_rule_id),
-            embedding_binding_key: clean_optional(input.embedding_binding_key),
-            query,
-            limit: input.limit.unwrap_or(10),
-            min_score: input.min_score,
-            page_token: None,
-            filter: None,
-        })
-    )
-    .map_err(|err| err.to_string())?
-    .into_inner();
+    let response = session
+        ._data_client
+        .semantic_search(request)
+        .await
+        .map_err(|err| err.to_string())?;
     Ok(SemanticSearchResponseInfo {
         results: response
             .results
@@ -449,7 +477,134 @@ pub async fn client_semantic_search(
             })
             .collect(),
         warnings: response.warnings,
+        next_page_token: response.next_page_token,
+        filter_execution_mode: response.filter_execution_mode,
+        examined_semantic_candidates: response.examined_semantic_candidates,
+        eligible_semantic_candidates: response.eligible_semantic_candidates,
     })
+}
+
+fn semantic_search_request(input: SemanticSearchInput) -> Result<SemanticSearchRequest, String> {
+    let space_id = input.space_id.trim().to_string();
+    let domain_id = input.domain_id.trim().to_string();
+    let query = input.query.trim().to_string();
+    if space_id.is_empty() {
+        return Err("Space ID is required".to_string());
+    }
+    if domain_id.is_empty() {
+        return Err("Domain ID is required".to_string());
+    }
+    if query.is_empty() {
+        return Err("Search text is required".to_string());
+    }
+    let limit = input.limit.unwrap_or(10);
+    if limit <= 0 {
+        return Err("Result limit must be greater than zero".to_string());
+    }
+    let semantic_rule_id = clean_optional(input.semantic_rule_id);
+    let embedding_binding_key = clean_optional(input.embedding_binding_key);
+    if embedding_binding_key.is_some() && semantic_rule_id.is_none() {
+        return Err("Embedding binding key requires a semantic rule ID".to_string());
+    }
+    Ok(SemanticSearchRequest {
+        space_id,
+        domain_id,
+        semantic_rule_id,
+        embedding_binding_key,
+        query,
+        limit,
+        min_score: input.min_score,
+        page_token: input.page_token,
+        filter: semantic_filter_proto(input.filter)?,
+    })
+}
+
+fn semantic_filter_proto(
+    input: Option<SemanticEligibilityFilterInput>,
+) -> Result<Option<SemanticEligibilityFilter>, String> {
+    let Some(input) = input else {
+        return Ok(None);
+    };
+    let node_labels = clean_filter_values(input.node_labels, "Node label")?;
+    let node_ids = clean_filter_values(input.node_ids, "Node ID")?;
+    if node_labels.is_empty() && node_ids.is_empty() && input.properties.is_empty() {
+        return Ok(None);
+    }
+    let mut builder = SemanticEligibilityFilterBuilder::new();
+    for label in node_labels {
+        builder = builder.require_label(label);
+    }
+    for node_id in node_ids {
+        builder = builder.require_node_id(node_id);
+    }
+    for (index, predicate) in input.properties.into_iter().enumerate() {
+        let key = predicate.key.trim().to_string();
+        if key.is_empty() {
+            return Err(format!("Property filter {} requires a key", index + 1));
+        }
+        builder = match predicate.operator {
+            SemanticPropertyOperatorInput::Equal => builder.equal(
+                key,
+                semantic_property_value_proto(predicate.value.ok_or_else(|| {
+                    format!("Property filter {} requires an equality value", index + 1)
+                })?)?,
+            ),
+            SemanticPropertyOperatorInput::NotEqual => builder.not_equal(
+                key,
+                semantic_property_value_proto(predicate.value.ok_or_else(|| {
+                    format!("Property filter {} requires an inequality value", index + 1)
+                })?)?,
+            ),
+            SemanticPropertyOperatorInput::Exists => {
+                if predicate.value.is_some() {
+                    return Err(format!(
+                        "Property filter {} EXISTS must not include a value",
+                        index + 1
+                    ));
+                }
+                builder.exists(key)
+            }
+            SemanticPropertyOperatorInput::Missing => {
+                if predicate.value.is_some() {
+                    return Err(format!(
+                        "Property filter {} MISSING must not include a value",
+                        index + 1
+                    ));
+                }
+                builder.missing(key)
+            }
+        };
+    }
+    Ok(Some(builder.build()))
+}
+
+fn clean_filter_values(values: Vec<String>, field: &str) -> Result<Vec<String>, String> {
+    values
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let value = value.trim().to_string();
+            if value.is_empty() {
+                Err(format!("{field} {} must not be empty", index + 1))
+            } else {
+                Ok(value)
+            }
+        })
+        .collect()
+}
+
+fn semantic_property_value_proto(
+    input: SemanticPropertyValueInput,
+) -> Result<prost_types::Value, String> {
+    match input {
+        SemanticPropertyValueInput::String(value) => Ok(string_value(value)),
+        SemanticPropertyValueInput::Number(value) if value.is_finite() => Ok(number_value(value)),
+        SemanticPropertyValueInput::Number(_) => {
+            Err("Property numeric values must be finite".to_string())
+        }
+        SemanticPropertyValueInput::Boolean(value) => Ok(bool_value(value)),
+        SemanticPropertyValueInput::Null => Ok(null_value()),
+    }
 }
 
 #[tauri::command]
@@ -1142,5 +1297,100 @@ mod tests {
         assert_eq!(round_tripped.description, "after");
         assert_eq!(binding.metadata, Some(metadata));
         assert_eq!(binding.provider_budget, Some(provider_budget));
+    }
+
+    #[test]
+    fn semantic_search_request_preserves_opaque_token_and_typed_filter() {
+        let request = semantic_search_request(SemanticSearchInput {
+            space_id: " space-1 ".to_string(),
+            domain_id: " domain-1 ".to_string(),
+            semantic_rule_id: Some(" rule-1 ".to_string()),
+            embedding_binding_key: Some(" primary ".to_string()),
+            query: " graph memory ".to_string(),
+            limit: Some(25),
+            min_score: Some(0.75),
+            page_token: Some(" opaque token ".to_string()),
+            filter: Some(SemanticEligibilityFilterInput {
+                node_labels: vec![" Article ".to_string()],
+                node_ids: vec![" node-1 ".to_string()],
+                properties: vec![
+                    SemanticPropertyPredicateInput {
+                        key: "archived_at".to_string(),
+                        operator: SemanticPropertyOperatorInput::Equal,
+                        value: Some(SemanticPropertyValueInput::Null),
+                    },
+                    SemanticPropertyPredicateInput {
+                        key: "deleted_at".to_string(),
+                        operator: SemanticPropertyOperatorInput::Missing,
+                        value: None,
+                    },
+                ],
+            }),
+        })
+        .expect("valid semantic search request");
+
+        assert_eq!(request.space_id, "space-1");
+        assert_eq!(request.query, "graph memory");
+        assert_eq!(request.page_token.as_deref(), Some(" opaque token "));
+        let empty_token_request = semantic_search_request(SemanticSearchInput {
+            space_id: "space-1".to_string(),
+            domain_id: "domain-1".to_string(),
+            query: "graph memory".to_string(),
+            page_token: Some(String::new()),
+            ..Default::default()
+        })
+        .expect("empty supplied token remains daemon-owned");
+        assert_eq!(empty_token_request.page_token.as_deref(), Some(""));
+        let filter = request.filter.expect("semantic filter");
+        assert_eq!(filter.node_labels, ["Article"]);
+        assert_eq!(filter.node_ids, ["node-1"]);
+        assert!(matches!(
+            filter.properties[0]
+                .value
+                .as_ref()
+                .and_then(|value| value.kind.as_ref()),
+            Some(prost_types::value::Kind::NullValue(_))
+        ));
+        assert_eq!(
+            filter.properties[1].operator,
+            mycel_sdk::proto::client::v1::SemanticPropertyOperator::Missing as i32
+        );
+        assert!(filter.properties[1].value.is_none());
+    }
+
+    #[test]
+    fn semantic_search_filter_rejects_missing_equality_value() {
+        let error = semantic_filter_proto(Some(SemanticEligibilityFilterInput {
+            properties: vec![SemanticPropertyPredicateInput {
+                key: "status".to_string(),
+                operator: SemanticPropertyOperatorInput::Equal,
+                value: None,
+            }],
+            ..Default::default()
+        }))
+        .expect_err("missing equality value must fail");
+
+        assert!(
+            error.contains("requires an equality value"),
+            "error = {error}"
+        );
+    }
+
+    #[test]
+    fn semantic_search_filter_rejects_exists_value() {
+        let error = semantic_filter_proto(Some(SemanticEligibilityFilterInput {
+            properties: vec![SemanticPropertyPredicateInput {
+                key: "summary".to_string(),
+                operator: SemanticPropertyOperatorInput::Exists,
+                value: Some(SemanticPropertyValueInput::Boolean(true)),
+            }],
+            ..Default::default()
+        }))
+        .expect_err("EXISTS value must fail");
+
+        assert!(
+            error.contains("EXISTS must not include a value"),
+            "error = {error}"
+        );
     }
 }

@@ -6,6 +6,14 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Added
+
+- Added direct semantic search with typed label, node-ID, and property eligibility filters, explicit null-versus-missing values, opaque continuation pagination, and daemon-provided candidate diagnostics (#65).
+
+### Compatibility
+
+- Direct semantic search filters and continuation pagination require Mycel API/daemon v0.21.0 or later and Mycel Rust SDK v0.21.1 or later.
+
 ## [v0.21.0] - 2026-10-29
 
 ### Added

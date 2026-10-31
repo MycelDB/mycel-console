@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  MYCEL_RUST_SDK_REF: 9606cfa1743a483f4a90ad812bc159f7f93738bd
+  MYCEL_RUST_SDK_REF: f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7
 
 jobs:
   test:

@@ -642,7 +642,14 @@ test("listVectorStores sends include disabled input", async () => {
 });
 
 test("semanticSearch invokes client semantic search command", async () => {
-  const response = { results: [], warnings: [] };
+  const response = {
+    results: [],
+    warnings: [],
+    nextPageToken: "opaque-next",
+    filterExecutionMode: "semantic_index_pushdown",
+    examinedSemanticCandidates: 12,
+    eligibleSemanticCandidates: 4,
+  };
   const input = { spaceId: "sp1", domainId: "dom1", query: "graph memory", limit: 10 };
   invokeMock.mockResolvedValue(response);
 

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LexicalSearchPage } from "./LexicalSearchPage";
+import { LexicalSearchPage, semanticSearchVisibilityKey } from "./LexicalSearchPage";
 import type { LexicalSearchInput, LexicalSearchResponse } from "../../../types/lexical";
 
 const emptySearchResponse: LexicalSearchResponse = {
@@ -50,6 +50,38 @@ test("lexical mode sends its query through the lexical channel", async () => {
     lexicalQuery: '"raft recovery"',
     semanticQuery: undefined,
   }));
+});
+
+test("semantic visibility identity changes when same-principal capabilities change", () => {
+  const context = {
+    session: { addr: "127.0.0.1:19091", principalId: "principal-1", username: "operator" },
+    roles: ["reader"],
+    capabilities: ["semantic.search"],
+    capabilityState: {
+      kind: "complete" as const,
+      capabilities: [{ capability: "semantic.search", scope: { kind: "domain" as const, domainId: "domain-1" } }],
+    },
+    warnings: [],
+  };
+
+  expect(semanticSearchVisibilityKey(context)).not.toEqual(
+    semanticSearchVisibilityKey({
+      ...context,
+      capabilityState: { kind: "complete", capabilities: [] },
+    }),
+  );
+});
+
+test("direct semantic mode opens the typed semantic search form", async () => {
+  renderSearchPage();
+  await screen.findByLabelText("Mode");
+
+  await userEvent.selectOptions(screen.getByLabelText("Mode"), "semantic");
+
+  expect(screen.getByRole("heading", { name: "Direct semantic search" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Eligible node IDs")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add property filter" })).toBeInTheDocument();
+  expect(screen.queryByLabelText("Lexical query")).not.toBeInTheDocument();
 });
 
 test("hybrid mode requires and sends distinct channel queries", async () => {

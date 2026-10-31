@@ -94,6 +94,9 @@ export type ProcedureInferenceAttemptsPanelProps = {
   principalContext?: ConsolePrincipalContext | null;
   initialSpaceId?: string;
   initialDomainId?: string;
+  initialProcedureId?: string;
+  initialInvocationId?: string;
+  initialRunId?: string;
   pollIntervalMs?: number;
   listAttemptsService?: (
     input: ListProcedureInferenceAttemptsInput,
@@ -113,6 +116,9 @@ export function ProcedureInferenceAttemptsPanel({
   principalContext,
   initialSpaceId = "",
   initialDomainId = "",
+  initialProcedureId = "",
+  initialInvocationId = "",
+  initialRunId = "",
   pollIntervalMs = 5000,
   listAttemptsService = defaultListAttempts,
   listChangesService = defaultListChanges,
@@ -123,10 +129,22 @@ export function ProcedureInferenceAttemptsPanel({
     canUseCapability(principalContext, "inference.audit.read");
   const authorizationVisibilityKey = visibilityKey(principalContext);
   const [draft, setDraft] = useState<DraftFilter>(() =>
-    emptyDraft(initialSpaceId, initialDomainId),
+    emptyDraft(
+      initialSpaceId,
+      initialDomainId,
+      initialProcedureId,
+      initialInvocationId,
+      initialRunId,
+    ),
   );
   const [applied, setApplied] = useState<DraftFilter>(() =>
-    emptyDraft(initialSpaceId, initialDomainId),
+    emptyDraft(
+      initialSpaceId,
+      initialDomainId,
+      initialProcedureId,
+      initialInvocationId,
+      initialRunId,
+    ),
   );
   const [attempts, setAttempts] = useState<ProcedureInferenceAttemptInfo[]>([]);
   const [nextPageToken, setNextPageToken] = useState("");
@@ -162,10 +180,25 @@ export function ProcedureInferenceAttemptsPanel({
     )
       ? initialDomainId
       : "";
-    const initial = emptyDraft(spaceId, domainId);
+    const initial = emptyDraft(
+      spaceId,
+      domainId,
+      initialProcedureId,
+      initialInvocationId,
+      initialRunId,
+    );
     setDraft(initial);
     setApplied(initial);
-  }, [applied.spaceId, domains, initialDomainId, initialSpaceId, spaces]);
+  }, [
+    applied.spaceId,
+    domains,
+    initialDomainId,
+    initialInvocationId,
+    initialProcedureId,
+    initialRunId,
+    initialSpaceId,
+    spaces,
+  ]);
 
   const principalById = useMemo(
     () =>
@@ -260,10 +293,7 @@ export function ProcedureInferenceAttemptsPanel({
         await loadFreshSnapshot();
         return;
       }
-      if (
-        applied.states.length > 0 &&
-        response.nextCursor !== afterCursor
-      ) {
+      if (applied.states.length > 0 && response.nextCursor !== afterCursor) {
         await loadFreshSnapshot();
         return;
       }
@@ -1001,16 +1031,22 @@ function PrincipalDetail({
   );
 }
 
-function emptyDraft(spaceId = "", domainId = ""): DraftFilter {
+function emptyDraft(
+  spaceId = "",
+  domainId = "",
+  procedureId = "",
+  invocationId = "",
+  runId = "",
+): DraftFilter {
   return {
     spaceId,
     domainId,
-    procedureId: "",
+    procedureId,
     procedureVersion: "",
     bindingId: "",
     bindingVersion: "",
-    invocationId: "",
-    runId: "",
+    invocationId,
+    runId,
     workflowStepId: "",
     endpointId: "",
     modelId: "",

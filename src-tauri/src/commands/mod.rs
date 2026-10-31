@@ -8,6 +8,7 @@ pub mod command_error;
 pub mod domains;
 pub mod inference;
 pub mod lexical;
+pub mod procedure_inference;
 pub mod schemas;
 pub mod semantic;
 pub mod semantic_maintenance;

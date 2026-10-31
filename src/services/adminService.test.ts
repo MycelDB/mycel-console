@@ -18,6 +18,7 @@ import {
   getLocalGraphForensicExport,
   getMyAccess,
   getPrincipal,
+  getProcedureInferenceAttempt,
   getSpace,
   isAuthExpiredError,
   grantPrincipalCapability,
@@ -30,6 +31,8 @@ import {
   listPrincipalCapabilities,
   listPrincipalRoles,
   listPrincipalSessions,
+  listProcedureInferenceAttemptChanges,
+  listProcedureInferenceAttempts,
   listDomains,
   listInferencePackages,
   listModelEndpointCapabilities,
@@ -669,6 +672,28 @@ test("listVectorStores sends include disabled input", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_list_vector_stores", {
     input: { includeDisabled: true },
   });
+});
+
+test("procedure inference attempt services preserve opaque snapshot and change cursors", async () => {
+  const filter = { domainId: "dom1", states: ["started" as const] };
+  const snapshotInput = { spaceId: "sp1", filter, pageSize: 50, pageToken: "opaque snapshot token" };
+  const changesInput = { spaceId: "sp1", filter, pageSize: 100, afterCursor: "opaque change cursor" };
+  invokeMock.mockResolvedValueOnce({ attempts: [] }).mockResolvedValueOnce({ changes: [] });
+
+  await listProcedureInferenceAttempts(snapshotInput);
+  await listProcedureInferenceAttemptChanges(changesInput);
+
+  expect(invokeMock).toHaveBeenNthCalledWith(1, "admin_list_procedure_inference_attempts", { input: snapshotInput });
+  expect(invokeMock).toHaveBeenNthCalledWith(2, "admin_list_procedure_inference_attempt_changes", { input: changesInput });
+});
+
+test("getProcedureInferenceAttempt invokes the typed detail command", async () => {
+  const input = { spaceId: "sp1", attemptId: "attempt-1" };
+  invokeMock.mockResolvedValue({ id: "attempt-1" });
+
+  await getProcedureInferenceAttempt(input);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_procedure_inference_attempt", { input });
 });
 
 test("semanticSearch invokes client semantic search command", async () => {

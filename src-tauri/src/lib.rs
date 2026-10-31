@@ -49,6 +49,10 @@ use commands::inference::{
 use commands::lexical::{
     admin_rebuild_lexical_index, client_get_lexical_index_status, client_lexical_search,
 };
+use commands::procedure_inference::{
+    admin_get_procedure_inference_attempt, admin_list_procedure_inference_attempt_changes,
+    admin_list_procedure_inference_attempts,
+};
 use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
 use commands::semantic::{
     admin_create_semantic_rule, admin_delete_semantic_rule, admin_get_semantic_rule,
@@ -129,6 +133,9 @@ pub fn run() {
             admin_get_graph_automation_binding,
             admin_enable_graph_automation_binding,
             admin_disable_graph_automation_binding,
+            admin_get_procedure_inference_attempt,
+            admin_list_procedure_inference_attempts,
+            admin_list_procedure_inference_attempt_changes,
             admin_list_domains,
             admin_list_semantic_rules,
             admin_get_semantic_rule,

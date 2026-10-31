@@ -244,18 +244,26 @@ export function ProcedureInferenceAttemptsPanel({
     pollingRef.current = true;
     setPolling(true);
     const epoch = requestEpochRef.current;
+    const afterCursor = cursorRef.current;
     try {
       const response = await listChangesService({
         spaceId: applied.spaceId,
         filter: toFilterInput(applied),
         pageSize: 100,
-        afterCursor: cursorRef.current,
+        afterCursor,
       });
       if (requestEpochRef.current !== epoch) return;
       if (response.historyGap) {
         setHistoryGapNotice(
           "Attempt history was compacted. The explorer rebuilt from a fresh current-state snapshot.",
         );
+        await loadFreshSnapshot();
+        return;
+      }
+      if (
+        applied.states.length > 0 &&
+        response.nextCursor !== afterCursor
+      ) {
         await loadFreshSnapshot();
         return;
       }

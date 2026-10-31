@@ -244,6 +244,44 @@ test("polls from the snapshot cursor, advances cursors, and deduplicates event I
   expect(screen.queryByTitle("failed")).not.toBeInTheDocument();
 });
 
+test("refreshes a state-filtered snapshot when the ledger advances", async () => {
+  const listAttemptsService = jest
+    .fn()
+    .mockResolvedValueOnce(snapshot([]))
+    .mockResolvedValueOnce(
+      snapshot([attempt({ state: "requested" })], {
+        snapshotCursor: "filtered-cursor",
+      }),
+    )
+    .mockResolvedValueOnce(
+      snapshot([], { snapshotCursor: "refreshed-filtered-cursor" }),
+    );
+  const listChangesService = jest.fn().mockResolvedValue({
+    changes: [],
+    nextCursor: "advanced-filtered-cursor",
+    highWaterSequence: "11",
+    earliestRetainedSequence: "1",
+    earliestRetainedStateSequence: "1",
+    historyGap: false,
+  });
+  renderPanel({ listAttemptsService, listChangesService });
+
+  await waitFor(() => expect(listAttemptsService).toHaveBeenCalledTimes(1));
+  await userEvent.click(screen.getByRole("checkbox", { name: "Requested" }));
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }));
+  expect(await screen.findByTitle("requested")).toBeInTheDocument();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Check for updates" }),
+  );
+
+  await waitFor(() => expect(listAttemptsService).toHaveBeenCalledTimes(3));
+  expect(screen.queryByTitle("requested")).not.toBeInTheDocument();
+  expect(listChangesService).toHaveBeenCalledWith(
+    expect.objectContaining({ afterCursor: "filtered-cursor" }),
+  );
+});
+
 test("rebuilds from a fresh snapshot when the daemon reports a history gap", async () => {
   const listAttemptsService = jest
     .fn()

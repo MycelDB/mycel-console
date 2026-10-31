@@ -34,6 +34,7 @@ import {
   getClientQuerySession as defaultGetClientQuerySession,
   getDomainSchema as defaultGetDomainSchema,
   getSemanticMaintenanceStatus as defaultGetSemanticMaintenanceStatus,
+  getSemanticReliabilityStatus as defaultGetSemanticReliabilityStatus,
   getSpace as defaultGetSpace,
   listAutomationInvocations as defaultListAutomationInvocations,
   listAutomations as defaultListAutomations,
@@ -96,6 +97,8 @@ import type {
   AnalyzeSemanticDirtyWorkInput,
   BackfillSemanticRuleInput,
   GetSemanticMaintenanceStatusInput,
+  GetSemanticReliabilityStatusInput,
+  GetSemanticReliabilityStatusResponse,
   ListSemanticMaintenanceWorkInput,
   ListSemanticMaintenanceWorkResponse,
   ProcessSemanticDirtyWorkInput,
@@ -110,6 +113,10 @@ import type {
   PrincipalInfo as UserPrincipalInfo,
 } from "../../../types/users";
 import { SpaceStateBadge } from "../components/SpaceStateBadge";
+import {
+  SemanticReliabilityDiagnostics,
+  type SemanticReliabilityDiagnostic,
+} from "../components/SemanticReliabilityDiagnostics";
 import { QueryResultView } from "../components/QueryResultView";
 import { displayNodeLabel, shortenId, type QueryGraphNode } from "../components/graphResultMapping";
 import {
@@ -138,6 +145,9 @@ export type SpaceDetailPageProps = {
   getSemanticMaintenanceStatusService?: (
     input: GetSemanticMaintenanceStatusInput,
   ) => Promise<SemanticMaintenanceStatusInfo>;
+  getSemanticReliabilityStatusService?: (
+    input: GetSemanticReliabilityStatusInput,
+  ) => Promise<GetSemanticReliabilityStatusResponse>;
   listSemanticMaintenanceWorkService?: (
     input: ListSemanticMaintenanceWorkInput,
   ) => Promise<ListSemanticMaintenanceWorkResponse>;
@@ -206,6 +216,7 @@ export function SpaceDetailPage({
   listSemanticRulesService = defaultListSemanticRules,
   getDomainSchemaService = defaultGetDomainSchema,
   getSemanticMaintenanceStatusService = defaultGetSemanticMaintenanceStatus,
+  getSemanticReliabilityStatusService = defaultGetSemanticReliabilityStatus,
   listSemanticMaintenanceWorkService = defaultListSemanticMaintenanceWork,
   retrySemanticMaintenanceWorkService = defaultRetrySemanticMaintenanceWork,
   cancelSemanticMaintenanceWorkService = defaultCancelSemanticMaintenanceWork,
@@ -248,6 +259,14 @@ export function SpaceDetailPage({
   const [includeDisabledRules, setIncludeDisabledRules] = useState(false);
   const [maintenanceStatus, setMaintenanceStatus] =
     useState<SemanticMaintenanceStatusInfo | null>(null);
+  const [semanticReliability, setSemanticReliability] = useState<
+    SemanticReliabilityDiagnostic[]
+  >([]);
+  const [semanticReliabilitySupported, setSemanticReliabilitySupported] =
+    useState<boolean | null>(null);
+  const [semanticReliabilityLoading, setSemanticReliabilityLoading] =
+    useState(false);
+  const [semanticReliabilityError, setSemanticReliabilityError] = useState("");
   const [maintenanceWork, setMaintenanceWork] = useState<
     SemanticMaintenanceWorkItemInfo[]
   >([]);
@@ -718,6 +737,98 @@ export function SpaceDetailPage({
   }, [includeDisabledRules, listSemanticRulesService, spaceId]);
 
   useEffect(() => {
+    if (!spaceId || activeTab !== "semantic") return;
+    if (!canManageSemantic) {
+      setSemanticReliability([]);
+      setSemanticReliabilitySupported(null);
+      setSemanticReliabilityLoading(false);
+      setSemanticReliabilityError("");
+      return;
+    }
+    if (semanticLoading) return;
+    if (semanticError) {
+      setSemanticReliability([]);
+      setSemanticReliabilitySupported(null);
+      setSemanticReliabilityLoading(false);
+      setSemanticReliabilityError(
+        "Reliability diagnostics were not loaded because semantic rules are unavailable",
+      );
+      return;
+    }
+
+    let cancelled = false;
+    const targets = semanticRules.flatMap((rule) =>
+      rule.bindings
+        .filter((binding) => binding.key.trim())
+        .map((binding) => ({ rule, binding })),
+    );
+
+    async function loadSemanticReliability() {
+      setSemanticReliabilityLoading(true);
+      setSemanticReliabilityError("");
+      try {
+        const responses = await Promise.all(
+          targets.map(({ rule, binding }) =>
+            getSemanticReliabilityStatusService({
+              spaceId,
+              semanticRuleId: rule.semanticRuleId,
+              embeddingBindingKey: binding.key,
+            }),
+          ),
+        );
+        if (cancelled) return;
+        if (responses.some((response) => !response.supported)) {
+          setSemanticReliability([]);
+          setSemanticReliabilitySupported(false);
+          return;
+        }
+        const diagnostics = responses.map((response, index) => {
+          const target = targets[index];
+          if (!target || !response.status) {
+            throw new Error("Semantic reliability response did not include status");
+          }
+          if (
+            response.status.spaceId !== spaceId ||
+            response.status.semanticRuleId !== target.rule.semanticRuleId ||
+            response.status.embeddingBindingKey !== target.binding.key
+          ) {
+            throw new Error("Semantic reliability response identity did not match the requested binding");
+          }
+          return {
+            ...target,
+            status: response.status,
+          };
+        });
+        setSemanticReliability(diagnostics);
+        setSemanticReliabilitySupported(true);
+      } catch (err) {
+        if (!cancelled) {
+          setSemanticReliability([]);
+          setSemanticReliabilitySupported(null);
+          setSemanticReliabilityError(
+            errorMessage(err, "Failed to load semantic reliability diagnostics"),
+          );
+        }
+      } finally {
+        if (!cancelled) setSemanticReliabilityLoading(false);
+      }
+    }
+
+    void loadSemanticReliability();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    canManageSemantic,
+    getSemanticReliabilityStatusService,
+    semanticError,
+    semanticLoading,
+    semanticRules,
+    spaceId,
+  ]);
+
+  useEffect(() => {
     if (!spaceId) return;
     let cancelled = false;
     async function loadMaintenance() {
@@ -996,6 +1107,14 @@ export function SpaceDetailPage({
             actionLoading={maintenanceActionLoading}
             result={maintenanceResult}
             canMutate={canManageSemantic}
+          />
+
+          <SemanticReliabilityDiagnostics
+            authorized={canManageSemantic}
+            supported={semanticReliabilitySupported}
+            loading={semanticReliabilityLoading}
+            error={semanticReliabilityError}
+            diagnostics={semanticReliability}
           />
 
           <SemanticRulesSection

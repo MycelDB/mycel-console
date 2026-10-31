@@ -18,6 +18,53 @@ export type SemanticMaintenanceStatusInfo = {
 
 export type GetSemanticMaintenanceStatusInput = { spaceId: string };
 
+export type GetSemanticReliabilityStatusInput = {
+  spaceId: string;
+  semanticRuleId: string;
+  embeddingBindingKey: string;
+};
+
+export type SemanticRebuildStatusInfo = {
+  rebuildEpoch: string;
+  state: string;
+  pinnedTargetGraphRevision: string;
+  deltaCatchupGraphRevision: string;
+  semanticGeneration: string;
+  startedAt: string;
+  completedAt: string;
+  errorMessageSanitized: string;
+};
+
+export type SemanticReliabilityStatusInfo = {
+  spaceId: string;
+  semanticRuleId: string;
+  embeddingBindingKey: string;
+  latestObservedGraphRevision: string;
+  analyzedThroughGraphRevision: string;
+  freshThroughGraphRevision: string;
+  unresolvedGapCount: string;
+  oldestUnresolvedGraphRevision: string;
+  configuredFrontierLimit: string;
+  retainedWorkItemCount: string;
+  semanticGeneration: string;
+  capacityState: string;
+  degraded: boolean;
+  degradedReason: string;
+  rebuildRequired: boolean;
+  rebuild?: SemanticRebuildStatusInfo | null;
+  configuredGapIntervalLimit: string;
+  configuredRevisionSpanLimit: string;
+  configuredSerializedByteLimit: string;
+  retainedGapIntervalCount: string;
+  retainedRevisionSpan: string;
+  retainedSerializedBytes: string;
+};
+
+export type GetSemanticReliabilityStatusResponse = {
+  supported: boolean;
+  status?: SemanticReliabilityStatusInfo | null;
+};
+
 export type SemanticMaintenanceWorkItemInfo = {
   workItemId: string;
   spaceId: string;

@@ -36,6 +36,7 @@ import {
   listModelEndpoints,
   cancelSemanticMaintenanceWork,
   getSemanticMaintenanceStatus,
+  getSemanticReliabilityStatus,
   listSemanticMaintenanceWork,
   retrySemanticMaintenanceWork,
   listModels,
@@ -558,6 +559,25 @@ test("getSemanticMaintenanceStatus sends space input", async () => {
 
   expect(invokeMock).toHaveBeenCalledWith("admin_get_semantic_maintenance_status", {
     input: { spaceId: "sp_main" },
+  });
+});
+
+test("getSemanticReliabilityStatus sends rule binding input", async () => {
+  const response = { supported: true, status: { semanticGeneration: "9007199254740993" } };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getSemanticReliabilityStatus({
+    spaceId: "sp_main",
+    semanticRuleId: "rule_notes",
+    embeddingBindingKey: "search",
+  })).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_semantic_reliability_status", {
+    input: {
+      spaceId: "sp_main",
+      semanticRuleId: "rule_notes",
+      embeddingBindingKey: "search",
+    },
   });
 });
 

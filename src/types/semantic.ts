@@ -177,7 +177,35 @@ export type SemanticSearchInput = {
   pageToken?: string;
   filter?: SemanticEligibilityFilter;
 };
-export type SemanticSearchResult = { semanticRuleId: string; embeddingBindingKey: string; recordId: string; nodeId: string; score: number; node?: Record<string, unknown> | null; matchedChunkIds: string[]; snippet: string };
+export type SemanticResultProvenance = {
+  sourceGraphRevision: string;
+  semanticGeneration: string;
+  semanticConfigurationHash: string;
+  opaqueSourceVersion: string;
+  dimensions: number;
+  vectorSpaceKey: string;
+  configuredIntelligenceProfileId: string;
+  configuredModelEndpointId: string;
+  configuredModelId: string;
+  configuredCapabilityId: string;
+  actualRouteKnown: boolean;
+  actualModelEndpointId: string;
+  actualModelId: string;
+  actualCapabilityId: string;
+  rebuildEpoch: string;
+  generatedAt: string;
+};
+export type SemanticSearchResult = {
+  semanticRuleId: string;
+  embeddingBindingKey: string;
+  recordId: string;
+  nodeId: string;
+  score: number;
+  node?: Record<string, unknown> | null;
+  matchedChunkIds: string[];
+  snippet: string;
+  provenance?: SemanticResultProvenance | null;
+};
 export type SemanticSearchResponse = {
   results: SemanticSearchResult[];
   warnings: string[];

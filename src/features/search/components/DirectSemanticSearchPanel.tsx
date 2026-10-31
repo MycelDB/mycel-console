@@ -11,6 +11,7 @@ import {
   themeClasses,
 } from "../../../components/typography";
 import { semanticSearch as defaultSemanticSearch } from "../../../services/adminService";
+import { SemanticResultProvenanceDetails } from "./SemanticResultProvenanceDetails";
 import type {
   SemanticEligibilityFilter,
   SemanticPropertyOperator,
@@ -416,6 +417,9 @@ export function DirectSemanticSearchPanel({
               <Text intent="muted" size="xs" className="mt-1">
                 Rule <ResourceIdText value={result.semanticRuleId} /> · binding {result.embeddingBindingKey || "default"}
               </Text>
+              {result.provenance ? (
+                <SemanticResultProvenanceDetails provenance={result.provenance} />
+              ) : null}
             </div>
           ))}
         </div>

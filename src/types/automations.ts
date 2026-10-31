@@ -58,7 +58,6 @@ export interface AutomationRunInfo {
   runJson: string;
 }
 
-
 export interface AutomationDefinitionInput {
   domainId: string;
   definitionJson: string;
@@ -98,6 +97,34 @@ export interface GraphProcedureActionInput {
 
 export interface GraphProcedureInfo {
   procedureJson: string;
+}
+
+export interface GraphProcedureControlInput {
+  spaceId: string;
+  domainId: string;
+  procedureId: string;
+}
+
+export type ProcedureControlTargetStatus = "enabled" | "disabled";
+
+export interface ProcedureControlBarrierInfo {
+  spaceId: string;
+  domainId: string;
+  procedureId: string;
+  procedureVersion: number;
+  targetStatus: ProcedureControlTargetStatus;
+  controlEpoch: string;
+  controllingPrincipalId: string;
+  affectedPartitions: number[];
+  acknowledgedPartitions: number[];
+  completed: boolean;
+  completionRevision: string;
+  committedAt: string;
+  completedAt: string;
+}
+
+export interface GraphProcedureControlResponseInfo {
+  control: ProcedureControlBarrierInfo;
 }
 
 export interface GraphAutomationBindingSummaryInfo {

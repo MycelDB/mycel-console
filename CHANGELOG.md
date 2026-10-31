@@ -13,6 +13,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 - Added daemon-authoritative semantic reliability diagnostics for observed, analyzed, and fresh frontiers, unresolved gaps, bounded capacity, generation, degradation, and rebuild state (#67).
 - Added an explicitly confirmed semantic rebuild workflow that disables incompatible concurrent actions, preserves failure categories, reconciles every failed or ambiguous mutation through daemon reliability status, and never automatically retries the non-idempotent rebuild RPC (#68).
 - Added an authorization-safe procedure-inference attempt explorer with typed filters, snapshot-bound pagination, cursor-based polling, history-gap rebuilds, sanitized detail views, and exact decimal-string revision handling (#69).
+- Added explicitly confirmed procedure enable/disable controls that report success only after validating completed cross-partition barrier evidence, including exact control epochs and completion revisions (#70).
 
 ### Compatibility
 
@@ -20,6 +21,7 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 - Semantic reliability diagnostics require the additive v0.21 reliability RPC. Older daemons continue to show existing semantic maintenance data with an explicit diagnostics-unavailable state.
 - Guarded semantic rebuilds require the additive v0.21 rebuild RPC and reliability status contract; the action remains unavailable when those diagnostics are unsupported.
 - Procedure-inference attempt evidence requires the additive v0.21 attempt RPCs plus scoped `automation.read` and `inference.audit.read`; older daemons show an explicit unavailable state.
+- Procedure controls require the additive v0.21 enable/disable RPCs, `automation.manage`, and a daemon that returns completed cross-partition barrier evidence; older daemons report the controls as unavailable.
 
 ## [v0.21.0] - 2026-10-29
 
@@ -175,10 +177,15 @@ For each release, add a dated section such as:
 ## [v0.9.0] - YYYY-MM-DD
 
 ### Added
+
 ### Changed
+
 ### Deprecated
+
 ### Removed
+
 ### Fixed
+
 ### Security
 ```
 

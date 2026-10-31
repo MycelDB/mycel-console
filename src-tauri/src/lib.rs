@@ -7,9 +7,9 @@ use commands::auth::{
 };
 use commands::automations::{
     admin_create_automation, admin_delete_automation, admin_disable_automation,
-    admin_disable_graph_automation_binding, admin_enable_automation,
-    admin_enable_graph_automation_binding, admin_get_automation, admin_get_automation_run,
-    admin_get_graph_automation_binding, admin_get_graph_procedure,
+    admin_disable_graph_automation_binding, admin_disable_graph_procedure, admin_enable_automation,
+    admin_enable_graph_automation_binding, admin_enable_graph_procedure, admin_get_automation,
+    admin_get_automation_run, admin_get_graph_automation_binding, admin_get_graph_procedure,
     admin_list_automation_invocations, admin_list_automations,
     admin_list_graph_automation_bindings, admin_list_graph_procedures, admin_update_automation,
     admin_validate_automation,
@@ -129,6 +129,8 @@ pub fn run() {
             admin_get_automation_run,
             admin_list_graph_procedures,
             admin_get_graph_procedure,
+            admin_enable_graph_procedure,
+            admin_disable_graph_procedure,
             admin_list_graph_automation_bindings,
             admin_get_graph_automation_binding,
             admin_enable_graph_automation_binding,

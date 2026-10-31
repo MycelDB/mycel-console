@@ -8,8 +8,8 @@ use mycel_sdk::proto::admin::v1::{
 };
 use mycel_sdk::proto::client::v1::{
     Node, SearchIndexState, SearchIndexStatus, SemanticEligibilityFilter,
-    SemanticEmbeddingBindingSummary, SemanticGenerationRuleSummary, SemanticRuleState,
-    SemanticRuleStatus, SemanticSearchRequest,
+    SemanticEmbeddingBindingSummary, SemanticGenerationRuleSummary, SemanticResultProvenance,
+    SemanticRuleState, SemanticRuleStatus, SemanticSearchRequest,
 };
 use mycel_sdk::semantic::{
     bool_value, null_value, number_value, string_value, SemanticEligibilityFilterBuilder,
@@ -158,6 +158,28 @@ pub struct SemanticSearchResultInfo {
     pub node: Option<Value>,
     pub matched_chunk_ids: Vec<String>,
     pub snippet: String,
+    pub provenance: Option<SemanticResultProvenanceInfo>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticResultProvenanceInfo {
+    pub source_graph_revision: String,
+    pub semantic_generation: String,
+    pub semantic_configuration_hash: String,
+    pub opaque_source_version: String,
+    pub dimensions: i32,
+    pub vector_space_key: String,
+    pub configured_intelligence_profile_id: String,
+    pub configured_model_endpoint_id: String,
+    pub configured_model_id: String,
+    pub configured_capability_id: String,
+    pub actual_route_known: bool,
+    pub actual_model_endpoint_id: String,
+    pub actual_model_id: String,
+    pub actual_capability_id: String,
+    pub rebuild_epoch: String,
+    pub generated_at: String,
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -474,6 +496,7 @@ pub async fn client_semantic_search(
                 node: result.node.as_ref().map(node_json),
                 matched_chunk_ids: result.matched_chunk_ids,
                 snippet: result.snippet,
+                provenance: result.provenance.map(semantic_result_provenance_info),
             })
             .collect(),
         warnings: response.warnings,
@@ -482,6 +505,29 @@ pub async fn client_semantic_search(
         examined_semantic_candidates: response.examined_semantic_candidates,
         eligible_semantic_candidates: response.eligible_semantic_candidates,
     })
+}
+
+fn semantic_result_provenance_info(
+    provenance: SemanticResultProvenance,
+) -> SemanticResultProvenanceInfo {
+    SemanticResultProvenanceInfo {
+        source_graph_revision: provenance.source_graph_revision.to_string(),
+        semantic_generation: provenance.semantic_generation.to_string(),
+        semantic_configuration_hash: provenance.semantic_configuration_hash,
+        opaque_source_version: provenance.opaque_source_version,
+        dimensions: provenance.dimensions,
+        vector_space_key: provenance.vector_space_key,
+        configured_intelligence_profile_id: provenance.configured_intelligence_profile_id,
+        configured_model_endpoint_id: provenance.configured_model_endpoint_id,
+        configured_model_id: provenance.configured_model_id,
+        configured_capability_id: provenance.configured_capability_id,
+        actual_route_known: provenance.actual_route_known,
+        actual_model_endpoint_id: provenance.actual_model_endpoint_id,
+        actual_model_id: provenance.actual_model_id,
+        actual_capability_id: provenance.actual_capability_id,
+        rebuild_epoch: provenance.rebuild_epoch,
+        generated_at: provenance.generated_at,
+    }
 }
 
 fn semantic_search_request(input: SemanticSearchInput) -> Result<SemanticSearchRequest, String> {
@@ -1297,6 +1343,36 @@ mod tests {
         assert_eq!(round_tripped.description, "after");
         assert_eq!(binding.metadata, Some(metadata));
         assert_eq!(binding.provider_budget, Some(provider_budget));
+    }
+
+    #[test]
+    fn semantic_result_provenance_preserves_exact_revisions_and_reported_routes() {
+        let info = semantic_result_provenance_info(SemanticResultProvenance {
+            source_graph_revision: 9_007_199_254_740_993,
+            semantic_generation: 9_007_199_254_740_994,
+            semantic_configuration_hash: "config-hash".to_string(),
+            opaque_source_version: "source-version".to_string(),
+            dimensions: 1536,
+            vector_space_key: "primary".to_string(),
+            configured_intelligence_profile_id: "profile-1".to_string(),
+            configured_model_endpoint_id: "configured-endpoint".to_string(),
+            configured_model_id: "configured-model".to_string(),
+            configured_capability_id: "configured-capability".to_string(),
+            actual_route_known: false,
+            actual_model_endpoint_id: "reported-endpoint".to_string(),
+            actual_model_id: "reported-model".to_string(),
+            actual_capability_id: "reported-capability".to_string(),
+            rebuild_epoch: "epoch-1".to_string(),
+            generated_at: "2026-10-30T20:00:00Z".to_string(),
+        });
+
+        assert_eq!(info.source_graph_revision, "9007199254740993");
+        assert_eq!(info.semantic_generation, "9007199254740994");
+        assert!(!info.actual_route_known);
+        assert_eq!(info.actual_model_endpoint_id, "reported-endpoint");
+        let serialized = serde_json::to_value(info).expect("serialize provenance");
+        assert_eq!(serialized["sourceGraphRevision"], "9007199254740993");
+        assert_eq!(serialized["actualRouteKnown"], false);
     }
 
     #[test]

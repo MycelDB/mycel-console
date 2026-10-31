@@ -177,6 +177,8 @@ import type {
   BackfillSemanticRuleInput,
   BackfillSemanticRuleResponse,
   GetSemanticMaintenanceStatusInput,
+  GetSemanticReliabilityStatusInput,
+  GetSemanticReliabilityStatusResponse,
   ListSemanticMaintenanceWorkInput,
   ListSemanticMaintenanceWorkResponse,
   ProcessSemanticDirtyWorkInput,
@@ -925,6 +927,15 @@ export async function getSemanticMaintenanceStatus(
 ): Promise<SemanticMaintenanceStatusInfo> {
   return invoke<SemanticMaintenanceStatusInfo>(
     "admin_get_semantic_maintenance_status",
+    { input },
+  );
+}
+
+export async function getSemanticReliabilityStatus(
+  input: GetSemanticReliabilityStatusInput,
+): Promise<GetSemanticReliabilityStatusResponse> {
+  return invoke<GetSemanticReliabilityStatusResponse>(
+    "admin_get_semantic_reliability_status",
     { input },
   );
 }

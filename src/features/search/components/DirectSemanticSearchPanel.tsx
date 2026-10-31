@@ -301,7 +301,7 @@ export function DirectSemanticSearchPanel({
             return (
               <div
                 key={property.id}
-                className={`grid gap-3 rounded-lg border ${themeClasses.border.default} p-3 md:grid-cols-12`}
+                className={`grid items-end gap-3 rounded-lg border ${themeClasses.border.default} p-3 md:grid-cols-12`}
               >
                 <label className="space-y-2 md:col-span-3">
                   <Text as="span" size="sm" intent="subtle">Property key {index + 1}</Text>

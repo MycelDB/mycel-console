@@ -161,10 +161,52 @@ function renderPage() {
               eventType: "node.updated",
               status: "succeeded",
               skipReason: "",
-              createdAt: "",
-              updatedAt: "",
+              createdAt: "1793478000",
+              updatedAt: "1793478001",
+              bindingId: "binding-1",
+              bindingVersion: 2,
+              procedureId: "procedure-1",
+              procedureVersion: 3,
+              actorPrincipalId: "actor-1",
+              ownerPrincipalId: "owner-1",
+              onBehalfOfPrincipalId: "subject-1",
+              eventOriginPrincipalId: "origin-1",
             },
           ],
+        })}
+        getAutomationRunService={jest.fn().mockResolvedValue({
+          compatibility: "typed_projection_available",
+          diagnosticJson: '{"id":"run1"}',
+          projection: {
+            id: "run1",
+            domainId: "dom1",
+            invocationId: "invocation-1",
+            bindingId: "binding-1",
+            bindingVersion: 2,
+            procedureId: "procedure-1",
+            procedureVersion: 3,
+            attemptNumber: 1,
+            state: "succeeded",
+            stateCode: 2,
+            outcomeCategory: "published",
+            actorPrincipalId: "actor-1",
+            ownerPrincipalId: "owner-1",
+            onBehalfOfPrincipalId: "subject-1",
+            eventOriginPrincipalId: "origin-1",
+            inferenceProfile: "production-chat",
+            inferenceProfileId: "profile-1",
+            policyDecisionId: "decision-1",
+            endpointId: "endpoint-1",
+            modelId: "model-1",
+            capabilityId: "capability-1",
+            inputTokens: "10",
+            outputTokens: "20",
+            totalTokens: "30",
+            tokenCountAuthority: "provider",
+            inferenceAttemptIds: ["attempt-1"],
+            startedAt: "1793478000",
+            completedAt: "1793478001",
+          },
         })}
         summarizeInferenceUsageService={jest.fn().mockResolvedValue({
           summaries: [
@@ -197,6 +239,113 @@ test("renders global graph automation inventory and usage", async () => {
 
   await userEvent.click(screen.getByRole("tab", { name: "Runs" }));
   expect(screen.getByText("run1")).toBeInTheDocument();
+  expect(screen.getByText("procedure-1")).toBeInTheDocument();
+  expect(screen.getByText("binding-1")).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "View details" }));
+  expect(
+    await screen.findByLabelText("Automation run details"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Published")).toBeInTheDocument();
+  expect(screen.getByText("production-chat")).toBeInTheDocument();
+  expect(screen.getByText("attempt-1")).toBeInTheDocument();
+});
+
+test("shows split-model binding invocations on the runs tab", async () => {
+  const listAutomationInvocationsService = jest.fn().mockResolvedValue({
+    invocations: [
+      {
+        id: "invocation-1",
+        automationId: "binding-1",
+        automationVersion: 1,
+        eventId: "evt1",
+        changedElementId: "node1",
+        eventType: "node.created",
+        status: "failed",
+        skipReason: "inference request denied",
+        createdAt: "1793478000",
+        updatedAt: "1793478001",
+        bindingId: "binding-1",
+        bindingVersion: 1,
+        procedureId: "procedure-1",
+        procedureVersion: 2,
+        actorPrincipalId: "automation",
+        ownerPrincipalId: "owner-1",
+        onBehalfOfPrincipalId: "owner-1",
+        eventOriginPrincipalId: "origin-1",
+      },
+    ],
+  });
+
+  render(
+    <MemoryRouter>
+      <AutomationsPage
+        listSpacesService={jest.fn().mockResolvedValue({
+          spaces: [{ spaceId: "sp1", name: "Research" }],
+          nextPageToken: "",
+        })}
+        listDomainsService={jest.fn().mockResolvedValue({
+          domains: [
+            {
+              spaceId: "sp1",
+              domainId: "dom1",
+              key: "main",
+              name: "Main",
+              description: "",
+              state: "active",
+              isDefault: true,
+              system: false,
+            },
+          ],
+          nextPageToken: "",
+        })}
+        listAutomationsService={jest.fn().mockResolvedValue({
+          automations: [],
+        })}
+        listAutomationInvocationsService={listAutomationInvocationsService}
+        listGraphProceduresService={jest.fn().mockResolvedValue({
+          procedures: [],
+        })}
+        listGraphAutomationBindingsService={jest.fn().mockResolvedValue({
+          bindings: [
+            {
+              id: "binding-1",
+              name: "Summarize pages",
+              version: 1,
+              status: "enabled",
+              procedureId: "procedure-1",
+              procedureVersion: 2,
+              triggerType: "graph_event",
+              events: ["node.created"],
+              labels: ["Page"],
+              actorPrincipalId: "automation",
+              ownerPrincipalId: "owner-1",
+              onBehalfOfPrincipalId: "owner-1",
+              inferenceProfile: "missing-profile",
+              inferenceProfileId: "",
+              scopeSpaceId: "sp1",
+              scopeDomainId: "dom1",
+              updatedAt: "",
+            },
+          ],
+        })}
+        summarizeInferenceUsageService={jest.fn().mockResolvedValue({
+          summaries: [],
+        })}
+      />
+    </MemoryRouter>,
+  );
+
+  await userEvent.click(screen.getByRole("tab", { name: "Runs" }));
+  expect(await screen.findByText("invocation-1")).toBeInTheDocument();
+  expect(screen.getByText("procedure-1")).toBeInTheDocument();
+  expect(screen.getByText("binding-1")).toBeInTheDocument();
+  expect(screen.getByText("inference request denied")).toBeInTheDocument();
+  expect(listAutomationInvocationsService).toHaveBeenCalledWith({
+    domainId: "dom1",
+    automationId: "binding-1",
+    limit: 3,
+  });
 });
 
 test("confirms procedure disable and displays completed barrier evidence", async () => {

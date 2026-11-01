@@ -127,6 +127,31 @@ function renderPanel(
   );
 }
 
+test("applies run-linked initial filters without interpreting daemon pagination state", async () => {
+  const listAttemptsService = jest.fn().mockResolvedValue(snapshot([]));
+  renderPanel({
+    initialSpaceId: "sp1",
+    initialDomainId: "dom1",
+    initialProcedureId: "procedure-1",
+    initialInvocationId: "invocation-1",
+    initialRunId: "run-1",
+    listAttemptsService,
+  });
+
+  await waitFor(() => expect(listAttemptsService).toHaveBeenCalled());
+  expect(listAttemptsService).toHaveBeenCalledWith({
+    spaceId: "sp1",
+    filter: {
+      domainId: "dom1",
+      procedureId: "procedure-1",
+      invocationId: "invocation-1",
+      runId: "run-1",
+    },
+    pageSize: 50,
+    pageToken: "",
+  });
+});
+
 test("applies the typed filter set and preserves snapshot-bound pagination tokens", async () => {
   const listAttemptsService = jest
     .fn()

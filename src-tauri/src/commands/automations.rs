@@ -10,7 +10,9 @@ use mycel_sdk::proto::{
         ListGraphAutomationBindingsRequest, ListGraphProceduresRequest, UpdateAutomationRequest,
         ValidateAutomationRequest,
     },
-    common::v1::{ProcedureControlBarrier, ProcedureControlTargetStatus},
+    common::v1::{
+        AutomationRun, AutomationRunState, ProcedureControlBarrier, ProcedureControlTargetStatus,
+    },
 };
 use prost_types::Timestamp;
 use tauri::State;
@@ -110,6 +112,14 @@ pub struct AutomationInvocationSummaryInfo {
     pub skip_reason: String,
     pub created_at: String,
     pub updated_at: String,
+    pub binding_id: String,
+    pub binding_version: i32,
+    pub procedure_id: String,
+    pub procedure_version: i32,
+    pub actor_principal_id: String,
+    pub owner_principal_id: String,
+    pub on_behalf_of_principal_id: String,
+    pub event_origin_principal_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -120,8 +130,43 @@ pub struct ListAutomationInvocationsResponseInfo {
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AutomationRunProjectionInfo {
+    pub id: String,
+    pub domain_id: String,
+    pub invocation_id: String,
+    pub binding_id: String,
+    pub binding_version: i32,
+    pub procedure_id: String,
+    pub procedure_version: i32,
+    pub attempt_number: i32,
+    pub state: String,
+    pub state_code: i32,
+    pub outcome_category: String,
+    pub actor_principal_id: String,
+    pub owner_principal_id: String,
+    pub on_behalf_of_principal_id: String,
+    pub event_origin_principal_id: String,
+    pub inference_profile: String,
+    pub inference_profile_id: String,
+    pub policy_decision_id: String,
+    pub endpoint_id: String,
+    pub model_id: String,
+    pub capability_id: String,
+    pub input_tokens: String,
+    pub output_tokens: String,
+    pub total_tokens: String,
+    pub token_count_authority: String,
+    pub inference_attempt_ids: Vec<String>,
+    pub started_at: String,
+    pub completed_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AutomationRunInfo {
-    pub run_json: String,
+    pub projection: Option<AutomationRunProjectionInfo>,
+    pub diagnostic_json: String,
+    pub compatibility: String,
 }
 
 #[tauri::command]
@@ -355,6 +400,14 @@ pub async fn admin_list_automation_invocations(
                 skip_reason: item.skip_reason,
                 created_at: item.created_at,
                 updated_at: item.updated_at,
+                binding_id: item.binding_id,
+                binding_version: item.binding_version,
+                procedure_id: item.procedure_id,
+                procedure_version: item.procedure_version,
+                actor_principal_id: item.actor_principal_id,
+                owner_principal_id: item.owner_principal_id,
+                on_behalf_of_principal_id: item.on_behalf_of_principal_id,
+                event_origin_principal_id: item.event_origin_principal_id,
             })
             .collect(),
     })
@@ -364,22 +417,118 @@ pub async fn admin_list_automation_invocations(
 pub async fn admin_get_automation_run(
     input: GetAutomationRunInput,
     state: State<'_, AppState>,
-) -> Result<AutomationRunInfo, String> {
+) -> Result<AutomationRunInfo, ConsoleCommandError> {
+    validate_run_input(&input)?;
     let mut guard = state.admin.write().await;
     let session = guard
         .as_mut()
-        .ok_or_else(|| "Not authenticated".to_string())?;
+        .ok_or_else(|| authentication_error("Not authenticated"))?;
     let response = authenticated_rpc!(
         session._client,
         automation.get_automation_run(GetAutomationRunRequest {
-            domain_id: input.domain_id,
-            run_id: input.run_id,
+            domain_id: input.domain_id.clone(),
+            run_id: input.run_id.clone(),
         })
     )
-    .map_err(|err| err.to_string())?
+    .map_err(sdk_error)?
     .into_inner();
+    let Some(run) = response.run else {
+        return Ok(AutomationRunInfo {
+            projection: None,
+            diagnostic_json: String::new(),
+            compatibility: "typed_projection_unavailable".to_string(),
+        });
+    };
+    let projection = map_automation_run(&input, run)?;
+    let diagnostic_json = serde_json::to_string_pretty(&projection)
+        .map_err(|_| response_error("Failed to serialize sanitized automation run evidence"))?;
     Ok(AutomationRunInfo {
-        run_json: response.run_json,
+        projection: Some(projection),
+        diagnostic_json,
+        compatibility: "typed_projection_available".to_string(),
+    })
+}
+
+fn validate_run_input(input: &GetAutomationRunInput) -> Result<(), ConsoleCommandError> {
+    if input.domain_id.trim().is_empty() || input.run_id.trim().is_empty() {
+        return Err(validation_error("Domain ID and run ID are required"));
+    }
+    Ok(())
+}
+
+fn map_automation_run(
+    input: &GetAutomationRunInput,
+    run: AutomationRun,
+) -> Result<AutomationRunProjectionInfo, ConsoleCommandError> {
+    let requested_run_id = input.run_id.trim();
+    if run.domain_id != input.domain_id.trim()
+        || (run.id != requested_run_id && run.invocation_id != requested_run_id)
+    {
+        return Err(response_error(
+            "The daemon returned automation run evidence for a different identity",
+        ));
+    }
+    if run.binding_version < 0 || run.procedure_version < 0 || run.attempt_number < 0 {
+        return Err(response_error(
+            "The daemon returned invalid automation run version evidence",
+        ));
+    }
+    if run.input_tokens < 0 || run.output_tokens < 0 || run.total_tokens < 0 {
+        return Err(response_error(
+            "The daemon returned invalid automation run token evidence",
+        ));
+    }
+    let attempt_ids = run
+        .inference_attempt_ids
+        .iter()
+        .map(|value| value.trim())
+        .collect::<Vec<_>>();
+    let unique_attempt_ids = attempt_ids.iter().copied().collect::<HashSet<_>>();
+    if attempt_ids.iter().any(|value| value.is_empty())
+        || unique_attempt_ids.len() != attempt_ids.len()
+    {
+        return Err(response_error(
+            "The daemon returned invalid automation run attempt references",
+        ));
+    }
+    let state = match AutomationRunState::try_from(run.state) {
+        Ok(AutomationRunState::Running) => "running",
+        Ok(AutomationRunState::Succeeded) => "succeeded",
+        Ok(AutomationRunState::Skipped) => "skipped",
+        Ok(AutomationRunState::Retryable) => "retryable",
+        Ok(AutomationRunState::Failed) => "failed",
+        Ok(AutomationRunState::Canceled) => "canceled",
+        Ok(AutomationRunState::Unspecified) | Err(_) => "unsupported",
+    };
+    Ok(AutomationRunProjectionInfo {
+        id: run.id,
+        domain_id: run.domain_id,
+        invocation_id: run.invocation_id,
+        binding_id: run.binding_id,
+        binding_version: run.binding_version,
+        procedure_id: run.procedure_id,
+        procedure_version: run.procedure_version,
+        attempt_number: run.attempt_number,
+        state: state.to_string(),
+        state_code: run.state,
+        outcome_category: run.outcome_category,
+        actor_principal_id: run.actor_principal_id,
+        owner_principal_id: run.owner_principal_id,
+        on_behalf_of_principal_id: run.on_behalf_of_principal_id,
+        event_origin_principal_id: run.event_origin_principal_id,
+        inference_profile: run.inference_profile,
+        inference_profile_id: run.inference_profile_id,
+        policy_decision_id: run.policy_decision_id,
+        endpoint_id: run.endpoint_id,
+        model_id: run.model_id,
+        capability_id: run.capability_id,
+        input_tokens: run.input_tokens.to_string(),
+        output_tokens: run.output_tokens.to_string(),
+        total_tokens: run.total_tokens.to_string(),
+        token_count_authority: run.token_count_authority,
+        inference_attempt_ids: run.inference_attempt_ids,
+        started_at: timestamp_string(run.started_at),
+        completed_at: timestamp_string(run.completed_at),
     })
 }
 
@@ -851,6 +1000,159 @@ fn response_error(message: impl Into<String>) -> ConsoleCommandError {
         severity: "error".to_string(),
         message: message.into(),
         detail: None,
+    }
+}
+
+#[cfg(test)]
+mod automation_run_tests {
+    use super::*;
+
+    fn input() -> GetAutomationRunInput {
+        GetAutomationRunInput {
+            domain_id: "domain-1".to_string(),
+            run_id: "run-1".to_string(),
+        }
+    }
+
+    fn run(state: i32) -> AutomationRun {
+        AutomationRun {
+            id: "run-1".to_string(),
+            domain_id: "domain-1".to_string(),
+            invocation_id: "invocation-1".to_string(),
+            binding_id: "binding-1".to_string(),
+            binding_version: 2,
+            procedure_id: "procedure-1".to_string(),
+            procedure_version: 3,
+            attempt_number: 4,
+            state,
+            outcome_category: "published".to_string(),
+            actor_principal_id: "actor-1".to_string(),
+            owner_principal_id: "owner-1".to_string(),
+            on_behalf_of_principal_id: "subject-1".to_string(),
+            event_origin_principal_id: "origin-1".to_string(),
+            inference_profile: "production-chat".to_string(),
+            inference_profile_id: "profile-1".to_string(),
+            policy_decision_id: "decision-1".to_string(),
+            endpoint_id: "endpoint-1".to_string(),
+            model_id: "model-1".to_string(),
+            capability_id: "capability-1".to_string(),
+            input_tokens: i64::MAX - 2,
+            output_tokens: i64::MAX - 1,
+            total_tokens: i64::MAX,
+            token_count_authority: "provider".to_string(),
+            inference_attempt_ids: vec!["attempt-1".to_string(), "attempt-2".to_string()],
+            started_at: Some(Timestamp {
+                seconds: 1_793_478_000,
+                nanos: 0,
+            }),
+            completed_at: Some(Timestamp {
+                seconds: 1_793_478_001,
+                nanos: 25,
+            }),
+        }
+    }
+
+    #[test]
+    fn maps_every_supported_run_state() {
+        let cases = [
+            (AutomationRunState::Running, "running"),
+            (AutomationRunState::Succeeded, "succeeded"),
+            (AutomationRunState::Skipped, "skipped"),
+            (AutomationRunState::Retryable, "retryable"),
+            (AutomationRunState::Failed, "failed"),
+            (AutomationRunState::Canceled, "canceled"),
+        ];
+        for (state, expected) in cases {
+            let mapped = map_automation_run(&input(), run(state as i32)).unwrap();
+            assert_eq!(mapped.state, expected);
+            assert_eq!(mapped.state_code, state as i32);
+        }
+    }
+
+    #[test]
+    fn unknown_and_unspecified_states_fail_closed() {
+        for state in [AutomationRunState::Unspecified as i32, 999] {
+            let mapped = map_automation_run(&input(), run(state)).unwrap();
+            assert_eq!(mapped.state, "unsupported");
+            assert_eq!(mapped.state_code, state);
+        }
+    }
+
+    #[test]
+    fn accepts_invocation_id_lookup_for_run_projection() {
+        let mut input = input();
+        input.run_id = "invocation-1".to_string();
+        let mapped = map_automation_run(&input, run(AutomationRunState::Failed as i32)).unwrap();
+        assert_eq!(mapped.id, "run-1");
+        assert_eq!(mapped.invocation_id, "invocation-1");
+        assert_eq!(mapped.state, "failed");
+    }
+
+    #[test]
+    fn preserves_exact_tokens_and_partial_optional_data() {
+        let mapped =
+            map_automation_run(&input(), run(AutomationRunState::Succeeded as i32)).unwrap();
+        assert_eq!(mapped.input_tokens, (i64::MAX - 2).to_string());
+        assert_eq!(mapped.output_tokens, (i64::MAX - 1).to_string());
+        assert_eq!(mapped.total_tokens, i64::MAX.to_string());
+        assert_eq!(mapped.completed_at, "1793478001.000000025");
+
+        let mut partial = run(AutomationRunState::Running as i32);
+        partial.binding_id.clear();
+        partial.binding_version = 0;
+        partial.procedure_id.clear();
+        partial.procedure_version = 0;
+        partial.outcome_category.clear();
+        partial.completed_at = None;
+        partial.inference_attempt_ids.clear();
+        let mapped = map_automation_run(&input(), partial).unwrap();
+        assert!(mapped.binding_id.is_empty());
+        assert!(mapped.procedure_id.is_empty());
+        assert!(mapped.outcome_category.is_empty());
+        assert!(mapped.completed_at.is_empty());
+        assert!(mapped.inference_attempt_ids.is_empty());
+    }
+
+    #[test]
+    fn rejects_mismatched_identity_and_invalid_evidence() {
+        let mut mismatched = run(AutomationRunState::Succeeded as i32);
+        mismatched.id = "run-other".to_string();
+        assert_eq!(
+            map_automation_run(&input(), mismatched).unwrap_err().kind,
+            "internal"
+        );
+
+        let mut invalid = run(AutomationRunState::Succeeded as i32);
+        invalid.input_tokens = -1;
+        assert_eq!(
+            map_automation_run(&input(), invalid).unwrap_err().kind,
+            "internal"
+        );
+
+        let mut duplicate = run(AutomationRunState::Succeeded as i32);
+        duplicate.inference_attempt_ids = vec!["attempt-1".to_string(), "attempt-1".to_string()];
+        assert_eq!(
+            map_automation_run(&input(), duplicate).unwrap_err().kind,
+            "internal"
+        );
+    }
+
+    #[test]
+    fn sanitized_projection_excludes_legacy_sensitive_fields() {
+        let projection =
+            map_automation_run(&input(), run(AutomationRunState::Succeeded as i32)).unwrap();
+        let json = serde_json::to_string(&projection).unwrap();
+        for forbidden in [
+            "credentialId",
+            "credentialGrantId",
+            "providerRequestId",
+            "rawError",
+            "renderedInputHash",
+            "outputHash",
+            "graphContent",
+        ] {
+            assert!(!json.contains(forbidden), "unexpected field {forbidden}");
+        }
     }
 }
 

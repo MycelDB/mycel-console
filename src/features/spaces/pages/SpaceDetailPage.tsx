@@ -20,6 +20,9 @@ import {
 } from "../../../components/typography";
 import { canUseCapability, type ConsolePrincipalContext } from "../../console";
 import {
+  AutomationRunDetails,
+} from "../../intelligence/automations/components/AutomationRunDetails";
+import {
   analyzeSemanticDirtyWork as defaultAnalyzeSemanticDirtyWork,
   backfillSemanticRule as defaultBackfillSemanticRule,
   cancelSemanticMaintenanceWork as defaultCancelSemanticMaintenanceWork,
@@ -342,7 +345,8 @@ export function SpaceDetailPage({
     Record<string, AutomationInvocationSummaryInfo[]>
   >({});
   const [automationDetail, setAutomationDetail] = useState("");
-  const [automationRunDetail, setAutomationRunDetail] = useState("");
+  const [automationRunDetail, setAutomationRunDetail] =
+    useState<AutomationRunInfo | null>(null);
   const [automationEditor, setAutomationEditor] = useState<{
     mode: "create" | "edit";
     domainId: string;
@@ -735,7 +739,7 @@ export function SpaceDetailPage({
     setAutomationError("");
     try {
       const detail = await getAutomationRunService({ domainId, runId });
-      setAutomationRunDetail(detail.runJson);
+      setAutomationRunDetail(detail);
     } catch (err) {
       setAutomationError(
         err instanceof Error ? err.message : "Failed to load run",
@@ -1325,6 +1329,9 @@ export function SpaceDetailPage({
             error={automationError || domainsError}
             detail={automationDetail}
             runDetail={automationRunDetail}
+            spaceId={spaceId}
+            principalById={principalById}
+            principalContext={principalContext}
             canManage={canManageAutomations}
             onCreate={openCreateAutomation}
             onEdit={(domainId, automationId) =>
@@ -2505,6 +2512,9 @@ function AutomationSection({
   error,
   detail,
   runDetail,
+  spaceId,
+  principalById,
+  principalContext,
   canManage,
   onCreate,
   onEdit,
@@ -2523,7 +2533,10 @@ function AutomationSection({
   loading: boolean;
   error: string;
   detail: string;
-  runDetail: string;
+  runDetail: AutomationRunInfo | null;
+  spaceId: string;
+  principalById: Map<string, UserPrincipalInfo>;
+  principalContext?: ConsolePrincipalContext | null;
   canManage: boolean;
   onCreate: (domainId?: string) => void;
   onEdit: (domainId: string, automationId: string) => void;
@@ -2685,11 +2698,16 @@ function AutomationSection({
         </pre>
       )}
       {runDetail && (
-        <pre
-          className={`max-h-96 overflow-auto rounded-lg border border-dashed border-slate-300 p-4 text-xs ${themeClasses.text.parts.bodyLight} dark:border-slate-700 ${themeClasses.text.parts.darkSecondary}`}
+        <div
+          className={`rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700`}
         >
-          {runDetail}
-        </pre>
+          <AutomationRunDetails
+            info={runDetail}
+            spaceId={spaceId}
+            principalById={principalById}
+            principalContext={principalContext}
+          />
+        </div>
       )}
     </div>
   );

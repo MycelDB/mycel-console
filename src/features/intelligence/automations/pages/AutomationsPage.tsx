@@ -94,6 +94,7 @@ import type {
   ListSpacesResponse,
   SpaceInfo,
 } from "../../../../types/spaces";
+import { AutomationRunDetails } from "../components/AutomationRunDetails";
 import { ProcedureInferenceAttemptsPanel } from "../components/ProcedureInferenceAttemptsPanel";
 import type {
   ListPrincipalsInput,
@@ -137,11 +138,13 @@ type BindingRow = {
   space: SpaceInfo;
   domain: DomainInfo;
   binding: GraphAutomationBindingSummaryInfo;
+  invocations: AutomationInvocationSummaryInfo[];
 };
 type RunRow = {
   space: SpaceInfo;
   domain: DomainInfo;
-  automation: AutomationDefinitionSummaryInfo;
+  automation?: AutomationDefinitionSummaryInfo;
+  binding?: GraphAutomationBindingSummaryInfo;
   invocation: AutomationInvocationSummaryInfo;
 };
 type AutomationTab = "procedures" | "automations" | "runs" | "attempts";
@@ -268,6 +271,11 @@ export function AutomationsPage({
   const [detail, setDetail] = useState<{ title: string; json: string } | null>(
     null,
   );
+  const [runDetail, setRunDetail] = useState<{
+    title: string;
+    info: AutomationRunInfo;
+    spaceId: string;
+  } | null>(null);
   const [editor, setEditor] = useState<AutomationEditorState | null>(null);
   const [editorError, setEditorError] = useState("");
   const [procedureControlAction, setProcedureControlAction] =
@@ -401,17 +409,37 @@ export function AutomationsPage({
               bindings: [] as GraphAutomationBindingSummaryInfo[],
             })),
           ]);
+          const bindingRows = await Promise.all(
+            bindings.bindings.map(async (binding) => {
+              try {
+                const history = await listAutomationInvocationsService({
+                  domainId: domain.domainId,
+                  automationId: binding.id,
+                  limit: 3,
+                });
+                return {
+                  space,
+                  domain,
+                  binding,
+                  invocations: history.invocations,
+                };
+              } catch {
+                return {
+                  space,
+                  domain,
+                  binding,
+                  invocations: [] as AutomationInvocationSummaryInfo[],
+                };
+              }
+            }),
+          );
           return {
             procedures: procedures.procedures.map((procedure) => ({
               space,
               domain,
               procedure,
             })),
-            bindings: bindings.bindings.map((binding) => ({
-              space,
-              domain,
-              binding,
-            })),
+            bindings: bindingRows,
           };
         }),
       );
@@ -543,18 +571,25 @@ export function AutomationsPage({
       ),
     [bindingRows, statusFilter],
   );
-  const runRows = useMemo(
-    () =>
-      rows.flatMap((row) =>
-        row.invocations.map((invocation) => ({
-          space: row.space,
-          domain: row.domain,
-          automation: row.automation,
-          invocation,
-        })),
-      ),
-    [rows],
-  );
+  const runRows = useMemo<RunRow[]>(() => {
+    const legacyRuns = rows.flatMap((row) =>
+      row.invocations.map((invocation) => ({
+        space: row.space,
+        domain: row.domain,
+        automation: row.automation,
+        invocation,
+      })),
+    );
+    const bindingRuns = bindingRows.flatMap((row) =>
+      row.invocations.map((invocation) => ({
+        space: row.space,
+        domain: row.domain,
+        binding: row.binding,
+        invocation,
+      })),
+    );
+    return [...legacyRuns, ...bindingRuns];
+  }, [bindingRows, rows]);
   const filteredRunRows = useMemo(
     () =>
       runRows.filter(
@@ -566,9 +601,12 @@ export function AutomationsPage({
     activeTab === "runs"
       ? [
           { value: "pending", label: "Pending" },
+          { value: "running", label: "Running" },
           { value: "succeeded", label: "Succeeded" },
           { value: "skipped", label: "Skipped" },
+          { value: "retryable", label: "Retryable" },
           { value: "failed", label: "Failed" },
+          { value: "canceled", label: "Canceled" },
           { value: "error", label: "Error" },
         ]
       : [
@@ -612,11 +650,11 @@ export function AutomationsPage({
     }
   }
 
-  async function showRun(domainId: string, runId: string) {
+  async function showRun(spaceId: string, domainId: string, runId: string) {
     setError("");
     try {
       const response = await getAutomationRunService({ domainId, runId });
-      setDetail({ title: `Run ${runId}`, json: response.runJson });
+      setRunDetail({ title: `Run ${runId}`, info: response, spaceId });
     } catch (err) {
       setError(errorMessage(err, "Failed to load run"));
     }
@@ -1334,6 +1372,9 @@ export function AutomationsPage({
             principalContext={principalContext}
             initialSpaceId={selectedSpaceId}
             initialDomainId={selectedDomainId}
+            initialProcedureId={searchParams.get("procedureId") || ""}
+            initialInvocationId={searchParams.get("invocationId") || ""}
+            initialRunId={searchParams.get("runId") || ""}
           />
         )}
 
@@ -1357,10 +1398,13 @@ export function AutomationsPage({
               >
                 <tr>
                   <TableHead className="px-4 py-3">Run</TableHead>
-                  <TableHead className="px-4 py-3">Automation</TableHead>
+                  <TableHead className="px-4 py-3">
+                    Procedure / binding
+                  </TableHead>
                   <TableHead className="px-4 py-3">Scope</TableHead>
-                  <TableHead className="px-4 py-3">Event</TableHead>
-                  <TableHead className="px-4 py-3">Status</TableHead>
+                  <TableHead className="px-4 py-3">Trigger</TableHead>
+                  <TableHead className="px-4 py-3">Attribution</TableHead>
+                  <TableHead className="px-4 py-3">State</TableHead>
                   <TableHead className="px-4 py-3">Actions</TableHead>
                 </tr>
               </thead>
@@ -1369,7 +1413,7 @@ export function AutomationsPage({
                   <tr>
                     <td
                       className={`px-4 py-6 text-center ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}
-                      colSpan={6}
+                      colSpan={7}
                     >
                       Loading runs…
                     </td>
@@ -1378,7 +1422,7 @@ export function AutomationsPage({
                   <tr>
                     <td
                       className={`px-4 py-6 text-center ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}
-                      colSpan={6}
+                      colSpan={7}
                     >
                       No recent runs found.
                     </td>
@@ -1404,14 +1448,35 @@ export function AutomationsPage({
                         <div
                           className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
                         >
-                          {row.automation.name || row.automation.id}
+                          {row.invocation.procedureId
+                            ? "Procedure"
+                            : row.binding?.name ||
+                              row.automation?.name ||
+                              row.invocation.automationId}
                         </div>
                         <div
                           className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
                         >
-                          <ResourceIdText value={row.invocation.automationId} />{" "}
-                          · v{row.invocation.automationVersion}
+                          <ResourceIdText
+                            value={
+                              row.invocation.procedureId ||
+                              row.invocation.automationId
+                            }
+                          />{" "}
+                          · v
+                          {row.invocation.procedureId
+                            ? row.invocation.procedureVersion
+                            : row.invocation.automationVersion}
                         </div>
+                        {row.invocation.bindingId && (
+                          <div
+                            className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight}`}
+                          >
+                            Binding{" "}
+                            <ResourceIdText value={row.invocation.bindingId} />{" "}
+                            · v{row.invocation.bindingVersion}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <SpaceLabel
@@ -1444,6 +1509,32 @@ export function AutomationsPage({
                         </div>
                       </td>
                       <td className="px-4 py-3">
+                        <div className="text-xs">
+                          actor{" "}
+                          <RuntimePrincipalLabel
+                            principalId={row.invocation.actorPrincipalId}
+                            principalContext={principalContext}
+                            principalById={principalById}
+                          />
+                        </div>
+                        <div className="text-xs">
+                          owner{" "}
+                          <RuntimePrincipalLabel
+                            principalId={row.invocation.ownerPrincipalId}
+                            principalContext={principalContext}
+                            principalById={principalById}
+                          />
+                        </div>
+                        <div className="text-xs">
+                          event origin{" "}
+                          <RuntimePrincipalLabel
+                            principalId={row.invocation.eventOriginPrincipalId}
+                            principalContext={principalContext}
+                            principalById={principalById}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
                         <StatusPill value={row.invocation.status} />
                         {row.invocation.skipReason ? (
                           <div
@@ -1457,10 +1548,14 @@ export function AutomationsPage({
                         <Button
                           variant="secondary"
                           onClick={() =>
-                            void showRun(row.domain.domainId, row.invocation.id)
+                            void showRun(
+                              row.space.spaceId,
+                              row.domain.domainId,
+                              row.invocation.id,
+                            )
                           }
                         >
-                          View JSON
+                          View details
                         </Button>
                       </td>
                     </tr>
@@ -1477,6 +1572,16 @@ export function AutomationsPage({
           title={detail.title}
           json={detail.json}
           onClose={() => setDetail(null)}
+        />
+      )}
+      {runDetail && (
+        <RunDetailDrawer
+          title={runDetail.title}
+          info={runDetail.info}
+          spaceId={runDetail.spaceId}
+          principalById={principalById}
+          principalContext={principalContext}
+          onClose={() => setRunDetail(null)}
         />
       )}
       {procedureControlAction && (
@@ -2020,6 +2125,55 @@ function RecentInvocations({
           </span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function RunDetailDrawer({
+  title,
+  info,
+  spaceId,
+  principalById,
+  principalContext,
+  onClose,
+}: {
+  title: string;
+  info: AutomationRunInfo;
+  spaceId: string;
+  principalById: Map<string, PrincipalInfo>;
+  principalContext?: ConsolePrincipalContext | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60">
+      <aside
+        className={`h-full w-full max-w-4xl overflow-y-auto border-l border-slate-200 ${themeClasses.surface.elevated} p-6 shadow-xl`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Automation run details"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <Text as="h3" className="font-semibold">
+              {title}
+            </Text>
+            <Text intent="muted" size="sm" className="mt-1">
+              Typed daemon-authoritative execution evidence.
+            </Text>
+          </div>
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+        <div className="mt-6">
+          <AutomationRunDetails
+            info={info}
+            spaceId={spaceId}
+            principalById={principalById}
+            principalContext={principalContext}
+          />
+        </div>
+      </aside>
     </div>
   );
 }

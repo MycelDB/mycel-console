@@ -82,6 +82,9 @@ export function AutomationRunDetails({
             label="Completed"
             value={formatTimestamp(run.completedAt)}
           />
+          <EvidenceItem label="Run ID">
+            <ResourceIdText value={run.id || "—"} />
+          </EvidenceItem>
           <EvidenceItem label="Invocation ID">
             <ResourceIdText value={run.invocationId || "—"} />
           </EvidenceItem>
@@ -138,7 +141,7 @@ export function AutomationRunDetails({
         <SectionTitle>Inference profile and configured route</SectionTitle>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <EvidenceItem
-            label="Profile"
+            label="Inference profile ref"
             value={run.inferenceProfile || run.inferenceProfileId || "—"}
           />
           <EvidenceItem label="Profile ID">

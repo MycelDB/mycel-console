@@ -460,7 +460,10 @@ fn map_automation_run(
     input: &GetAutomationRunInput,
     run: AutomationRun,
 ) -> Result<AutomationRunProjectionInfo, ConsoleCommandError> {
-    if run.id != input.run_id.trim() || run.domain_id != input.domain_id.trim() {
+    let requested_run_id = input.run_id.trim();
+    if run.domain_id != input.domain_id.trim()
+        || (run.id != requested_run_id && run.invocation_id != requested_run_id)
+    {
         return Err(response_error(
             "The daemon returned automation run evidence for a different identity",
         ));
@@ -1073,6 +1076,16 @@ mod automation_run_tests {
             assert_eq!(mapped.state, "unsupported");
             assert_eq!(mapped.state_code, state);
         }
+    }
+
+    #[test]
+    fn accepts_invocation_id_lookup_for_run_projection() {
+        let mut input = input();
+        input.run_id = "invocation-1".to_string();
+        let mapped = map_automation_run(&input, run(AutomationRunState::Failed as i32)).unwrap();
+        assert_eq!(mapped.id, "run-1");
+        assert_eq!(mapped.invocation_id, "invocation-1");
+        assert_eq!(mapped.state, "failed");
     }
 
     #[test]

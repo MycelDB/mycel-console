@@ -251,6 +251,103 @@ test("renders global graph automation inventory and usage", async () => {
   expect(screen.getByText("attempt-1")).toBeInTheDocument();
 });
 
+test("shows split-model binding invocations on the runs tab", async () => {
+  const listAutomationInvocationsService = jest.fn().mockResolvedValue({
+    invocations: [
+      {
+        id: "invocation-1",
+        automationId: "binding-1",
+        automationVersion: 1,
+        eventId: "evt1",
+        changedElementId: "node1",
+        eventType: "node.created",
+        status: "failed",
+        skipReason: "inference request denied",
+        createdAt: "1793478000",
+        updatedAt: "1793478001",
+        bindingId: "binding-1",
+        bindingVersion: 1,
+        procedureId: "procedure-1",
+        procedureVersion: 2,
+        actorPrincipalId: "automation",
+        ownerPrincipalId: "owner-1",
+        onBehalfOfPrincipalId: "owner-1",
+        eventOriginPrincipalId: "origin-1",
+      },
+    ],
+  });
+
+  render(
+    <MemoryRouter>
+      <AutomationsPage
+        listSpacesService={jest.fn().mockResolvedValue({
+          spaces: [{ spaceId: "sp1", name: "Research" }],
+          nextPageToken: "",
+        })}
+        listDomainsService={jest.fn().mockResolvedValue({
+          domains: [
+            {
+              spaceId: "sp1",
+              domainId: "dom1",
+              key: "main",
+              name: "Main",
+              description: "",
+              state: "active",
+              isDefault: true,
+              system: false,
+            },
+          ],
+          nextPageToken: "",
+        })}
+        listAutomationsService={jest.fn().mockResolvedValue({
+          automations: [],
+        })}
+        listAutomationInvocationsService={listAutomationInvocationsService}
+        listGraphProceduresService={jest.fn().mockResolvedValue({
+          procedures: [],
+        })}
+        listGraphAutomationBindingsService={jest.fn().mockResolvedValue({
+          bindings: [
+            {
+              id: "binding-1",
+              name: "Summarize pages",
+              version: 1,
+              status: "enabled",
+              procedureId: "procedure-1",
+              procedureVersion: 2,
+              triggerType: "graph_event",
+              events: ["node.created"],
+              labels: ["Page"],
+              actorPrincipalId: "automation",
+              ownerPrincipalId: "owner-1",
+              onBehalfOfPrincipalId: "owner-1",
+              inferenceProfile: "missing-profile",
+              inferenceProfileId: "",
+              scopeSpaceId: "sp1",
+              scopeDomainId: "dom1",
+              updatedAt: "",
+            },
+          ],
+        })}
+        summarizeInferenceUsageService={jest.fn().mockResolvedValue({
+          summaries: [],
+        })}
+      />
+    </MemoryRouter>,
+  );
+
+  await userEvent.click(screen.getByRole("tab", { name: "Runs" }));
+  expect(await screen.findByText("invocation-1")).toBeInTheDocument();
+  expect(screen.getByText("procedure-1")).toBeInTheDocument();
+  expect(screen.getByText("binding-1")).toBeInTheDocument();
+  expect(screen.getByText("inference request denied")).toBeInTheDocument();
+  expect(listAutomationInvocationsService).toHaveBeenCalledWith({
+    domainId: "dom1",
+    automationId: "binding-1",
+    limit: 3,
+  });
+});
+
 test("confirms procedure disable and displays completed barrier evidence", async () => {
   const { disableGraphProcedureService } = renderProcedureControls();
 

@@ -86,6 +86,7 @@ test("renders typed versions, attribution, route, exact tokens, and bounded atte
   expect(screen.getByText("v3")).toBeInTheDocument();
   expect(screen.getByText("v2")).toBeInTheDocument();
   expect(screen.getByText("Automation Actor")).toBeInTheDocument();
+  expect(screen.getByText("Inference profile ref")).toBeInTheDocument();
   expect(screen.getByText("production-chat")).toBeInTheDocument();
   expect(screen.getByText("endpoint-1")).toBeInTheDocument();
   expect(screen.getByText("9223372036854775807")).toBeInTheDocument();

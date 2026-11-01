@@ -138,11 +138,13 @@ type BindingRow = {
   space: SpaceInfo;
   domain: DomainInfo;
   binding: GraphAutomationBindingSummaryInfo;
+  invocations: AutomationInvocationSummaryInfo[];
 };
 type RunRow = {
   space: SpaceInfo;
   domain: DomainInfo;
-  automation: AutomationDefinitionSummaryInfo;
+  automation?: AutomationDefinitionSummaryInfo;
+  binding?: GraphAutomationBindingSummaryInfo;
   invocation: AutomationInvocationSummaryInfo;
 };
 type AutomationTab = "procedures" | "automations" | "runs" | "attempts";
@@ -407,17 +409,37 @@ export function AutomationsPage({
               bindings: [] as GraphAutomationBindingSummaryInfo[],
             })),
           ]);
+          const bindingRows = await Promise.all(
+            bindings.bindings.map(async (binding) => {
+              try {
+                const history = await listAutomationInvocationsService({
+                  domainId: domain.domainId,
+                  automationId: binding.id,
+                  limit: 3,
+                });
+                return {
+                  space,
+                  domain,
+                  binding,
+                  invocations: history.invocations,
+                };
+              } catch {
+                return {
+                  space,
+                  domain,
+                  binding,
+                  invocations: [] as AutomationInvocationSummaryInfo[],
+                };
+              }
+            }),
+          );
           return {
             procedures: procedures.procedures.map((procedure) => ({
               space,
               domain,
               procedure,
             })),
-            bindings: bindings.bindings.map((binding) => ({
-              space,
-              domain,
-              binding,
-            })),
+            bindings: bindingRows,
           };
         }),
       );
@@ -549,18 +571,25 @@ export function AutomationsPage({
       ),
     [bindingRows, statusFilter],
   );
-  const runRows = useMemo(
-    () =>
-      rows.flatMap((row) =>
-        row.invocations.map((invocation) => ({
-          space: row.space,
-          domain: row.domain,
-          automation: row.automation,
-          invocation,
-        })),
-      ),
-    [rows],
-  );
+  const runRows = useMemo<RunRow[]>(() => {
+    const legacyRuns = rows.flatMap((row) =>
+      row.invocations.map((invocation) => ({
+        space: row.space,
+        domain: row.domain,
+        automation: row.automation,
+        invocation,
+      })),
+    );
+    const bindingRuns = bindingRows.flatMap((row) =>
+      row.invocations.map((invocation) => ({
+        space: row.space,
+        domain: row.domain,
+        binding: row.binding,
+        invocation,
+      })),
+    );
+    return [...legacyRuns, ...bindingRuns];
+  }, [bindingRows, rows]);
   const filteredRunRows = useMemo(
     () =>
       runRows.filter(
@@ -1421,7 +1450,9 @@ export function AutomationsPage({
                         >
                           {row.invocation.procedureId
                             ? "Procedure"
-                            : row.automation.name || row.automation.id}
+                            : row.binding?.name ||
+                              row.automation?.name ||
+                              row.invocation.automationId}
                         </div>
                         <div
                           className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}

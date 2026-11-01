@@ -43,6 +43,14 @@ export interface AutomationInvocationSummaryInfo {
   skipReason: string;
   createdAt: string;
   updatedAt: string;
+  bindingId: string;
+  bindingVersion: number;
+  procedureId: string;
+  procedureVersion: number;
+  actorPrincipalId: string;
+  ownerPrincipalId: string;
+  onBehalfOfPrincipalId: string;
+  eventOriginPrincipalId: string;
 }
 
 export interface ListAutomationInvocationsResponseInfo {
@@ -54,10 +62,51 @@ export interface GetAutomationRunInput {
   runId: string;
 }
 
-export interface AutomationRunInfo {
-  runJson: string;
+export type AutomationRunState =
+  | "running"
+  | "succeeded"
+  | "skipped"
+  | "retryable"
+  | "failed"
+  | "canceled"
+  | "unsupported";
+
+export interface AutomationRunProjectionInfo {
+  id: string;
+  domainId: string;
+  invocationId: string;
+  bindingId: string;
+  bindingVersion: number;
+  procedureId: string;
+  procedureVersion: number;
+  attemptNumber: number;
+  state: AutomationRunState;
+  stateCode: number;
+  outcomeCategory: string;
+  actorPrincipalId: string;
+  ownerPrincipalId: string;
+  onBehalfOfPrincipalId: string;
+  eventOriginPrincipalId: string;
+  inferenceProfile: string;
+  inferenceProfileId: string;
+  policyDecisionId: string;
+  endpointId: string;
+  modelId: string;
+  capabilityId: string;
+  inputTokens: string;
+  outputTokens: string;
+  totalTokens: string;
+  tokenCountAuthority: string;
+  inferenceAttemptIds: string[];
+  startedAt: string;
+  completedAt: string;
 }
 
+export interface AutomationRunInfo {
+  projection: AutomationRunProjectionInfo | null;
+  diagnosticJson: string;
+  compatibility: "typed_projection_available" | "typed_projection_unavailable";
+}
 
 export interface AutomationDefinitionInput {
   domainId: string;
@@ -98,6 +147,34 @@ export interface GraphProcedureActionInput {
 
 export interface GraphProcedureInfo {
   procedureJson: string;
+}
+
+export interface GraphProcedureControlInput {
+  spaceId: string;
+  domainId: string;
+  procedureId: string;
+}
+
+export type ProcedureControlTargetStatus = "enabled" | "disabled";
+
+export interface ProcedureControlBarrierInfo {
+  spaceId: string;
+  domainId: string;
+  procedureId: string;
+  procedureVersion: number;
+  targetStatus: ProcedureControlTargetStatus;
+  controlEpoch: string;
+  controllingPrincipalId: string;
+  affectedPartitions: number[];
+  acknowledgedPartitions: number[];
+  completed: boolean;
+  completionRevision: string;
+  committedAt: string;
+  completedAt: string;
+}
+
+export interface GraphProcedureControlResponseInfo {
+  control: ProcedureControlBarrierInfo;
 }
 
 export interface GraphAutomationBindingSummaryInfo {

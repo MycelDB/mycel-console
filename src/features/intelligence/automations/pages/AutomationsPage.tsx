@@ -4,6 +4,7 @@ import { PageHeader } from "../../../../components/layout/PageHeader";
 import {
   Button,
   Alert,
+  ConfirmationDialog,
   DomainLabel,
   ErrorGroup,
   errorMessage,
@@ -28,8 +29,10 @@ import {
   deleteAutomation as defaultDeleteAutomation,
   disableAutomation as defaultDisableAutomation,
   disableGraphAutomationBinding as defaultDisableGraphAutomationBinding,
+  disableGraphProcedure as defaultDisableGraphProcedure,
   enableAutomation as defaultEnableAutomation,
   enableGraphAutomationBinding as defaultEnableGraphAutomationBinding,
+  enableGraphProcedure as defaultEnableGraphProcedure,
   getAutomation as defaultGetAutomation,
   getAutomationRun as defaultGetAutomationRun,
   getGraphAutomationBinding as defaultGetGraphAutomationBinding,
@@ -42,6 +45,7 @@ import {
   listInferenceProfiles as defaultListInferenceProfiles,
   listPrincipals as defaultListPrincipals,
   listSpaces as defaultListSpaces,
+  normalizeAppError,
   summarizeInferenceUsage as defaultSummarizeInferenceUsage,
   updateAutomation as defaultUpdateAutomation,
   validateAutomation as defaultValidateAutomation,
@@ -59,8 +63,12 @@ import type {
   GraphAutomationBindingInfo,
   GraphAutomationBindingSummaryInfo,
   GraphProcedureActionInput,
+  GraphProcedureControlInput,
+  GraphProcedureControlResponseInfo,
   GraphProcedureInfo,
   GraphProcedureSummaryInfo,
+  ProcedureControlBarrierInfo,
+  ProcedureControlTargetStatus,
   ListAutomationInvocationsInput,
   ListAutomationInvocationsResponseInfo,
   ListAutomationsResponseInfo,
@@ -86,6 +94,8 @@ import type {
   ListSpacesResponse,
   SpaceInfo,
 } from "../../../../types/spaces";
+import { AutomationRunDetails } from "../components/AutomationRunDetails";
+import { ProcedureInferenceAttemptsPanel } from "../components/ProcedureInferenceAttemptsPanel";
 import type {
   ListPrincipalsInput,
   ListPrincipalsResponse,
@@ -116,18 +126,28 @@ type ProcedureRow = {
   domain: DomainInfo;
   procedure: GraphProcedureSummaryInfo;
 };
+type ProcedureControlAction = {
+  row: ProcedureRow;
+  targetStatus: ProcedureControlTargetStatus;
+};
+type ProcedureControlResult = {
+  row: ProcedureRow;
+  control: ProcedureControlBarrierInfo;
+};
 type BindingRow = {
   space: SpaceInfo;
   domain: DomainInfo;
   binding: GraphAutomationBindingSummaryInfo;
+  invocations: AutomationInvocationSummaryInfo[];
 };
 type RunRow = {
   space: SpaceInfo;
   domain: DomainInfo;
-  automation: AutomationDefinitionSummaryInfo;
+  automation?: AutomationDefinitionSummaryInfo;
+  binding?: GraphAutomationBindingSummaryInfo;
   invocation: AutomationInvocationSummaryInfo;
 };
-type AutomationTab = "procedures" | "automations" | "runs";
+type AutomationTab = "procedures" | "automations" | "runs" | "attempts";
 
 type AutomationEditorState = {
   mode: "create" | "edit";
@@ -156,6 +176,12 @@ export type AutomationsPageProps = {
   getGraphProcedureService?: (
     input: GraphProcedureActionInput,
   ) => Promise<GraphProcedureInfo>;
+  enableGraphProcedureService?: (
+    input: GraphProcedureControlInput,
+  ) => Promise<GraphProcedureControlResponseInfo>;
+  disableGraphProcedureService?: (
+    input: GraphProcedureControlInput,
+  ) => Promise<GraphProcedureControlResponseInfo>;
   listGraphAutomationBindingsService?: (
     input: DomainAutomationInput,
   ) => Promise<ListGraphAutomationBindingsResponseInfo>;
@@ -209,6 +235,8 @@ export function AutomationsPage({
   listAutomationInvocationsService = defaultListAutomationInvocations,
   listGraphProceduresService = defaultListGraphProcedures,
   getGraphProcedureService = defaultGetGraphProcedure,
+  enableGraphProcedureService = defaultEnableGraphProcedure,
+  disableGraphProcedureService = defaultDisableGraphProcedure,
   listGraphAutomationBindingsService = defaultListGraphAutomationBindings,
   getGraphAutomationBindingService = defaultGetGraphAutomationBinding,
   enableGraphAutomationBindingService = defaultEnableGraphAutomationBinding,
@@ -243,8 +271,19 @@ export function AutomationsPage({
   const [detail, setDetail] = useState<{ title: string; json: string } | null>(
     null,
   );
+  const [runDetail, setRunDetail] = useState<{
+    title: string;
+    info: AutomationRunInfo;
+    spaceId: string;
+  } | null>(null);
   const [editor, setEditor] = useState<AutomationEditorState | null>(null);
   const [editorError, setEditorError] = useState("");
+  const [procedureControlAction, setProcedureControlAction] =
+    useState<ProcedureControlAction | null>(null);
+  const [procedureControlResult, setProcedureControlResult] =
+    useState<ProcedureControlResult | null>(null);
+  const [procedureControlError, setProcedureControlError] = useState("");
+  const [procedureControlLoading, setProcedureControlLoading] = useState(false);
 
   const selectedSpaceId = searchParams.get("spaceId") || "";
   const selectedDomainId = searchParams.get("domainId") || "";
@@ -370,17 +409,37 @@ export function AutomationsPage({
               bindings: [] as GraphAutomationBindingSummaryInfo[],
             })),
           ]);
+          const bindingRows = await Promise.all(
+            bindings.bindings.map(async (binding) => {
+              try {
+                const history = await listAutomationInvocationsService({
+                  domainId: domain.domainId,
+                  automationId: binding.id,
+                  limit: 3,
+                });
+                return {
+                  space,
+                  domain,
+                  binding,
+                  invocations: history.invocations,
+                };
+              } catch {
+                return {
+                  space,
+                  domain,
+                  binding,
+                  invocations: [] as AutomationInvocationSummaryInfo[],
+                };
+              }
+            }),
+          );
           return {
             procedures: procedures.procedures.map((procedure) => ({
               space,
               domain,
               procedure,
             })),
-            bindings: bindings.bindings.map((binding) => ({
-              space,
-              domain,
-              binding,
-            })),
+            bindings: bindingRows,
           };
         }),
       );
@@ -512,18 +571,25 @@ export function AutomationsPage({
       ),
     [bindingRows, statusFilter],
   );
-  const runRows = useMemo(
-    () =>
-      rows.flatMap((row) =>
-        row.invocations.map((invocation) => ({
-          space: row.space,
-          domain: row.domain,
-          automation: row.automation,
-          invocation,
-        })),
-      ),
-    [rows],
-  );
+  const runRows = useMemo<RunRow[]>(() => {
+    const legacyRuns = rows.flatMap((row) =>
+      row.invocations.map((invocation) => ({
+        space: row.space,
+        domain: row.domain,
+        automation: row.automation,
+        invocation,
+      })),
+    );
+    const bindingRuns = bindingRows.flatMap((row) =>
+      row.invocations.map((invocation) => ({
+        space: row.space,
+        domain: row.domain,
+        binding: row.binding,
+        invocation,
+      })),
+    );
+    return [...legacyRuns, ...bindingRuns];
+  }, [bindingRows, rows]);
   const filteredRunRows = useMemo(
     () =>
       runRows.filter(
@@ -535,9 +601,12 @@ export function AutomationsPage({
     activeTab === "runs"
       ? [
           { value: "pending", label: "Pending" },
+          { value: "running", label: "Running" },
           { value: "succeeded", label: "Succeeded" },
           { value: "skipped", label: "Skipped" },
+          { value: "retryable", label: "Retryable" },
           { value: "failed", label: "Failed" },
+          { value: "canceled", label: "Canceled" },
           { value: "error", label: "Error" },
         ]
       : [
@@ -581,11 +650,11 @@ export function AutomationsPage({
     }
   }
 
-  async function showRun(domainId: string, runId: string) {
+  async function showRun(spaceId: string, domainId: string, runId: string) {
     setError("");
     try {
       const response = await getAutomationRunService({ domainId, runId });
-      setDetail({ title: `Run ${runId}`, json: response.runJson });
+      setRunDetail({ title: `Run ${runId}`, info: response, spaceId });
     } catch (err) {
       setError(errorMessage(err, "Failed to load run"));
     }
@@ -604,6 +673,55 @@ export function AutomationsPage({
       });
     } catch (err) {
       setError(errorMessage(err, "Failed to load procedure"));
+    }
+  }
+
+  function openProcedureControl(
+    row: ProcedureRow,
+    targetStatus: ProcedureControlTargetStatus,
+  ) {
+    setProcedureControlError("");
+    setProcedureControlAction({ row, targetStatus });
+  }
+
+  async function confirmProcedureControl() {
+    if (!procedureControlAction) return;
+    const { row, targetStatus } = procedureControlAction;
+    const input = {
+      spaceId: row.space.spaceId,
+      domainId: row.domain.domainId,
+      procedureId: row.procedure.id,
+    };
+    setProcedureControlLoading(true);
+    setProcedureControlError("");
+    try {
+      const response =
+        targetStatus === "enabled"
+          ? await enableGraphProcedureService(input)
+          : await disableGraphProcedureService(input);
+      assertCompletedProcedureControl(input, targetStatus, response.control);
+      setProcedureControlResult({ row, control: response.control });
+      setProcedureControlAction(null);
+      setProcedureRows((current) =>
+        current.map((item) =>
+          item.domain.domainId === row.domain.domainId &&
+          item.procedure.id === row.procedure.id
+            ? {
+                ...item,
+                procedure: { ...item.procedure, status: targetStatus },
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setProcedureControlError(
+        normalizeAppError(
+          err,
+          `Failed to ${targetStatus === "enabled" ? "enable" : "disable"} procedure`,
+        ).message,
+      );
+    } finally {
+      setProcedureControlLoading(false);
     }
   }
 
@@ -878,40 +996,42 @@ export function AutomationsPage({
         <SummaryCard label="Usage tokens" value={totals.totalTokens} />
       </div>
 
-      <div
-        className={`grid gap-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4 md:grid-cols-3`}
-      >
-        <Select
-          label="Space"
-          value={selectedSpaceId}
-          onChange={(value) => setFilter("spaceId", value)}
-          options={spaces.map((space) => ({
-            value: space.spaceId,
-            label: space.name || space.spaceId,
-          }))}
-          placeholder="All spaces"
-          disabled={loading}
-        />
-        <Select
-          label="Domain"
-          value={selectedDomainId}
-          onChange={(value) => setFilter("domainId", value)}
-          options={filteredDomains.map((domain) => ({
-            value: domain.domainId,
-            label: `${domain.name || domain.key} (${domain.spaceId})`,
-          }))}
-          placeholder="All domains"
-          disabled={loading || filteredDomains.length === 0}
-        />
-        <Select
-          label="Status"
-          value={statusFilter}
-          onChange={(value) => setFilter("status", value)}
-          options={statusOptions}
-          placeholder="All statuses"
-          disabled={loading}
-        />
-      </div>
+      {activeTab !== "attempts" && (
+        <div
+          className={`grid gap-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-4 md:grid-cols-3`}
+        >
+          <Select
+            label="Space"
+            value={selectedSpaceId}
+            onChange={(value) => setFilter("spaceId", value)}
+            options={spaces.map((space) => ({
+              value: space.spaceId,
+              label: space.name || space.spaceId,
+            }))}
+            placeholder="All spaces"
+            disabled={loading}
+          />
+          <Select
+            label="Domain"
+            value={selectedDomainId}
+            onChange={(value) => setFilter("domainId", value)}
+            options={filteredDomains.map((domain) => ({
+              value: domain.domainId,
+              label: `${domain.name || domain.key} (${domain.spaceId})`,
+            }))}
+            placeholder="All domains"
+            disabled={loading || filteredDomains.length === 0}
+          />
+          <Select
+            label="Status"
+            value={statusFilter}
+            onChange={(value) => setFilter("status", value)}
+            options={statusOptions}
+            placeholder="All statuses"
+            disabled={loading}
+          />
+        </div>
+      )}
 
       <div
         className={`overflow-hidden rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel}`}
@@ -923,6 +1043,7 @@ export function AutomationsPage({
             { id: "procedures", label: "Procedures" },
             { id: "automations", label: "Automations" },
             { id: "runs", label: "Runs" },
+            { id: "attempts", label: "Inference attempts" },
           ]}
           active={activeTab}
           onChange={setTab}
@@ -1030,23 +1151,64 @@ export function AutomationsPage({
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="secondary"
-                          onClick={() =>
-                            void showProcedure(
-                              row.domain.domainId,
-                              row.procedure.id,
-                            )
-                          }
-                        >
-                          View JSON
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              void showProcedure(
+                                row.domain.domainId,
+                                row.procedure.id,
+                              )
+                            }
+                          >
+                            View JSON
+                          </Button>
+                          {canManage ? (
+                            <>
+                              <Button
+                                variant="secondary"
+                                onClick={() =>
+                                  openProcedureControl(row, "enabled")
+                                }
+                                disabled={procedureControlLoading}
+                              >
+                                {row.procedure.status === "enabled"
+                                  ? "Reconfirm enabled"
+                                  : "Enable"}
+                              </Button>
+                              <Button
+                                variant="danger"
+                                onClick={() =>
+                                  openProcedureControl(row, "disabled")
+                                }
+                                disabled={procedureControlLoading}
+                              >
+                                {row.procedure.status === "disabled"
+                                  ? "Reconfirm disabled"
+                                  : "Disable"}
+                              </Button>
+                            </>
+                          ) : (
+                            <span
+                              className={`self-center text-xs ${themeClasses.text.parts.mutedLight}`}
+                            >
+                              Read-only
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            {procedureControlResult && (
+              <ProcedureControlEvidence
+                result={procedureControlResult}
+                principalById={principalById}
+                onDismiss={() => setProcedureControlResult(null)}
+              />
+            )}
           </div>
         )}
 
@@ -1202,6 +1364,20 @@ export function AutomationsPage({
           </div>
         )}
 
+        {activeTab === "attempts" && (
+          <ProcedureInferenceAttemptsPanel
+            spaces={spaces}
+            domains={domains}
+            principals={principals}
+            principalContext={principalContext}
+            initialSpaceId={selectedSpaceId}
+            initialDomainId={selectedDomainId}
+            initialProcedureId={searchParams.get("procedureId") || ""}
+            initialInvocationId={searchParams.get("invocationId") || ""}
+            initialRunId={searchParams.get("runId") || ""}
+          />
+        )}
+
         {activeTab === "runs" && (
           <div>
             <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -1222,10 +1398,13 @@ export function AutomationsPage({
               >
                 <tr>
                   <TableHead className="px-4 py-3">Run</TableHead>
-                  <TableHead className="px-4 py-3">Automation</TableHead>
+                  <TableHead className="px-4 py-3">
+                    Procedure / binding
+                  </TableHead>
                   <TableHead className="px-4 py-3">Scope</TableHead>
-                  <TableHead className="px-4 py-3">Event</TableHead>
-                  <TableHead className="px-4 py-3">Status</TableHead>
+                  <TableHead className="px-4 py-3">Trigger</TableHead>
+                  <TableHead className="px-4 py-3">Attribution</TableHead>
+                  <TableHead className="px-4 py-3">State</TableHead>
                   <TableHead className="px-4 py-3">Actions</TableHead>
                 </tr>
               </thead>
@@ -1234,7 +1413,7 @@ export function AutomationsPage({
                   <tr>
                     <td
                       className={`px-4 py-6 text-center ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}
-                      colSpan={6}
+                      colSpan={7}
                     >
                       Loading runs…
                     </td>
@@ -1243,7 +1422,7 @@ export function AutomationsPage({
                   <tr>
                     <td
                       className={`px-4 py-6 text-center ${themeClasses.text.parts.subtleLight} ${themeClasses.text.parts.darkMuted}`}
-                      colSpan={6}
+                      colSpan={7}
                     >
                       No recent runs found.
                     </td>
@@ -1269,14 +1448,35 @@ export function AutomationsPage({
                         <div
                           className={`font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
                         >
-                          {row.automation.name || row.automation.id}
+                          {row.invocation.procedureId
+                            ? "Procedure"
+                            : row.binding?.name ||
+                              row.automation?.name ||
+                              row.invocation.automationId}
                         </div>
                         <div
                           className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight} ${themeClasses.text.parts.darkMuted}`}
                         >
-                          <ResourceIdText value={row.invocation.automationId} />{" "}
-                          · v{row.invocation.automationVersion}
+                          <ResourceIdText
+                            value={
+                              row.invocation.procedureId ||
+                              row.invocation.automationId
+                            }
+                          />{" "}
+                          · v
+                          {row.invocation.procedureId
+                            ? row.invocation.procedureVersion
+                            : row.invocation.automationVersion}
                         </div>
+                        {row.invocation.bindingId && (
+                          <div
+                            className={`mt-1 text-xs ${themeClasses.text.parts.mutedLight}`}
+                          >
+                            Binding{" "}
+                            <ResourceIdText value={row.invocation.bindingId} />{" "}
+                            · v{row.invocation.bindingVersion}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <SpaceLabel
@@ -1309,6 +1509,32 @@ export function AutomationsPage({
                         </div>
                       </td>
                       <td className="px-4 py-3">
+                        <div className="text-xs">
+                          actor{" "}
+                          <RuntimePrincipalLabel
+                            principalId={row.invocation.actorPrincipalId}
+                            principalContext={principalContext}
+                            principalById={principalById}
+                          />
+                        </div>
+                        <div className="text-xs">
+                          owner{" "}
+                          <RuntimePrincipalLabel
+                            principalId={row.invocation.ownerPrincipalId}
+                            principalContext={principalContext}
+                            principalById={principalById}
+                          />
+                        </div>
+                        <div className="text-xs">
+                          event origin{" "}
+                          <RuntimePrincipalLabel
+                            principalId={row.invocation.eventOriginPrincipalId}
+                            principalContext={principalContext}
+                            principalById={principalById}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
                         <StatusPill value={row.invocation.status} />
                         {row.invocation.skipReason ? (
                           <div
@@ -1322,10 +1548,14 @@ export function AutomationsPage({
                         <Button
                           variant="secondary"
                           onClick={() =>
-                            void showRun(row.domain.domainId, row.invocation.id)
+                            void showRun(
+                              row.space.spaceId,
+                              row.domain.domainId,
+                              row.invocation.id,
+                            )
                           }
                         >
-                          View JSON
+                          View details
                         </Button>
                       </td>
                     </tr>
@@ -1344,6 +1574,82 @@ export function AutomationsPage({
           onClose={() => setDetail(null)}
         />
       )}
+      {runDetail && (
+        <RunDetailDrawer
+          title={runDetail.title}
+          info={runDetail.info}
+          spaceId={runDetail.spaceId}
+          principalById={principalById}
+          principalContext={principalContext}
+          onClose={() => setRunDetail(null)}
+        />
+      )}
+      {procedureControlAction && (
+        <ConfirmationDialog
+          eyebrow="Procedure control"
+          title={`${procedureControlAction.targetStatus === "enabled" ? "Enable" : "Disable"} procedure?`}
+          intent={
+            procedureControlAction.targetStatus === "disabled"
+              ? "danger"
+              : "default"
+          }
+          confirmLabel={
+            procedureControlAction.targetStatus === "enabled"
+              ? "Enable procedure"
+              : "Disable procedure"
+          }
+          loadingLabel="Waiting for control barrier…"
+          loading={procedureControlLoading}
+          error={procedureControlError || undefined}
+          onCancel={() => {
+            setProcedureControlAction(null);
+            setProcedureControlError("");
+          }}
+          onConfirm={() => void confirmProcedureControl()}
+          details={
+            <dl className="space-y-2">
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>Space</dt>
+                <dd>
+                  {procedureControlAction.row.space.name ||
+                    procedureControlAction.row.space.spaceId}{" "}
+                  ({procedureControlAction.row.space.spaceId})
+                </dd>
+              </div>
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>Domain</dt>
+                <dd>
+                  {procedureControlAction.row.domain.name ||
+                    procedureControlAction.row.domain.key ||
+                    procedureControlAction.row.domain.domainId}{" "}
+                  ({procedureControlAction.row.domain.domainId})
+                </dd>
+              </div>
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>
+                  Procedure
+                </dt>
+                <dd>
+                  {procedureControlAction.row.procedure.name ||
+                    procedureControlAction.row.procedure.id}{" "}
+                  ({procedureControlAction.row.procedure.id})
+                </dd>
+              </div>
+              <div>
+                <dt className={themeClasses.text.parts.mutedLight}>
+                  Target state
+                </dt>
+                <dd>{formatEnumLabel(procedureControlAction.targetStatus)}</dd>
+              </div>
+            </dl>
+          }
+        >
+          {procedureControlAction.targetStatus === "disabled"
+            ? "Disabling prevents later provider starts and output publication at an older control epoch. Provider work that already started may finish, but unpublished output remains fenced."
+            : "Success is reported only after every affected partition acknowledges the completed enable barrier."}
+        </ConfirmationDialog>
+      )}
+
       {editor && (
         <AutomationEditorDialog
           editor={editor}
@@ -1388,7 +1694,9 @@ function compareAutomationRows(a: AutomationRow, b: AutomationRow) {
 }
 
 function automationTab(value: string | null): AutomationTab {
-  return value === "procedures" || value === "runs" ? value : "automations";
+  return value === "procedures" || value === "runs" || value === "attempts"
+    ? value
+    : "automations";
 }
 
 function LegacyAutomationTable({
@@ -1572,6 +1880,151 @@ function LegacyAutomationTable({
   );
 }
 
+function ProcedureControlEvidence({
+  result,
+  principalById,
+  onDismiss,
+}: {
+  result: ProcedureControlResult;
+  principalById: Map<string, PrincipalInfo>;
+  onDismiss: () => void;
+}) {
+  const { row, control } = result;
+  const principal = principalById.get(control.controllingPrincipalId);
+  const principalName =
+    principal?.displayName ||
+    principal?.username ||
+    control.controllingPrincipalId;
+  return (
+    <section
+      className={`m-4 rounded-xl border ${themeClasses.border.default} ${themeClasses.surface.panel} p-5`}
+      aria-label="Procedure control barrier evidence"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Text as="h3" className="font-semibold">
+            Procedure control completed
+          </Text>
+          <Text intent="muted" size="sm">
+            The daemon returned a completed cross-partition barrier for the
+            requested target state.
+          </Text>
+        </div>
+        <Button variant="secondary" onClick={onDismiss}>
+          Dismiss
+        </Button>
+      </div>
+      <Alert variant="success" className="mt-4">
+        {row.procedure.name || row.procedure.id} is confirmed{" "}
+        {control.targetStatus} at control epoch {control.controlEpoch}.
+      </Alert>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ControlEvidenceItem
+          label="Target state"
+          value={formatEnumLabel(control.targetStatus)}
+        />
+        <ControlEvidenceItem
+          label="Procedure version"
+          value={String(control.procedureVersion)}
+        />
+        <ControlEvidenceItem
+          label="Control epoch"
+          value={control.controlEpoch}
+        />
+        <ControlEvidenceItem
+          label="Completion revision"
+          value={control.completionRevision}
+        />
+        <ControlEvidenceItem
+          label="Committed"
+          value={formatTimestamp(control.committedAt)}
+        />
+        <ControlEvidenceItem
+          label="Completed"
+          value={formatTimestamp(control.completedAt)}
+        />
+        <ControlEvidenceItem
+          label="Affected partitions"
+          value={control.affectedPartitions.join(", ")}
+        />
+        <ControlEvidenceItem
+          label="Acknowledged partitions"
+          value={control.acknowledgedPartitions.join(", ")}
+        />
+        <div>
+          <Text intent="muted" size="sm">
+            Controlling principal
+          </Text>
+          <TextLink
+            to={`/principals/${encodeURIComponent(control.controllingPrincipalId)}`}
+          >
+            {principalName}
+          </TextLink>
+          {principalName !== control.controllingPrincipalId && (
+            <div className="text-xs">
+              <ResourceIdText value={control.controllingPrincipalId} />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ControlEvidenceItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <Text intent="muted" size="sm">
+        {label}
+      </Text>
+      <div className="break-all text-sm">{value || "—"}</div>
+    </div>
+  );
+}
+
+function assertCompletedProcedureControl(
+  input: GraphProcedureControlInput,
+  targetStatus: ProcedureControlTargetStatus,
+  control: ProcedureControlBarrierInfo,
+) {
+  const affected = new Set(control.affectedPartitions);
+  const acknowledged = new Set(control.acknowledgedPartitions);
+  const partitionsComplete =
+    affected.size > 0 &&
+    affected.size === control.affectedPartitions.length &&
+    acknowledged.size === control.acknowledgedPartitions.length &&
+    affected.size === acknowledged.size &&
+    [...affected].every((partition) => acknowledged.has(partition));
+  if (
+    !control.completed ||
+    control.spaceId !== input.spaceId ||
+    control.domainId !== input.domainId ||
+    control.procedureId !== input.procedureId ||
+    control.targetStatus !== targetStatus ||
+    control.procedureVersion <= 0 ||
+    !isPositiveUnsignedDecimal(control.controlEpoch) ||
+    !isPositiveUnsignedDecimal(control.completionRevision) ||
+    !control.controllingPrincipalId ||
+    !control.committedAt ||
+    !control.completedAt ||
+    !partitionsComplete
+  ) {
+    throw new Error(
+      "The daemon did not return valid completed procedure control barrier evidence. No success was recorded.",
+    );
+  }
+}
+
+function isPositiveUnsignedDecimal(value: string) {
+  return /^\d+$/.test(value) && /[1-9]/.test(value);
+}
+
 function automationUsageKey(domainId: string, automationId: string) {
   return `${domainId}:${automationId}`;
 }
@@ -1672,6 +2125,55 @@ function RecentInvocations({
           </span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function RunDetailDrawer({
+  title,
+  info,
+  spaceId,
+  principalById,
+  principalContext,
+  onClose,
+}: {
+  title: string;
+  info: AutomationRunInfo;
+  spaceId: string;
+  principalById: Map<string, PrincipalInfo>;
+  principalContext?: ConsolePrincipalContext | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60">
+      <aside
+        className={`h-full w-full max-w-4xl overflow-y-auto border-l border-slate-200 ${themeClasses.surface.elevated} p-6 shadow-xl`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Automation run details"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <Text as="h3" className="font-semibold">
+              {title}
+            </Text>
+            <Text intent="muted" size="sm" className="mt-1">
+              Typed daemon-authoritative execution evidence.
+            </Text>
+          </div>
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+        <div className="mt-6">
+          <AutomationRunDetails
+            info={info}
+            spaceId={spaceId}
+            principalById={principalById}
+            principalContext={principalContext}
+          />
+        </div>
+      </aside>
     </div>
   );
 }

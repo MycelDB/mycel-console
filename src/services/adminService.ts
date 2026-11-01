@@ -18,12 +18,22 @@ import type {
   UpdateAutomationInput,
   ValidateAutomationInfo,
   GraphProcedureActionInput,
+  GraphProcedureControlInput,
+  GraphProcedureControlResponseInfo,
   GraphProcedureInfo,
   ListGraphProceduresResponseInfo,
   GraphAutomationBindingActionInput,
   GraphAutomationBindingInfo,
   ListGraphAutomationBindingsResponseInfo,
 } from "../types/automations";
+import type {
+  GetProcedureInferenceAttemptInput,
+  ListProcedureInferenceAttemptChangesInput,
+  ListProcedureInferenceAttemptChangesResponseInfo,
+  ListProcedureInferenceAttemptsInput,
+  ListProcedureInferenceAttemptsResponseInfo,
+  ProcedureInferenceAttemptInfo,
+} from "../types/procedureInference";
 import type {
   BackupPolicyInfo,
   BackupStatusResponse,
@@ -177,10 +187,14 @@ import type {
   BackfillSemanticRuleInput,
   BackfillSemanticRuleResponse,
   GetSemanticMaintenanceStatusInput,
+  GetSemanticReliabilityStatusInput,
+  GetSemanticReliabilityStatusResponse,
   ListSemanticMaintenanceWorkInput,
   ListSemanticMaintenanceWorkResponse,
   ProcessSemanticDirtyWorkInput,
   ProcessSemanticDirtyWorkResponse,
+  RebuildSemanticRuleInput,
+  RebuildSemanticRuleResponse,
   SemanticMaintenanceStatusInfo,
   SemanticMaintenanceWorkActionInput,
   SemanticMaintenanceWorkItemInfo,
@@ -788,6 +802,33 @@ export async function getAutomationRun(
   return invoke<AutomationRunInfo>("admin_get_automation_run", { input });
 }
 
+export async function getProcedureInferenceAttempt(
+  input: GetProcedureInferenceAttemptInput,
+): Promise<ProcedureInferenceAttemptInfo> {
+  return invoke<ProcedureInferenceAttemptInfo>(
+    "admin_get_procedure_inference_attempt",
+    { input },
+  );
+}
+
+export async function listProcedureInferenceAttempts(
+  input: ListProcedureInferenceAttemptsInput,
+): Promise<ListProcedureInferenceAttemptsResponseInfo> {
+  return invoke<ListProcedureInferenceAttemptsResponseInfo>(
+    "admin_list_procedure_inference_attempts",
+    { input },
+  );
+}
+
+export async function listProcedureInferenceAttemptChanges(
+  input: ListProcedureInferenceAttemptChangesInput,
+): Promise<ListProcedureInferenceAttemptChangesResponseInfo> {
+  return invoke<ListProcedureInferenceAttemptChangesResponseInfo>(
+    "admin_list_procedure_inference_attempt_changes",
+    { input },
+  );
+}
+
 export async function listGraphProcedures(
   input: DomainAutomationInput,
 ): Promise<ListGraphProceduresResponseInfo> {
@@ -801,6 +842,24 @@ export async function getGraphProcedure(
   input: GraphProcedureActionInput,
 ): Promise<GraphProcedureInfo> {
   return invoke<GraphProcedureInfo>("admin_get_graph_procedure", { input });
+}
+
+export async function enableGraphProcedure(
+  input: GraphProcedureControlInput,
+): Promise<GraphProcedureControlResponseInfo> {
+  return invoke<GraphProcedureControlResponseInfo>(
+    "admin_enable_graph_procedure",
+    { input },
+  );
+}
+
+export async function disableGraphProcedure(
+  input: GraphProcedureControlInput,
+): Promise<GraphProcedureControlResponseInfo> {
+  return invoke<GraphProcedureControlResponseInfo>(
+    "admin_disable_graph_procedure",
+    { input },
+  );
 }
 
 export async function listGraphAutomationBindings(
@@ -927,6 +986,25 @@ export async function getSemanticMaintenanceStatus(
     "admin_get_semantic_maintenance_status",
     { input },
   );
+}
+
+export async function getSemanticReliabilityStatus(
+  input: GetSemanticReliabilityStatusInput,
+): Promise<GetSemanticReliabilityStatusResponse> {
+  return invoke<GetSemanticReliabilityStatusResponse>(
+    "admin_get_semantic_reliability_status",
+    { input },
+  );
+}
+
+export async function rebuildSemanticRule(
+  input: RebuildSemanticRuleInput,
+): Promise<RebuildSemanticRuleResponse> {
+  try {
+    return await invoke<RebuildSemanticRuleResponse>("admin_rebuild_semantic_rule", { input });
+  } catch (err) {
+    throw normalizeAppError(err, "Failed to rebuild semantic rule");
+  }
 }
 
 export async function listSemanticMaintenanceWork(

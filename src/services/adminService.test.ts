@@ -7,6 +7,8 @@ import {
   createSpace,
   deleteBackup,
   deleteSpace,
+  disableGraphProcedure,
+  enableGraphProcedure,
   getBackupPolicy,
   getBackupStatus,
   getClusterBackupStatus,
@@ -18,6 +20,7 @@ import {
   getLocalGraphForensicExport,
   getMyAccess,
   getPrincipal,
+  getProcedureInferenceAttempt,
   getSpace,
   isAuthExpiredError,
   grantPrincipalCapability,
@@ -30,12 +33,16 @@ import {
   listPrincipalCapabilities,
   listPrincipalRoles,
   listPrincipalSessions,
+  listProcedureInferenceAttemptChanges,
+  listProcedureInferenceAttempts,
   listDomains,
   listInferencePackages,
   listModelEndpointCapabilities,
   listModelEndpoints,
   cancelSemanticMaintenanceWork,
   getSemanticMaintenanceStatus,
+  getSemanticReliabilityStatus,
+  rebuildSemanticRule,
   listSemanticMaintenanceWork,
   retrySemanticMaintenanceWork,
   listModels,
@@ -561,6 +568,34 @@ test("getSemanticMaintenanceStatus sends space input", async () => {
   });
 });
 
+test("getSemanticReliabilityStatus sends rule binding input", async () => {
+  const response = { supported: true, status: { semanticGeneration: "9007199254740993" } };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(getSemanticReliabilityStatus({
+    spaceId: "sp_main",
+    semanticRuleId: "rule_notes",
+    embeddingBindingKey: "search",
+  })).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_semantic_reliability_status", {
+    input: {
+      spaceId: "sp_main",
+      semanticRuleId: "rule_notes",
+      embeddingBindingKey: "search",
+    },
+  });
+});
+
+test("rebuildSemanticRule sends one guarded mutation request and preserves error category", async () => {
+  const input = { spaceId: "sp_main", semanticRuleId: "rule_notes", embeddingBindingKey: "search" };
+  invokeMock.mockRejectedValue({ kind: "unavailable", severity: "error", message: "semantic maintenance request failed" });
+
+  await expect(rebuildSemanticRule(input)).rejects.toEqual({ kind: "unavailable", severity: "error", message: "semantic maintenance request failed", detail: undefined });
+  expect(invokeMock).toHaveBeenCalledTimes(1);
+  expect(invokeMock).toHaveBeenCalledWith("admin_rebuild_semantic_rule", { input });
+});
+
 test("retrySemanticMaintenanceWork sends action input", async () => {
   const response = { workItemId: "work_1" };
   invokeMock.mockResolvedValue(response);
@@ -641,8 +676,65 @@ test("listVectorStores sends include disabled input", async () => {
   });
 });
 
+test("procedure controls invoke typed enable and disable commands", async () => {
+  const input = { spaceId: "sp1", domainId: "dom1", procedureId: "procedure-1" };
+  const response = {
+    control: {
+      spaceId: "sp1",
+      domainId: "dom1",
+      procedureId: "procedure-1",
+      procedureVersion: 1,
+      targetStatus: "enabled",
+      controlEpoch: "18446744073709551615",
+      controllingPrincipalId: "principal-1",
+      affectedPartitions: [0, 1],
+      acknowledgedPartitions: [0, 1],
+      completed: true,
+      completionRevision: "18446744073709551614",
+      committedAt: "1793478000",
+      completedAt: "1793478001",
+    },
+  };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(enableGraphProcedure(input)).resolves.toEqual(response);
+  await expect(disableGraphProcedure(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenNthCalledWith(1, "admin_enable_graph_procedure", { input });
+  expect(invokeMock).toHaveBeenNthCalledWith(2, "admin_disable_graph_procedure", { input });
+});
+
+test("procedure inference attempt services preserve opaque snapshot and change cursors", async () => {
+  const filter = { domainId: "dom1", states: ["started" as const] };
+  const snapshotInput = { spaceId: "sp1", filter, pageSize: 50, pageToken: "opaque snapshot token" };
+  const changesInput = { spaceId: "sp1", filter, pageSize: 100, afterCursor: "opaque change cursor" };
+  invokeMock.mockResolvedValueOnce({ attempts: [] }).mockResolvedValueOnce({ changes: [] });
+
+  await listProcedureInferenceAttempts(snapshotInput);
+  await listProcedureInferenceAttemptChanges(changesInput);
+
+  expect(invokeMock).toHaveBeenNthCalledWith(1, "admin_list_procedure_inference_attempts", { input: snapshotInput });
+  expect(invokeMock).toHaveBeenNthCalledWith(2, "admin_list_procedure_inference_attempt_changes", { input: changesInput });
+});
+
+test("getProcedureInferenceAttempt invokes the typed detail command", async () => {
+  const input = { spaceId: "sp1", attemptId: "attempt-1" };
+  invokeMock.mockResolvedValue({ id: "attempt-1" });
+
+  await getProcedureInferenceAttempt(input);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_procedure_inference_attempt", { input });
+});
+
 test("semanticSearch invokes client semantic search command", async () => {
-  const response = { results: [], warnings: [] };
+  const response = {
+    results: [],
+    warnings: [],
+    nextPageToken: "opaque-next",
+    filterExecutionMode: "semantic_index_pushdown",
+    examinedSemanticCandidates: 12,
+    eligibleSemanticCandidates: 4,
+  };
   const input = { spaceId: "sp1", domainId: "dom1", query: "graph memory", limit: 10 };
   invokeMock.mockResolvedValue(response);
 

@@ -7,9 +7,9 @@ use commands::auth::{
 };
 use commands::automations::{
     admin_create_automation, admin_delete_automation, admin_disable_automation,
-    admin_disable_graph_automation_binding, admin_enable_automation,
-    admin_enable_graph_automation_binding, admin_get_automation, admin_get_automation_run,
-    admin_get_graph_automation_binding, admin_get_graph_procedure,
+    admin_disable_graph_automation_binding, admin_disable_graph_procedure, admin_enable_automation,
+    admin_enable_graph_automation_binding, admin_enable_graph_procedure, admin_get_automation,
+    admin_get_automation_run, admin_get_graph_automation_binding, admin_get_graph_procedure,
     admin_list_automation_invocations, admin_list_automations,
     admin_list_graph_automation_bindings, admin_list_graph_procedures, admin_update_automation,
     admin_validate_automation,
@@ -49,6 +49,10 @@ use commands::inference::{
 use commands::lexical::{
     admin_rebuild_lexical_index, client_get_lexical_index_status, client_lexical_search,
 };
+use commands::procedure_inference::{
+    admin_get_procedure_inference_attempt, admin_list_procedure_inference_attempt_changes,
+    admin_list_procedure_inference_attempts,
+};
 use commands::schemas::{admin_delete_domain_schema, admin_get_domain_schema};
 use commands::semantic::{
     admin_create_semantic_rule, admin_delete_semantic_rule, admin_get_semantic_rule,
@@ -58,7 +62,8 @@ use commands::semantic::{
 use commands::semantic_maintenance::{
     admin_analyze_semantic_dirty_work, admin_backfill_semantic_rule,
     admin_cancel_semantic_maintenance_work, admin_get_semantic_maintenance_status,
-    admin_list_semantic_maintenance_work, admin_process_semantic_dirty_work,
+    admin_get_semantic_reliability_status, admin_list_semantic_maintenance_work,
+    admin_process_semantic_dirty_work, admin_rebuild_semantic_rule,
     admin_retry_semantic_maintenance_work,
 };
 use commands::spaces::{
@@ -124,10 +129,15 @@ pub fn run() {
             admin_get_automation_run,
             admin_list_graph_procedures,
             admin_get_graph_procedure,
+            admin_enable_graph_procedure,
+            admin_disable_graph_procedure,
             admin_list_graph_automation_bindings,
             admin_get_graph_automation_binding,
             admin_enable_graph_automation_binding,
             admin_disable_graph_automation_binding,
+            admin_get_procedure_inference_attempt,
+            admin_list_procedure_inference_attempts,
+            admin_list_procedure_inference_attempt_changes,
             admin_list_domains,
             admin_list_semantic_rules,
             admin_get_semantic_rule,
@@ -141,6 +151,8 @@ pub fn run() {
             client_get_lexical_index_status,
             admin_rebuild_lexical_index,
             admin_get_semantic_maintenance_status,
+            admin_get_semantic_reliability_status,
+            admin_rebuild_semantic_rule,
             admin_list_semantic_maintenance_work,
             admin_retry_semantic_maintenance_work,
             admin_cancel_semantic_maintenance_work,

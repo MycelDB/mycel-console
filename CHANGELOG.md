@@ -6,6 +6,8 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.21.1] - 2026-11-01
+
 ### Added
 
 - Added direct semantic search with typed label, node-ID, and property eligibility filters, explicit null-versus-missing values, opaque continuation pagination, and daemon-provided candidate diagnostics (#65).

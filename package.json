@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "jest",
+    "validate:mycel-compatibility": "node scripts/validate-mycel-compatibility.mjs",
     "tauri": "tauri"
   },
   "dependencies": {

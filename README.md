@@ -7,6 +7,25 @@ Desktop and web console UI for MycelDB daemon and cluster operations.
 
 Mycel Console is a React/Vite application packaged with Tauri. It connects to `myceld` through the Rust SDK and provides operator-facing views for authentication, spaces/domains, graph/query workflows, semantic/inference setup, backups, activity, and raft/cluster reliability. Semantic generation rules use dedicated list, create, and edit pages; semantic-assisted queries remain in Search.
 
+## Compatibility
+
+Console release lines are certified with one exact Rust SDK contract and matching Mycel API/daemon line. A successful connection or health check is not compatibility evidence.
+
+| Console line | Rust SDK contract | Supported daemon/API line | Notes |
+| --- | --- | --- | --- |
+| `v0.20.x` | `v0.20.x` | `v0.20.x` | Does not support the v0.21 enum-only semantic trigger contract. |
+| `v0.21.1` | exact `mycel-sdk v0.21.1` at `f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7` | `v0.21.x` | Uses channel-owned Search queries and enum-only semantic trigger events. Older daemon lines are not certified. |
+
+Semantic trigger events are mapped to generated `SemanticTriggerEventType` values at the Tauri boundary. The Console never reads or dual-writes legacy trigger strings, preserves unknown numeric projections as unsupported diagnostics, and refuses to save unresolved values.
+
+Machine-readable compatibility metadata is published at [`.release/mycel-compatibility.json`](.release/mycel-compatibility.json). The exact SDK version is pinned in `src-tauri/Cargo.toml`, and CI pins the immutable SDK source revision. Validate the synchronized contract with:
+
+```sh
+npm run validate:mycel-compatibility
+```
+
+Missing metadata, unknown schema/API lines, mismatched Console or SDK versions, mutable SDK refs, and contradictory compatibility declarations fail closed.
+
 ## Repository layout
 
 - `src/` — React application, feature modules, reusable components, and UI tests.

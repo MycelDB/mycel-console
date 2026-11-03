@@ -20,7 +20,9 @@ const expectedManifestKeys = [
   "source_revision",
   "supported_daemon_api_lines",
 ];
-const actualManifestKeys = Object.keys(manifest).sort();
+const actualManifestKeys = Object.keys(manifest).sort((left, right) =>
+  left.localeCompare(right),
+);
 if (JSON.stringify(actualManifestKeys) !== JSON.stringify(expectedManifestKeys)) {
   errors.push(`manifest keys ${JSON.stringify(actualManifestKeys)} do not match schema v1`);
 }

@@ -6,6 +6,8 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.21.2] - 2026-11-07
+
 ### Added
 
 - Added machine-readable Console/Mycel compatibility metadata and a fail-closed CI validator for the exact Rust SDK release/source pin.
@@ -13,7 +15,11 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ### Compatibility
 
-- Console v0.21.1 remains paired with exact `mycel-sdk v0.21.1` source revision `f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7` and Mycel daemon/API v0.21.x. Older daemon lines are not certified.
+- Console v0.21.2 remains paired with exact `mycel-sdk v0.21.2` source revision `87f6e86db5109da10099f94ea00c8e58f80e2bd7` and Mycel daemon/API v0.21.x. Older daemon lines are not certified.
+
+### Fixed
+
+- Aligned the Data search mode and lexical-query controls for consistent accessible layout and spacing (#116).
 
 ## [v0.21.1] - 2026-11-01
 

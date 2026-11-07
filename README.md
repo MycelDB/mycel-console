@@ -14,7 +14,7 @@ Console release lines are certified with one exact Rust SDK contract and matchin
 | Console line | Rust SDK contract | Supported daemon/API line | Notes |
 | --- | --- | --- | --- |
 | `v0.20.x` | `v0.20.x` | `v0.20.x` | Does not support the v0.21 enum-only semantic trigger contract. |
-| `v0.21.1` | exact `mycel-sdk v0.21.1` at `f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7` | `v0.21.x` | Uses channel-owned Search queries and enum-only semantic trigger events. Older daemon lines are not certified. |
+| `v0.21.2` | exact `mycel-sdk v0.21.2` at `87f6e86db5109da10099f94ea00c8e58f80e2bd7` | `v0.21.x` | Uses channel-owned Search queries and enum-only semantic trigger events. Older daemon lines are not certified. |
 
 Semantic trigger events are mapped to generated `SemanticTriggerEventType` values at the Tauri boundary. The Console never reads or dual-writes legacy trigger strings, preserves unknown numeric projections as unsupported diagnostics, and refuses to save unresolved values.
 

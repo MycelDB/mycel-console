@@ -28,11 +28,11 @@ if (JSON.stringify(actualManifestKeys) !== JSON.stringify(expectedManifestKeys))
 }
 
 const expected = {
-  consoleVersion: "0.21.1",
-  consoleRelease: "v0.21.1",
-  consoleSource: "425bd513e5de72c9065c49765c417b0a3590e024",
-  rustSdkVersion: "0.21.1",
-  rustSdkSource: "f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7",
+  consoleVersion: "0.21.2",
+  consoleRelease: "v0.21.2",
+  consoleSource: "be24a5d49a0c7a346ca3159b3cd9c6590165ca7a",
+  rustSdkVersion: "0.21.2",
+  rustSdkSource: "87f6e86db5109da10099f94ea00c8e58f80e2bd7",
   apiLine: "0.21",
 };
 

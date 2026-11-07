@@ -71,6 +71,10 @@ jobs:
         working-directory: mycel-console
         run: npm ci
 
+      - name: Validate Mycel compatibility contract
+        working-directory: mycel-console
+        run: npm run validate:mycel-compatibility
+
       - name: Frontend tests
         working-directory: mycel-console
         run: npm test -- --runInBand

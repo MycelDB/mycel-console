@@ -1256,6 +1256,32 @@ mod tests {
     }
 
     #[test]
+    fn trigger_policy_proto_round_trips_every_supported_event() {
+        let names = vec![
+            "changed",
+            "node.created",
+            "node.updated",
+            "node.deleted",
+            "edge.changed",
+            "edge.created",
+            "edge.updated",
+            "edge.deleted",
+        ];
+        let policy = trigger_policy_proto(SemanticTriggerPolicyInfo {
+            events: names.iter().map(|value| value.to_string()).collect(),
+            ..Default::default()
+        })
+        .expect("all supported events map to typed values");
+
+        let round_trip: Vec<_> = policy
+            .events
+            .into_iter()
+            .map(semantic_trigger_event_name)
+            .collect();
+        assert_eq!(round_trip, names);
+    }
+
+    #[test]
     fn trigger_policy_proto_rejects_unknown_event_name() {
         let err = trigger_policy_proto(SemanticTriggerPolicyInfo {
             events: vec!["unsupported:99".to_string()],
@@ -1267,7 +1293,7 @@ mod tests {
 
     #[test]
     fn semantic_trigger_event_name_preserves_unknown_numeric_value() {
-        assert_eq!(semantic_trigger_event_name(99), "unsupported:99");
+        assert_eq!(semantic_trigger_event_name(110), "unsupported:110");
         assert_eq!(
             semantic_trigger_event_name(SemanticTriggerEventType::NodeCreated as i32),
             "node.created"

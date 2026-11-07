@@ -38,6 +38,17 @@ test("uses Data as the section eyebrow while retaining the Search page title", (
   expect(screen.getByRole("heading", { level: 1, name: "Search" })).toBeInTheDocument();
 });
 
+test("aligns the mode and lexical query fields in the first search row", async () => {
+  renderSearchPage();
+
+  const mode = await screen.findByLabelText("Mode");
+  const lexicalQuery = screen.getByLabelText("Lexical query");
+
+  expect(mode.closest("label")).toHaveClass("block");
+  expect(lexicalQuery.closest("label")).toHaveClass("block", "font-medium");
+  expect(lexicalQuery).toHaveClass("mt-1", "block", "text-sm");
+});
+
 test("lexical mode sends its query through the lexical channel", async () => {
   const search = renderSearchPage();
   const lexicalQuery = await screen.findByLabelText("Lexical query");

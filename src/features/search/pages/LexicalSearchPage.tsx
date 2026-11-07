@@ -285,9 +285,9 @@ export function LexicalSearchPage({
             ]}
           />
           {mode !== "semantic" ? (
-            <label className="space-y-2">
-              <Text as="span" size="sm" intent="subtle">Lexical query</Text>
-              <Input value={lexicalQuery} onChange={(event) => setLexicalQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
+            <label className={`block text-sm font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}>
+              <span className="block">Lexical query</span>
+              <Input className="mt-1 block text-sm" value={lexicalQuery} onChange={(event) => setLexicalQuery(event.target.value)} placeholder={'"vector database" AND raft'} />
             </label>
           ) : (
             <Text intent="muted" size="sm" className="self-end pb-2">

@@ -237,6 +237,21 @@ test("keeps the editor open and reports save failures", async () => {
   expect(screen.getByRole("heading", { name: "Create semantic rule" })).toBeInTheDocument();
 });
 
+test("explains reconciliation when a save leaves an ambiguous staged transition", async () => {
+  renderEditor("create", {
+    createSemanticRuleService: jest
+      .fn()
+      .mockRejectedValue(new Error("ambiguous staged transition")),
+  });
+  await prepareCreate();
+
+  await userEvent.click(screen.getByRole("button", { name: "Create rule" }));
+
+  expect(
+    await screen.findByText(/do not retry the mutation until the current rule state is reconciled/i),
+  ).toBeInTheDocument();
+});
+
 test("renders an explicit not-found state", async () => {
   renderEditor("edit", {
     getSemanticRuleService: jest.fn().mockResolvedValue({ rule: null, summary: null }),

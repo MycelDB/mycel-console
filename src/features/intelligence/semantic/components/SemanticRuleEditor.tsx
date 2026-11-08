@@ -11,6 +11,7 @@ import type { DomainInfo } from "../../../../types/domains";
 import type { VectorStoreInfo } from "../../../../types/inference";
 import {
   semanticTriggerEvents,
+  type SemanticProviderBudgetPolicy,
   type SemanticRuleValidationDiagnostic,
   type ValidateSemanticRuleResponse,
 } from "../../../../types/semantic";
@@ -21,6 +22,10 @@ import type {
   RuleDraft,
   VectorStoreCatalogState,
 } from "../model/pageTypes";
+import {
+  emptyProviderBudget,
+  validateSemanticProviderBudget,
+} from "../model/providerBudget";
 
 const triggerEventLabels: Record<string, string> = {
   changed: "Any event",
@@ -114,6 +119,20 @@ export function RuleEditor({
         ]
       : profileOptions;
   const selectorMode = draft.selectorMode || "node_type";
+  const providerBudgetErrors = validateSemanticProviderBudget(draft.providerBudget);
+  const updateProviderBudget = (patch: Partial<SemanticProviderBudgetPolicy>) =>
+    setDraft({
+      ...draft,
+      providerBudget: {
+        ...(draft.providerBudget || emptyProviderBudget()),
+        ...patch,
+      },
+    });
+  const setProviderBudgetEnabled = (enabled: boolean) =>
+    setDraft({
+      ...draft,
+      providerBudget: enabled ? draft.providerBudget || emptyProviderBudget() : null,
+    });
   return (
     <div className="rounded-xl border border-cyan-200 bg-cyan-50/60 p-5 dark:border-cyan-900 dark:bg-cyan-950/20">
       <div className="flex items-start justify-between gap-3">
@@ -322,6 +341,14 @@ export function RuleEditor({
           stores={vectorStores}
           catalog={vectorStoreCatalog}
         />
+        <div className="md:col-span-3">
+          <ProviderBudgetEditor
+            budget={draft.providerBudget}
+            errors={providerBudgetErrors}
+            onEnabledChange={setProviderBudgetEnabled}
+            onChange={updateProviderBudget}
+          />
+        </div>
         <Field
           label="Physical index"
           value={draft.physicalIndex}
@@ -355,6 +382,7 @@ export function RuleEditor({
           disabled={
             loading ||
             Boolean(draft.triggerEventProblem) ||
+            providerBudgetErrors.length > 0 ||
             (mode === "create" && !draft.vectorStoreId)
           }
           onClick={onValidate}
@@ -365,6 +393,7 @@ export function RuleEditor({
           disabled={
             loading ||
             Boolean(draft.triggerEventProblem) ||
+            providerBudgetErrors.length > 0 ||
             (mode === "create" && !draft.vectorStoreId)
           }
           onClick={onSave}
@@ -373,6 +402,98 @@ export function RuleEditor({
         </Button>
       </div>
     </div>
+  );
+}
+
+function ProviderBudgetEditor({
+  budget,
+  errors,
+  onEnabledChange,
+  onChange,
+}: {
+  budget?: SemanticProviderBudgetPolicy | null;
+  errors: string[];
+  onEnabledChange: (enabled: boolean) => void;
+  onChange: (patch: Partial<SemanticProviderBudgetPolicy>) => void;
+}) {
+  const enabled = Boolean(budget);
+  const current = budget || emptyProviderBudget();
+  const updateDuration = (
+    field: "requestTimeout" | "totalTimeout",
+    key: "seconds" | "nanos",
+    value: string,
+  ) => {
+    const duration = current[field] || { seconds: "", nanos: 0 };
+    onChange({
+      [field]: {
+        ...duration,
+        [key]: key === "nanos" ? Number(value) : value,
+      },
+    });
+  };
+  const updateCost = (field: keyof NonNullable<SemanticProviderBudgetPolicy["cost"]>, value: string) =>
+    onChange({
+      cost: {
+        ...(current.cost || emptyProviderBudget().cost!),
+        [field]: value,
+      },
+    });
+  return (
+    <fieldset className="rounded-md border border-slate-300 p-3 text-sm dark:border-slate-700">
+      <legend className="px-1 font-medium">Provider budget (optional)</legend>
+      <label className="flex items-center gap-2 font-medium">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) => onEnabledChange(event.target.checked)}
+        />
+        Enable daemon-owned provider budgeting for this binding
+      </label>
+      {!enabled ? (
+        <Text intent="muted" size="xs" className="mt-2">
+          No budget policy is sent when this option is disabled.
+        </Text>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <Text intent="muted" size="xs">
+            Every field below is required when budgeting is enabled. Use a correlation ID only for operator correlation; never include credentials, source text, or provider identifiers. Limits are explicit—there is no unlimited or account-only mode.
+          </Text>
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Correlation ID" value={current.correlationId} onChange={(value) => onChange({ correlationId: value })} />
+            <Field label="Max requests" value={current.maxRequests || ""} onChange={(value) => onChange({ maxRequests: value })} />
+            <Field label="Max retry attempts" value={current.maxRetryAttempts || ""} onChange={(value) => onChange({ maxRetryAttempts: value })} />
+            <Field label="Max retries per request" value={current.maxRetriesPerRequest || ""} onChange={(value) => onChange({ maxRetriesPerRequest: value })} />
+            <Field label="Max concurrent provider calls" value={current.maxConcurrentProviderCalls || ""} onChange={(value) => onChange({ maxConcurrentProviderCalls: value })} />
+            <Select
+              label="Batching mode"
+              value={current.batchingMode == null ? "" : String(current.batchingMode)}
+              onChange={(value) => onChange({ batchingMode: value ? Number(value) : null })}
+              options={[{ value: "1", label: "Single item" }, { value: "2", label: "Batch" }]}
+              placeholder="Select batching mode"
+            />
+            <Field label="Max batch items" value={current.maxBatchItems || ""} onChange={(value) => onChange({ maxBatchItems: value })} />
+            <Field label="Max input tokens per request" value={current.maxInputTokensPerRequest || ""} onChange={(value) => onChange({ maxInputTokensPerRequest: value })} />
+            <Field label="Max input tokens" value={current.maxInputTokens || ""} onChange={(value) => onChange({ maxInputTokens: value })} />
+            <Field label="Request timeout seconds" value={current.requestTimeout?.seconds || ""} onChange={(value) => updateDuration("requestTimeout", "seconds", value)} />
+            <Field label="Request timeout nanos" value={String(current.requestTimeout?.nanos ?? 0)} onChange={(value) => updateDuration("requestTimeout", "nanos", value)} />
+            <Field label="Total timeout seconds" value={current.totalTimeout?.seconds || ""} onChange={(value) => updateDuration("totalTimeout", "seconds", value)} />
+            <Field label="Total timeout nanos" value={String(current.totalTimeout?.nanos ?? 0)} onChange={(value) => updateDuration("totalTimeout", "nanos", value)} />
+            <Field label="Currency (ISO 4217)" value={current.cost?.currency || ""} onChange={(value) => updateCost("currency", value)} />
+            <Field label="Price definition version" value={current.cost?.priceDefinitionVersion || ""} onChange={(value) => updateCost("priceDefinitionVersion", value)} />
+            <Field label="Input micros per million tokens" value={current.cost?.inputMicrosPerMillionTokens || ""} onChange={(value) => updateCost("inputMicrosPerMillionTokens", value)} />
+            <Field label="Max estimated cost micros" value={current.cost?.maxEstimatedCostMicros || ""} onChange={(value) => updateCost("maxEstimatedCostMicros", value)} />
+          </div>
+          {errors.length > 0 && (
+            <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+              <div className="font-medium">Provider budget needs correction</div>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {errors.map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </fieldset>
   );
 }
 

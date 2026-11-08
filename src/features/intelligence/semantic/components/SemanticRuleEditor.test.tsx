@@ -251,6 +251,59 @@ test("RuleEditor provides catalog search and an empty management route", async (
   expect(screen.getByRole("button", { name: "Create rule" })).toBeDisabled();
 });
 
+test("RuleEditor keeps provider budgeting optional and blocks incomplete policies", async () => {
+  const user = userEvent.setup();
+  render(<RuleEditorHarness />);
+
+  expect(screen.getByText(/No budget policy is sent/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeEnabled();
+
+  await user.click(
+    screen.getByLabelText("Enable daemon-owned provider budgeting for this binding"),
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(/correlationId/i);
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeDisabled();
+
+  await user.click(
+    screen.getByLabelText("Enable daemon-owned provider budgeting for this binding"),
+  );
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeEnabled();
+});
+
+test("RuleEditor accepts a complete provider budget policy", () => {
+  render(
+    <RuleEditorHarness
+      initialDraft={{
+        ...draft,
+        providerBudget: {
+          correlationId: "semantic-budget-1",
+          maxRequests: "128",
+          maxRetryAttempts: "4",
+          maxRetriesPerRequest: "1",
+          maxConcurrentProviderCalls: "2",
+          batchingMode: 1,
+          maxBatchItems: "1",
+          maxInputTokensPerRequest: "2048",
+          maxInputTokens: "20000",
+          requestTimeout: { seconds: "30", nanos: 0 },
+          totalTimeout: { seconds: "300", nanos: 0 },
+          cost: {
+            currency: "USD",
+            priceDefinitionVersion: "2026-10-01",
+            inputMicrosPerMillionTokens: "20",
+            maxEstimatedCostMicros: "1000000",
+          },
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByLabelText("Enable daemon-owned provider budgeting for this binding")).toBeChecked();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Create rule" })).toBeEnabled();
+});
+
 test("RuleEditor renders validation diagnostics", () => {
   render(
     <RuleEditorHarness

@@ -28,12 +28,12 @@ if (JSON.stringify(actualManifestKeys) !== JSON.stringify(expectedManifestKeys))
 }
 
 const expected = {
-  consoleVersion: "0.21.1",
-  consoleRelease: "v0.21.1",
-  consoleSource: "425bd513e5de72c9065c49765c417b0a3590e024",
-  rustSdkVersion: "0.21.1",
-  rustSdkSource: "f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7",
-  apiLine: "0.21",
+  consoleVersion: "0.22.0",
+  consoleRelease: "v0.22.0",
+  consoleSource: "663e8d2a93edb033a8fbc105c427015a403226e7",
+  rustSdkVersion: "0.22.0",
+  rustSdkSource: "87de6c921dbc175bf6b2dc20213855b58e2912c2",
+  apiLine: "0.22",
 };
 
 if (manifest.schema_version !== 1) errors.push(`schema_version=${manifest.schema_version}`);

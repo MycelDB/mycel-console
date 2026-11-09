@@ -1,13 +1,7 @@
 # React coding guidelines
 
-- **Guideline version:** 1.0.0
-- **Canonical project:** `reacticity/engineering/development`
-- **Canonical path:** `docs/guidelines/react_coding_guidelines.md`
-
-## 1. Purpose and scope
-
-This document defines the company-wide organization and responsibility model for
-React applications. It is intended to make code easier to navigate, test,
+This document defines the organization and responsibility model for React
+applications in Mycel Console. It is intended to make code easier to navigate, test,
 review, and change across independently maintained products.
 
 The guide applies to new React code and to existing React code when it is
@@ -449,102 +443,10 @@ structural migrations unless the current task explicitly authorizes them.
 ```
 
 The local `AGENTS.md` MAY add stricter repository-specific rules. It MUST NOT
-silently weaken company-wide MUST or MUST NOT requirements. A necessary
+silently weaken the MUST or MUST NOT requirements in this document. A necessary
 exception must be explicit and reviewable.
 
-## 16. Distribution and versioning
-
-### 16.1 Canonical source
-
-The canonical document is:
-
-```text
-project: reacticity/engineering/development
-path: docs/guidelines/react_coding_guidelines.md
-```
-
-A raw file can be addressed as:
-
-```text
-https://martinbeauvais.com/mbgit/reacticity/engineering/development/-/raw/<ref>/docs/guidelines/react_coding_guidelines.md
-```
-
-The project is private. Synchronization tooling must authenticate with a
-read-only credential and must never print credentials or private response
-bodies.
-
-### 16.2 Consumer location
-
-Every consuming repository MUST store an exact synchronized copy at:
-
-```text
-docs/guidelines/react_coding_guidelines.md
-```
-
-The copy must remain understandable without access to the canonical repository.
-Consumer-specific exceptions belong in the consumer's own engineering or agent
-instructions, not in a modified copy of the canonical guide.
-
-### 16.3 Pinning
-
-Automated synchronization and drift checks MUST pin an immutable full commit
-SHA. They MUST NOT use `main`, another moving branch, or an unpinned URL.
-
-A human-facing release tag MAY identify the guideline release, using a name such
-as:
-
-```text
-react-coding-guidelines-v1.0.0
-```
-
-Tags used for standards releases MUST be treated as immutable. The full source
-commit SHA remains the machine-verifiable synchronization reference.
-
-Consumers SHOULD record provenance outside the synchronized Markdown file so
-that the copy remains byte-for-byte comparable. A suitable file is:
-
-```text
-docs/guidelines/react_coding_guidelines.source.json
-```
-
-For example:
-
-```json
-{
-  "project": "reacticity/engineering/development",
-  "path": "docs/guidelines/react_coding_guidelines.md",
-  "version": "1.0.0",
-  "ref": "<full-commit-sha>"
-}
-```
-
-### 16.4 Version changes
-
-The document version follows semantic intent:
-
-- **Patch:** clarification that does not change required behavior.
-- **Minor:** additive guidance or a new recommendation that can be adopted
-  compatibly.
-- **Major:** changed directory contract, new incompatible requirement, or
-  removal/redefinition of an existing requirement.
-
-A consumer adopts a new version through a reviewed change that updates the
-pinned SHA, synchronized copy, and provenance together.
-
-### 16.5 Synchronization behavior
-
-Consumer synchronization tooling SHOULD provide:
-
-- An update mode that atomically replaces the local copy.
-- A non-mutating `--check` mode that fails when the local copy differs.
-- Clear authentication and retrieval failures without exposing secrets.
-- CI integration for drift detection.
-- A documented maintainer workflow for intentional upgrades.
-
-The synchronized standard controls future work. Updating it MUST NOT
-automatically trigger broad source-tree rewrites.
-
-## 17. Review checklist
+## 16. Review checklist
 
 For new or substantially changed React code, reviewers should ask:
 

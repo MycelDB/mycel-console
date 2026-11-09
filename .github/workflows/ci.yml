@@ -44,6 +44,17 @@ jobs:
           ref: develop
           path: mycel-rust-sdk
 
+      - name: Check synchronized React coding guidelines
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        working-directory: mycel-console
+        env:
+          REACTICITY_ENGINEERING_TOKEN: ${{ secrets.REACTICITY_ENGINEERING_TOKEN }}
+        run: scripts/sync-react-coding-guidelines.sh --check
+
+      - name: Skip private React guideline check for fork pull requests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: echo "Skipping private React guideline retrieval for an untrusted fork pull request."
+
       - name: Install Tauri Linux dependencies
         timeout-minutes: 10
         env:

@@ -24,6 +24,16 @@ Mycel Console is a React/Vite UI packaged with Tauri. It provides operator-facin
 - Authentication and authorization failures should be clear without exposing secrets.
 - Do not log or display passwords, bearer tokens, refresh tokens, TLS key material, private data, or confidential infrastructure details.
 
+## React engineering guidelines
+
+Before planning or modifying React code, read and follow:
+
+- `docs/guidelines/react_coding_guidelines.md`
+
+The synchronized guideline is the company-wide React engineering standard.
+Repository-specific exceptions must be explicit and must not silently weaken its
+requirements.
+
 ## Frontend guidance
 
 - Prefer small feature-scoped components with nearby tests.

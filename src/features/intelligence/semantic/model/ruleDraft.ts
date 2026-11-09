@@ -5,6 +5,7 @@ import {
   type SemanticTriggerEvent,
 } from "../../../../types/semantic";
 import type { RuleDraft } from "./pageTypes";
+import { validateSemanticProviderBudget } from "./providerBudget";
 
 export function csv(value: string) {
   return value
@@ -43,6 +44,10 @@ export function draftToRule(draft: RuleDraft): SemanticGenerationRule {
       draft.triggerEventProblem ||
         `Unsupported trigger event values: ${unsupported.join(", ")}`,
     );
+  }
+  const providerBudgetErrors = validateSemanticProviderBudget(draft.providerBudget);
+  if (providerBudgetErrors.length > 0) {
+    throw new Error(`Provider budget is invalid: ${providerBudgetErrors.join("; ")}`);
   }
   const labels = csv(draft.labels);
   const triggerEvents: SemanticTriggerEvent[] = draft.triggerEvents.length

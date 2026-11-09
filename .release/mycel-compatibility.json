@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "component": "mycel-console",
-  "component_release": "v0.21.1",
-  "source_revision": "425bd513e5de72c9065c49765c417b0a3590e024",
-  "mycel_api_line": "0.21",
+  "component_release": "v0.22.0",
+  "source_revision": "663e8d2a93edb033a8fbc105c427015a403226e7",
+  "mycel_api_line": "0.22",
   "supported_daemon_api_lines": [
-    "0.21"
+    "0.22"
   ],
   "incompatible_daemon_api_lines": [
     {
@@ -16,5 +16,5 @@
       ]
     }
   ],
-  "published_at": "2026-11-01T16:45:52Z"
+  "published_at": "2026-11-09T22:48:39Z"
 }

@@ -118,6 +118,20 @@ export function defaultSemanticRuleDraft(spaceId = "", domainId = ""): RuleDraft
   };
 }
 
+function semanticRuleMutationError(error: unknown): string {
+  const message = errorMessage(error, "Failed to save semantic rule");
+  const normalized = message.toLocaleLowerCase();
+  if (
+    normalized.includes("ambiguous") ||
+    normalized.includes("pending") ||
+    normalized.includes("staged transition") ||
+    normalized.includes("failed_precondition")
+  ) {
+    return `${message}. The daemon may have left an ambiguous staged transition pending; do not retry the mutation until the current rule state is reconciled.`;
+  }
+  return message;
+}
+
 function vectorStoreCatalogFailure(error: unknown): VectorStoreCatalogState {
   const message = errorMessage(error, "Failed to load vector-store catalog");
   const normalized = message.toLocaleLowerCase();
@@ -486,7 +500,7 @@ export function SemanticRuleEditorPage({
         },
       });
     } catch (saveError) {
-      setError(errorMessage(saveError, "Failed to save semantic rule"));
+      setError(semanticRuleMutationError(saveError));
     } finally {
       if (mounted.current) setActionLoading(false);
     }

@@ -8,6 +8,7 @@ const manifest = JSON.parse(read(".release/mycel-compatibility.json"));
 const packageJson = JSON.parse(read("package.json"));
 const cargoToml = read("src-tauri/Cargo.toml");
 const workflow = read(".github/workflows/ci.yml");
+const releaseWorkflow = read(".github/workflows/release-macos-dmg.yml");
 const errors = [];
 
 const expectedManifestKeys = [
@@ -95,9 +96,11 @@ if (!sdkDependency) {
   }
 }
 
-const workflowSdkRef = workflow.match(/^  MYCEL_RUST_SDK_REF: ([0-9a-f]{40})$/m)?.[1];
-if (workflowSdkRef !== expected.rustSdkSource) {
-  errors.push(`MYCEL_RUST_SDK_REF=${workflowSdkRef || "missing-or-mutable"}`);
+for (const [name, content] of [["CI", workflow], ["release", releaseWorkflow]]) {
+  const workflowSdkRef = content.match(/^  MYCEL_RUST_SDK_REF: ([0-9a-f]{40})$/m)?.[1];
+  if (workflowSdkRef !== expected.rustSdkSource) {
+    errors.push(`${name} MYCEL_RUST_SDK_REF=${workflowSdkRef || "missing-or-mutable"}`);
+  }
 }
 
 if (errors.length > 0) {

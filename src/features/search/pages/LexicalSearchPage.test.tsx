@@ -102,6 +102,7 @@ test("hybrid mode requires and sends distinct channel queries", async () => {
   expect(screen.getByLabelText("Semantic weight")).toBeInTheDocument();
   expect(screen.getByLabelText("Semantic rule ID")).toBeInTheDocument();
   expect(screen.getByLabelText("Embedding binding key")).toBeInTheDocument();
+  expect(screen.getByLabelText("Semantic consistency")).toBeInTheDocument();
   const semanticQuery = screen.getByLabelText("Semantic query");
   const submit = screen.getByRole("button", { name: "Search" });
 
@@ -117,4 +118,59 @@ test("hybrid mode requires and sends distinct channel queries", async () => {
     lexicalQuery: '"raft" OR "recovery"',
     semanticQuery: "how does raft recover?",
   }));
+  expect((search as jest.Mock).mock.calls[0][0].semanticConsistency).toBeUndefined();
+});
+
+test("hybrid mode sends bounded-stale semantic consistency controls", async () => {
+  const search = renderSearchPage();
+  const lexicalQuery = await screen.findByLabelText("Lexical query");
+  await userEvent.selectOptions(screen.getByLabelText("Mode"), "hybrid");
+  await userEvent.type(lexicalQuery, "raft");
+  await userEvent.type(screen.getByLabelText("Semantic query"), "raft recovery");
+  await userEvent.selectOptions(screen.getByLabelText("Semantic consistency"), "bounded_stale");
+  await userEvent.clear(screen.getByLabelText("Max semantic revision lag"));
+  await userEvent.type(screen.getByLabelText("Max semantic revision lag"), "25");
+
+  await userEvent.click(screen.getByRole("button", { name: "Search" }));
+
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+  expect(search).toHaveBeenCalledWith(expect.objectContaining({
+    semanticConsistency: "bounded_stale",
+    semanticStaleBehavior: "serve_last_good",
+    maxSemanticRevisionLag: 25,
+  }));
+});
+
+test("renders per-channel search diagnostics", async () => {
+  const search = jest.fn<Promise<LexicalSearchResponse>, [LexicalSearchInput]>().mockResolvedValue({
+    ...emptySearchResponse,
+    channelDiagnostics: {
+      lexical: {
+        used: true,
+        state: "SEARCH_FRESHNESS_STATE_FRESH",
+        servedGraphRevision: 41,
+        latestKnownGraphRevision: 41,
+        revisionLag: 0,
+        reason: "",
+        retryable: false,
+      },
+      semantic: {
+        used: false,
+        state: "SEARCH_FRESHNESS_STATE_STALE",
+        servedGraphRevision: 38,
+        latestKnownGraphRevision: 41,
+        revisionLag: 3,
+        reason: "missing_manifest",
+        retryable: true,
+      },
+    },
+  });
+  renderSearchPage(search);
+
+  await userEvent.type(await screen.findByLabelText("Lexical query"), "raft");
+  await userEvent.click(screen.getByRole("button", { name: "Search" }));
+
+  expect(await screen.findByText("lexical channel")).toBeInTheDocument();
+  expect(screen.getByText("semantic channel")).toBeInTheDocument();
+  expect(screen.getByText("missing_manifest")).toBeInTheDocument();
 });

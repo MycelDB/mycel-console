@@ -13,6 +13,10 @@ export type SearchScoreKind =
 
 export type SearchMode = "lexical" | "hybrid";
 
+export type SemanticConsistency = "strict" | "read_your_writes" | "bounded_stale" | "best_effort";
+
+export type SemanticStaleBehavior = "fail" | "serve_last_good" | "skip_channel";
+
 export type PropertyFilterInput = {
   path: string;
   operator: "equals" | "not-equals" | "in" | "contains" | "exists";
@@ -44,6 +48,11 @@ export type LexicalSearchInput = {
   semanticRuleId?: string;
   embeddingBindingKey?: string;
   semanticMinScore?: number;
+  semanticConsistency?: SemanticConsistency;
+  semanticStaleBehavior?: SemanticStaleBehavior;
+  minRequiredGraphRevision?: number;
+  maxSemanticRevisionLag?: number;
+  maxSemanticStalenessSeconds?: number;
   filters?: SearchFiltersInput;
 };
 
@@ -75,11 +84,27 @@ export type LexicalFreshness = {
   lastError: string;
 };
 
+export type SearchChannelStatus = {
+  used: boolean;
+  state: string;
+  servedGraphRevision: number;
+  latestKnownGraphRevision: number;
+  revisionLag: number;
+  reason: string;
+  retryable: boolean;
+};
+
+export type SearchChannelDiagnostics = {
+  lexical?: SearchChannelStatus | null;
+  semantic?: SearchChannelStatus | null;
+};
+
 export type LexicalSearchResponse = {
   results: LexicalSearchResult[];
   nextPageToken: string;
   freshness?: LexicalFreshness | null;
   warnings: string[];
+  channelDiagnostics?: SearchChannelDiagnostics | null;
 };
 
 export type LexicalIndexScopeInput = {

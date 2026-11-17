@@ -30,6 +30,8 @@ import type {
   LexicalSearchInput,
   LexicalSearchResponse,
   SearchMode,
+  SemanticConsistency,
+  SemanticStaleBehavior,
   RebuildLexicalIndexInput,
   RebuildLexicalIndexResponse,
 } from "../../../types/lexical";
@@ -73,6 +75,11 @@ export function LexicalSearchPage({
   const [semanticCandidates, setSemanticCandidates] = useState(0);
   const [semanticRuleId, setSemanticRuleId] = useState("");
   const [embeddingBindingKey, setEmbeddingBindingKey] = useState("");
+  const [semanticConsistency, setSemanticConsistency] = useState<SemanticConsistency>("strict");
+  const [semanticStaleBehavior, setSemanticStaleBehavior] = useState<SemanticStaleBehavior>("fail");
+  const [minRequiredGraphRevision, setMinRequiredGraphRevision] = useState(0);
+  const [maxSemanticRevisionLag, setMaxSemanticRevisionLag] = useState(0);
+  const [maxSemanticStalenessSeconds, setMaxSemanticStalenessSeconds] = useState(0);
   const [labelFilters, setLabelFilters] = useState("");
   const [propertyFilters, setPropertyFilters] = useState("");
   const [loading, setLoading] = useState(false);
@@ -175,6 +182,13 @@ export function LexicalSearchPage({
         semanticCandidates: mode === "hybrid" ? semanticCandidates || undefined : undefined,
         semanticRuleId: mode === "hybrid" ? semanticRuleId.trim() || undefined : undefined,
         embeddingBindingKey: mode === "hybrid" ? embeddingBindingKey.trim() || undefined : undefined,
+        ...(mode === "hybrid" ? semanticConsistencyInput(
+          semanticConsistency,
+          semanticStaleBehavior,
+          minRequiredGraphRevision,
+          maxSemanticRevisionLag,
+          maxSemanticStalenessSeconds,
+        ) : {}),
         filters: buildSearchFilters(labelFilters, propertyFilters),
       });
       setSearchResponse(response);
@@ -225,7 +239,16 @@ export function LexicalSearchPage({
   }
 
   const scopeReady = Boolean(spaceId && domainId);
-  const queriesReady = mode !== "semantic" && searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth);
+  const semanticPolicyReady = mode !== "hybrid" || searchSemanticConsistencyReady(
+    semanticConsistency,
+    semanticStaleBehavior,
+    minRequiredGraphRevision,
+    maxSemanticRevisionLag,
+    maxSemanticStalenessSeconds,
+  );
+  const queriesReady = mode !== "semantic"
+    && searchQueriesReady(mode, lexicalQuery, semanticQuery, lexicalWeight, semanticWeight, requireBoth)
+    && semanticPolicyReady;
   const canMaintainLexical = canUseCapability(principalContext, "system.maintain_space");
   const semanticVisibilityScopeKey = semanticSearchVisibilityKey(principalContext);
 
@@ -329,6 +352,53 @@ export function LexicalSearchPage({
               <Text as="span" size="sm" intent="subtle">Embedding binding key</Text>
               <Input value={embeddingBindingKey} onChange={(event) => setEmbeddingBindingKey(event.target.value)} placeholder="optional; requires rule ID" />
             </label>
+            <Select
+              label="Semantic consistency"
+              value={semanticConsistency}
+              onChange={(value) => {
+                const next = value as SemanticConsistency;
+                setSemanticConsistency(next);
+                setSemanticStaleBehavior(defaultSemanticStaleBehavior(next));
+              }}
+              options={[
+                { value: "strict", label: "Strict", hint: "current projection required" },
+                { value: "read_your_writes", label: "Read your writes", hint: "minimum graph revision required" },
+                { value: "bounded_stale", label: "Bounded stale", hint: "serve within bounded lag" },
+                { value: "best_effort", label: "Best effort", hint: "skip or degrade semantic channel" },
+              ]}
+            />
+            <Select
+              label="Semantic stale behavior"
+              value={semanticStaleBehavior}
+              onChange={(value) => setSemanticStaleBehavior(value as SemanticStaleBehavior)}
+              disabled={semanticConsistency === "strict"}
+              options={[
+                { value: "fail", label: "Fail search" },
+                { value: "serve_last_good", label: "Serve last good projection" },
+                { value: "skip_channel", label: "Skip semantic channel" },
+              ]}
+            />
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Minimum graph revision</Text>
+              <Input type="number" min={0} value={minRequiredGraphRevision} onChange={(event) => setMinRequiredGraphRevision(Number(event.target.value) || 0)} />
+            </label>
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Max semantic revision lag</Text>
+              <Input type="number" min={0} value={maxSemanticRevisionLag} onChange={(event) => setMaxSemanticRevisionLag(Number(event.target.value) || 0)} />
+            </label>
+            <label className="space-y-2">
+              <Text as="span" size="sm" intent="subtle">Max semantic staleness seconds</Text>
+              <Input type="number" min={0} value={maxSemanticStalenessSeconds} onChange={(event) => setMaxSemanticStalenessSeconds(Number(event.target.value) || 0)} />
+            </label>
+            {!semanticPolicyReady ? (
+              <Text intent="danger" size="sm" className="md:col-span-3">
+                Read-your-writes requires a minimum graph revision; bounded-stale requires a revision lag or staleness bound; strict requires fail behavior.
+              </Text>
+            ) : (
+              <Text intent="muted" size="sm" className="md:col-span-3">
+                Semantic projection consistency affects hybrid retrieval freshness only; graph authorization and visibility still fail closed.
+              </Text>
+            )}
           </div>
         ) : null}
         {mode !== "semantic" ? (
@@ -412,6 +482,31 @@ export function LexicalSearchPage({
             Freshness: {searchResponse.freshness.state}; indexed {searchResponse.freshness.indexedGraphRevision}, latest {searchResponse.freshness.latestKnownGraphRevision}, lag {searchResponse.freshness.revisionLag}
           </Text>
         ) : null}
+        {searchResponse?.channelDiagnostics ? (
+          <div className="mt-3 grid gap-3 text-xs md:grid-cols-2">
+            {(["lexical", "semantic"] as const).map((channel) => {
+              const diagnostic = searchResponse.channelDiagnostics?.[channel];
+              return (
+                <div key={channel} className={`rounded-lg border ${themeClasses.border.input} p-3`}>
+                  <Text intent="primary" size="sm" className="font-semibold capitalize">{channel} channel</Text>
+                  {diagnostic ? (
+                    <dl className="mt-2 grid gap-1">
+                      <div><dt className={themeClasses.text.parts.quietLight}>Used</dt><dd>{diagnostic.used ? "yes" : "no"}</dd></div>
+                      <div><dt className={themeClasses.text.parts.quietLight}>State</dt><dd>{diagnostic.state}</dd></div>
+                      <div><dt className={themeClasses.text.parts.quietLight}>Served revision</dt><dd>{diagnostic.servedGraphRevision}</dd></div>
+                      <div><dt className={themeClasses.text.parts.quietLight}>Latest revision</dt><dd>{diagnostic.latestKnownGraphRevision}</dd></div>
+                      <div><dt className={themeClasses.text.parts.quietLight}>Lag</dt><dd>{diagnostic.revisionLag}</dd></div>
+                      <div><dt className={themeClasses.text.parts.quietLight}>Retryable</dt><dd>{diagnostic.retryable ? "yes" : "no"}</dd></div>
+                      {diagnostic.reason ? <div><dt className={themeClasses.text.parts.quietLight}>Reason</dt><dd>{diagnostic.reason}</dd></div> : null}
+                    </dl>
+                  ) : (
+                    <Text intent="muted" size="xs" className="mt-2">No daemon diagnostic returned.</Text>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
         <div className="mt-4 divide-y divide-slate-200 dark:divide-slate-800">
           {(searchResponse?.results || []).map((result) => (
             <div key={`${result.nodeId}-${result.indexedGraphRevision}`} className="py-3">
@@ -468,6 +563,48 @@ function searchQueriesReady(
   const semanticEnabled = useDefaults || semanticWeight > 0 || requireBoth;
   return (!lexicalEnabled || Boolean(lexicalQuery.trim()))
     && (!semanticEnabled || Boolean(semanticQuery.trim()));
+}
+
+function defaultSemanticStaleBehavior(consistency: SemanticConsistency): SemanticStaleBehavior {
+  if (consistency === "best_effort") return "skip_channel";
+  if (consistency === "bounded_stale" || consistency === "read_your_writes") return "serve_last_good";
+  return "fail";
+}
+
+function searchSemanticConsistencyReady(
+  consistency: SemanticConsistency,
+  staleBehavior: SemanticStaleBehavior,
+  minRequiredGraphRevision: number,
+  maxSemanticRevisionLag: number,
+  maxSemanticStalenessSeconds: number,
+): boolean {
+  if ([minRequiredGraphRevision, maxSemanticRevisionLag, maxSemanticStalenessSeconds].some((value) => value < 0)) return false;
+  if (consistency === "strict") return staleBehavior === "fail";
+  if (consistency === "read_your_writes") return minRequiredGraphRevision > 0;
+  if (consistency === "bounded_stale") return maxSemanticRevisionLag > 0 || maxSemanticStalenessSeconds > 0;
+  return true;
+}
+
+function semanticConsistencyInput(
+  consistency: SemanticConsistency,
+  staleBehavior: SemanticStaleBehavior,
+  minRequiredGraphRevision: number,
+  maxSemanticRevisionLag: number,
+  maxSemanticStalenessSeconds: number,
+): Partial<LexicalSearchInput> {
+  const includePolicy = consistency !== "strict"
+    || staleBehavior !== "fail"
+    || minRequiredGraphRevision > 0
+    || maxSemanticRevisionLag > 0
+    || maxSemanticStalenessSeconds > 0;
+  if (!includePolicy) return {};
+  return {
+    semanticConsistency: consistency,
+    semanticStaleBehavior: staleBehavior,
+    minRequiredGraphRevision: minRequiredGraphRevision || undefined,
+    maxSemanticRevisionLag: maxSemanticRevisionLag || undefined,
+    maxSemanticStalenessSeconds: maxSemanticStalenessSeconds || undefined,
+  };
 }
 
 function buildSearchFilters(labelText: string, propertyText: string): LexicalSearchInput["filters"] | undefined {

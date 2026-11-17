@@ -6,6 +6,23 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.23.0] - 2026-11-17
+
+### Added
+
+- Added hybrid search controls for v0.23 semantic projection consistency policies, including strict default, read-your-writes, bounded-stale, and best-effort modes with explicit stale-projection behavior and revision/staleness bounds (#126).
+- Added v0.23 per-channel search diagnostics in the Search results view so operators can see lexical and semantic channel usage, freshness state, revision evidence, retryability, and safe readiness reasons (#126).
+
+### Changed
+
+- Updated Console package and Tauri versions to v0.23.0 and pinned the Tauri bridge to exact `mycel-sdk v0.23.0`.
+- Updated machine-readable compatibility metadata and CI validation for the coordinated Mycel v0.23 daemon/API and Rust SDK release line.
+
+### Compatibility
+
+- Console v0.23.0 is paired with exact `mycel-sdk v0.23.0` source revision `ab54de0ad8c17819a0ad67bd39cffc46a3c85454` and Mycel daemon/API v0.23.x. Older daemon lines are not certified.
+- Hybrid search keeps strict semantic projection consistency by default. Relaxed bounded-stale and best-effort policies are opt-in per request and affect semantic retrieval freshness only; graph authorization, visibility, and policy enforcement remain strict.
+
 ## [v0.22.0] - 2026-11-09
 
 ### Added

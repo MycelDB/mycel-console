@@ -28,12 +28,12 @@ if (JSON.stringify(actualManifestKeys) !== JSON.stringify(expectedManifestKeys))
 }
 
 const expected = {
-  consoleVersion: "0.22.0",
-  consoleRelease: "v0.22.0",
-  consoleSource: "663e8d2a93edb033a8fbc105c427015a403226e7",
-  rustSdkVersion: "0.22.0",
-  rustSdkSource: "87de6c921dbc175bf6b2dc20213855b58e2912c2",
-  apiLine: "0.22",
+  consoleVersion: "0.23.0",
+  consoleRelease: "v0.23.0",
+  consoleSource: "37bed11962f267089ca5433f9ad2d5fed3f09316",
+  rustSdkVersion: "0.23.0",
+  rustSdkSource: "ab54de0ad8c17819a0ad67bd39cffc46a3c85454",
+  apiLine: "0.23",
 };
 
 if (manifest.schema_version !== 1) errors.push(`schema_version=${manifest.schema_version}`);
@@ -52,20 +52,26 @@ if (JSON.stringify(manifest.supported_daemon_api_lines) !== JSON.stringify([expe
 }
 
 const incompatible = manifest.incompatible_daemon_api_lines;
-if (!Array.isArray(incompatible) || incompatible.length !== 1) {
-  errors.push("exactly one incompatible daemon line is required");
+const expectedIncompatible = [
+  {
+    line: "0.20",
+    contracts: [
+      "search-channel-owned-query-v1",
+      "semantic-trigger-events-enum-v1",
+    ],
+  },
+  {
+    line: "0.22",
+    contracts: ["semantic-projection-consistency-v1"],
+  },
+];
+if (JSON.stringify(incompatible) !== JSON.stringify(expectedIncompatible)) {
+  errors.push(`incompatible_daemon_api_lines=${JSON.stringify(incompatible)}`);
 } else {
-  const entry = incompatible[0];
-  const expectedContracts = [
-    "search-channel-owned-query-v1",
-    "semantic-trigger-events-enum-v1",
-  ];
-  if (entry.line !== "0.20") errors.push(`incompatible line=${entry.line}`);
-  if (JSON.stringify(entry.contracts) !== JSON.stringify(expectedContracts)) {
-    errors.push(`incompatible contracts=${JSON.stringify(entry.contracts)}`);
-  }
-  if (manifest.supported_daemon_api_lines.includes(entry.line)) {
-    errors.push(`daemon line ${entry.line} is both supported and incompatible`);
+  for (const entry of incompatible) {
+    if (manifest.supported_daemon_api_lines.includes(entry.line)) {
+      errors.push(`daemon line ${entry.line} is both supported and incompatible`);
+    }
   }
 }
 

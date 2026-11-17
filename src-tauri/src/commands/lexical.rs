@@ -1,8 +1,9 @@
 use mycel_sdk::proto::admin::v1::RebuildLexicalIndexRequest;
 use mycel_sdk::proto::client::v1::{
     FilterOperator, GetLexicalIndexStatusRequest, HybridFusionStrategy, HybridSearchOptions,
-    LexicalIndexStatus, LexicalSearchOptions, PropertyFilter, SearchFilters, SearchMode,
-    SearchRequest, SearchResult, SearchResultSource, SemanticSearchOptions,
+    LexicalIndexStatus, LexicalSearchOptions, ProjectionConsistency, ProjectionConsistencyPolicy,
+    PropertyFilter, SearchChannelStatus, SearchFilters, SearchMode, SearchRequest, SearchResult,
+    SearchResultSource, SemanticSearchOptions, StaleProjectionBehavior,
 };
 use tauri::State;
 
@@ -45,6 +46,16 @@ pub struct LexicalSearchInput {
     pub embedding_binding_key: Option<String>,
     #[serde(default)]
     pub semantic_min_score: Option<f64>,
+    #[serde(default)]
+    pub semantic_consistency: Option<String>,
+    #[serde(default)]
+    pub semantic_stale_behavior: Option<String>,
+    #[serde(default)]
+    pub min_required_graph_revision: Option<i64>,
+    #[serde(default)]
+    pub max_semantic_revision_lag: Option<i64>,
+    #[serde(default)]
+    pub max_semantic_staleness_seconds: Option<i64>,
     #[serde(default)]
     pub filters: Option<SearchFiltersInput>,
 }
@@ -94,6 +105,7 @@ pub struct LexicalSearchResponseInfo {
     pub next_page_token: String,
     pub freshness: Option<LexicalFreshnessInfo>,
     pub warnings: Vec<String>,
+    pub channel_diagnostics: Option<SearchChannelDiagnosticsInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -117,6 +129,25 @@ pub struct SearchResultSourceInfo {
     pub raw_score: f64,
     pub rank: i32,
     pub normalized_score: f64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchChannelDiagnosticsInfo {
+    pub lexical: Option<SearchChannelStatusInfo>,
+    pub semantic: Option<SearchChannelStatusInfo>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchChannelStatusInfo {
+    pub used: bool,
+    pub state: String,
+    pub served_graph_revision: i64,
+    pub latest_known_graph_revision: i64,
+    pub revision_lag: i64,
+    pub reason: String,
+    pub retryable: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -190,6 +221,12 @@ pub async fn client_lexical_search(
             last_error: freshness.last_error,
         }),
         warnings: response.warnings,
+        channel_diagnostics: response.channel_diagnostics.map(|diagnostics| {
+            SearchChannelDiagnosticsInfo {
+                lexical: diagnostics.lexical.map(search_channel_status_info),
+                semantic: diagnostics.semantic.map(search_channel_status_info),
+            }
+        }),
     })
 }
 
@@ -280,16 +317,29 @@ fn search_source_info(source: SearchResultSource) -> SearchResultSourceInfo {
     }
 }
 
+fn search_channel_status_info(status: SearchChannelStatus) -> SearchChannelStatusInfo {
+    SearchChannelStatusInfo {
+        used: status.used,
+        state: status.state().as_str_name().to_string(),
+        served_graph_revision: status.served_graph_revision,
+        latest_known_graph_revision: status.latest_known_graph_revision,
+        revision_lag: status.revision_lag,
+        reason: status.reason,
+        retryable: status.retryable,
+    }
+}
+
 fn build_search_request(input: LexicalSearchInput) -> Result<SearchRequest, String> {
     let space_id = input.space_id.trim().to_string();
     let domain_id = input.domain_id.trim().to_string();
     let lexical_query = input.lexical_query.trim().to_string();
-    let semantic_query = trim_optional(input.semantic_query);
     if space_id.is_empty() || domain_id.is_empty() {
         return Err("Space ID and domain ID are required".to_string());
     }
     let mode = search_mode(input.mode.as_deref())?;
     let is_hybrid = mode == SearchMode::Hybrid as i32;
+    let semantic_consistency = semantic_consistency_policy(&input, is_hybrid)?;
+    let semantic_query = trim_optional(input.semantic_query);
     let lexical_weight = input.lexical_weight.unwrap_or(0.5);
     let semantic_weight = input.semantic_weight.unwrap_or(0.5);
     if !is_hybrid && lexical_query.is_empty() {
@@ -339,7 +389,110 @@ fn build_search_request(input: LexicalSearchInput) -> Result<SearchRequest, Stri
             candidate_count: input.lexical_candidates.unwrap_or(0),
             query: (!lexical_query.is_empty()).then_some(lexical_query),
         }),
+        semantic_consistency,
     })
+}
+
+fn semantic_consistency_policy(
+    input: &LexicalSearchInput,
+    is_hybrid: bool,
+) -> Result<Option<ProjectionConsistencyPolicy>, String> {
+    let consistency = trim_optional_ref(input.semantic_consistency.as_deref());
+    let stale_behavior = trim_optional_ref(input.semantic_stale_behavior.as_deref());
+    let min_required_graph_revision = input.min_required_graph_revision.unwrap_or(0);
+    let max_revision_lag = input.max_semantic_revision_lag.unwrap_or(0);
+    let max_staleness_seconds = input.max_semantic_staleness_seconds.unwrap_or(0);
+    let has_policy_field = consistency.is_some()
+        || stale_behavior.is_some()
+        || min_required_graph_revision != 0
+        || max_revision_lag != 0
+        || max_staleness_seconds != 0;
+    if !has_policy_field {
+        return Ok(None);
+    }
+    if !is_hybrid {
+        return Err("Semantic consistency options are only supported in hybrid search".to_string());
+    }
+    if min_required_graph_revision < 0 || max_revision_lag < 0 || max_staleness_seconds < 0 {
+        return Err(
+            "Semantic consistency revision and staleness bounds must not be negative".to_string(),
+        );
+    }
+    let consistency = consistency.ok_or_else(|| {
+        "semanticConsistency is required when semantic consistency options are set".to_string()
+    })?;
+    let consistency = projection_consistency(consistency)?;
+    let stale_behavior = match stale_behavior {
+        Some(value) => stale_projection_behavior(value)?,
+        None => default_stale_behavior(consistency),
+    };
+    if consistency == ProjectionConsistency::Strict
+        && stale_behavior != StaleProjectionBehavior::Fail
+    {
+        return Err("Strict semantic consistency requires fail stale behavior".to_string());
+    }
+    if consistency == ProjectionConsistency::ReadYourWrites && min_required_graph_revision == 0 {
+        return Err(
+            "Read-your-writes semantic consistency requires a minimum graph revision".to_string(),
+        );
+    }
+    if consistency == ProjectionConsistency::BoundedStale
+        && max_revision_lag == 0
+        && max_staleness_seconds == 0
+    {
+        return Err(
+            "Bounded-stale semantic consistency requires max revision lag or staleness".to_string(),
+        );
+    }
+    Ok(Some(ProjectionConsistencyPolicy {
+        consistency: consistency as i32,
+        min_required_graph_revision,
+        max_revision_lag,
+        max_staleness: (max_staleness_seconds > 0).then_some(prost_types::Duration {
+            seconds: max_staleness_seconds,
+            nanos: 0,
+        }),
+        stale_behavior: stale_behavior as i32,
+    }))
+}
+
+fn projection_consistency(raw: &str) -> Result<ProjectionConsistency, String> {
+    match raw.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+        "strict" | "projection_consistency_strict" => Ok(ProjectionConsistency::Strict),
+        "read_your_writes" | "read_your_write" | "projection_consistency_read_your_writes" => {
+            Ok(ProjectionConsistency::ReadYourWrites)
+        }
+        "bounded_stale" | "projection_consistency_bounded_stale" => {
+            Ok(ProjectionConsistency::BoundedStale)
+        }
+        "best_effort" | "projection_consistency_best_effort" => {
+            Ok(ProjectionConsistency::BestEffort)
+        }
+        other => Err(format!("Unsupported semantic consistency: {other}")),
+    }
+}
+
+fn stale_projection_behavior(raw: &str) -> Result<StaleProjectionBehavior, String> {
+    match raw.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+        "fail" | "stale_projection_behavior_fail" => Ok(StaleProjectionBehavior::Fail),
+        "serve_last_good" | "stale_projection_behavior_serve_last_good" => {
+            Ok(StaleProjectionBehavior::ServeLastGood)
+        }
+        "skip_channel" | "stale_projection_behavior_skip_channel" => {
+            Ok(StaleProjectionBehavior::SkipChannel)
+        }
+        other => Err(format!("Unsupported semantic stale behavior: {other}")),
+    }
+}
+
+fn default_stale_behavior(consistency: ProjectionConsistency) -> StaleProjectionBehavior {
+    match consistency {
+        ProjectionConsistency::BestEffort => StaleProjectionBehavior::SkipChannel,
+        ProjectionConsistency::ReadYourWrites | ProjectionConsistency::BoundedStale => {
+            StaleProjectionBehavior::ServeLastGood
+        }
+        _ => StaleProjectionBehavior::Fail,
+    }
 }
 
 fn validate_hybrid_queries(
@@ -422,6 +575,10 @@ fn trim_optional(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn trim_optional_ref(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
 fn trim_vec(values: Vec<String>) -> Vec<String> {
     values
         .into_iter()
@@ -485,6 +642,53 @@ mod tests {
         assert_eq!(
             request.semantic.and_then(|options| options.query),
             Some("how does raft recover?".to_string())
+        );
+        assert!(request.semantic_consistency.is_none());
+    }
+
+    #[test]
+    fn hybrid_request_maps_semantic_consistency_policy() {
+        let mut input = input("hybrid");
+        input.semantic_consistency = Some("bounded-stale".to_string());
+        input.semantic_stale_behavior = Some("serve-last-good".to_string());
+        input.max_semantic_revision_lag = Some(25);
+        input.max_semantic_staleness_seconds = Some(120);
+
+        let request = build_search_request(input).expect("hybrid request");
+        let policy = request.semantic_consistency.expect("semantic policy");
+        assert_eq!(
+            policy.consistency,
+            ProjectionConsistency::BoundedStale as i32
+        );
+        assert_eq!(
+            policy.stale_behavior,
+            StaleProjectionBehavior::ServeLastGood as i32
+        );
+        assert_eq!(policy.max_revision_lag, 25);
+        assert_eq!(policy.max_staleness.expect("max staleness").seconds, 120);
+    }
+
+    #[test]
+    fn semantic_consistency_policy_is_hybrid_only_and_validated() {
+        let mut lexical = input("lexical");
+        lexical.semantic_consistency = Some("best_effort".to_string());
+        assert_eq!(
+            build_search_request(lexical).unwrap_err(),
+            "Semantic consistency options are only supported in hybrid search"
+        );
+
+        let mut missing_revision = input("hybrid");
+        missing_revision.semantic_consistency = Some("read_your_writes".to_string());
+        assert_eq!(
+            build_search_request(missing_revision).unwrap_err(),
+            "Read-your-writes semantic consistency requires a minimum graph revision"
+        );
+
+        let mut missing_bound = input("hybrid");
+        missing_bound.semantic_consistency = Some("bounded_stale".to_string());
+        assert_eq!(
+            build_search_request(missing_bound).unwrap_err(),
+            "Bounded-stale semantic consistency requires max revision lag or staleness"
         );
     }
 

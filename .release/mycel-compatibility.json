@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "component": "mycel-console",
-  "component_release": "v0.22.0",
-  "source_revision": "663e8d2a93edb033a8fbc105c427015a403226e7",
-  "mycel_api_line": "0.22",
+  "component_release": "v0.23.0",
+  "source_revision": "37bed11962f267089ca5433f9ad2d5fed3f09316",
+  "mycel_api_line": "0.23",
   "supported_daemon_api_lines": [
-    "0.22"
+    "0.23"
   ],
   "incompatible_daemon_api_lines": [
     {
@@ -14,7 +14,13 @@
         "search-channel-owned-query-v1",
         "semantic-trigger-events-enum-v1"
       ]
+    },
+    {
+      "line": "0.22",
+      "contracts": [
+        "semantic-projection-consistency-v1"
+      ]
     }
   ],
-  "published_at": "2026-11-09T22:48:39Z"
+  "published_at": "2026-11-17T19:47:24Z"
 }

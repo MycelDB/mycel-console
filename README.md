@@ -16,8 +16,9 @@ Console release lines are certified with one exact Rust SDK contract and matchin
 | `v0.20.x` | `v0.20.x` | `v0.20.x` | Does not support the v0.21 enum-only semantic trigger contract. |
 | `v0.21.1` | exact `mycel-sdk v0.21.1` at `f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7` | `v0.21.x` | Uses channel-owned Search queries and enum-only semantic trigger events. Older daemon lines are not certified. |
 | `v0.22.x` | exact `mycel-sdk v0.22.0` at `87de6c921dbc175bf6b2dc20213855b58e2912c2` | `v0.22.x` | Adds provider-budget configuration and certifies the v0.22 API/daemon contract. |
+| `v0.23.x` | exact `mycel-sdk v0.23.0` at `ab54de0ad8c17819a0ad67bd39cffc46a3c85454` | `v0.23.x` | Adds hybrid semantic projection consistency controls and per-channel search diagnostics. Older daemon lines are not certified. |
 
-Semantic trigger events are mapped to generated `SemanticTriggerEventType` values at the Tauri boundary. The Console never reads or dual-writes legacy trigger strings, preserves unknown numeric projections as unsupported diagnostics, and refuses to save unresolved values.
+Semantic trigger events are mapped to generated `SemanticTriggerEventType` values at the Tauri boundary. The Console never reads or dual-writes legacy trigger strings, preserves unknown numeric projections as unsupported diagnostics, and refuses to save unresolved values. Search uses strict semantic projection consistency by default; relaxed bounded-stale or best-effort policies are opt-in per hybrid request and affect retrieval freshness only, not graph authorization or visibility.
 
 Machine-readable compatibility metadata is published at [`.release/mycel-compatibility.json`](.release/mycel-compatibility.json). The exact SDK version is pinned in `src-tauri/Cargo.toml`, and CI pins the immutable SDK source revision. Validate the synchronized contract with:
 

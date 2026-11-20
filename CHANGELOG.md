@@ -6,6 +6,11 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Added
+
+- Added read-only backup/restore validation evidence presentation for Phase 4 backup sets, including manifest artifact counts, compatibility state, validation blockers, warnings, and artifact byte totals.
+- Added quiesce participant admission evidence in the backup status view, including active read/write counts, read allowlist profile, deadline, and accepting-read/write state.
+
 ## [v0.23.0] - 2026-11-17
 
 ### Added

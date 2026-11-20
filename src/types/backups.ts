@@ -35,6 +35,12 @@ export type QuiesceParticipantStatusInfo = {
   source: string;
   since: string;
   lastError: string;
+  activeReadOnly?: number;
+  activeWrites?: number;
+  readAllowlistProfile?: string;
+  deadline?: string;
+  acceptingReadOnly?: boolean;
+  acceptingWrites?: boolean;
 };
 
 export type BackupStatusInfo = {
@@ -150,6 +156,57 @@ export type ClusterBackupStatusInfo = {
   cancelRequested: boolean;
   currentPhase: string;
   retryAfterSeconds: number;
+  repositoryId?: string;
+  cleanupTasks?: unknown[];
+  validation?: ValidationSummaryInfo | null;
+};
+
+export type ValidationBlockerInfo = {
+  reason: string;
+  detail: string;
+  retryable: boolean;
+  fieldPath: string;
+};
+
+export type ValidationSummaryInfo = {
+  state: string;
+  checkedAt: string;
+  blockers: ValidationBlockerInfo[];
+  warnings: string[];
+  validatorVersion: string;
+  expectedNodeCount: number;
+  nodeArtifactCount: number;
+  requiredArtifactCount: number;
+  validatedArtifactCount: number;
+  totalArtifactBytes: number;
+  checksumAlgorithm: string;
+  errors: string[];
+};
+
+export type CompatibilitySummaryInfo = {
+  state: string;
+  sourceVersion: string;
+  daemonVersion: string;
+  requiredFeatures: string[];
+  blockers: ValidationBlockerInfo[];
+  storageFormatVersions: Record<string, string>;
+  minRestoreMycelVersion: string;
+  maxRestoreMycelVersion: string;
+  supportedRestoreTargetModes: string[];
+  supportedIdentityModes: string[];
+  requiresSameTopology: boolean;
+  requiresSourceFencingForPreservedIdentity: boolean;
+};
+
+export type BackupSetManifestSummaryInfo = {
+  manifestVersion: number;
+  manifestUri: string;
+  manifestChecksumSha256: string;
+  completeMarkerUri: string;
+  completeMarkerChecksumSha256: string;
+  manifestSizeBytes: number;
+  totalArtifactBytes: number;
+  artifactCount: number;
 };
 
 export type ClusterBackupSetSummaryInfo = {
@@ -161,6 +218,12 @@ export type ClusterBackupSetSummaryInfo = {
   expectedNodes: number;
   manifestUri: string;
   nodes: ClusterBackupNodeArtifactInfo[];
+  repositoryId?: string;
+  compatibility?: CompatibilitySummaryInfo | null;
+  validation?: ValidationSummaryInfo | null;
+  deletionState?: string;
+  retentionClass?: string;
+  manifest?: BackupSetManifestSummaryInfo | null;
 };
 
 export type StartClusterBackupInput = {
@@ -211,4 +274,5 @@ export type ValidateClusterBackupSetResponse = {
   valid: boolean;
   errors: string[];
   backupSet?: ClusterBackupSetSummaryInfo | null;
+  validation?: ValidationSummaryInfo | null;
 };

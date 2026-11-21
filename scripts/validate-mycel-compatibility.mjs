@@ -32,8 +32,8 @@ const expected = {
   consoleVersion: "0.23.0",
   consoleRelease: "v0.23.0",
   consoleSource: "37bed11962f267089ca5433f9ad2d5fed3f09316",
-  rustSdkVersion: "0.23.0",
-  rustSdkSource: "ab54de0ad8c17819a0ad67bd39cffc46a3c85454",
+  rustSdkVersion: "0.23.1",
+  rustSdkSource: "1c8ca7de55b097d19890951effeedffb92c60786",
   apiLine: "0.23",
 };
 

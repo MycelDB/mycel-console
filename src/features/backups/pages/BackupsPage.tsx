@@ -49,6 +49,7 @@ import type {
   TriggerBackupResponse,
   ValidateClusterBackupSetInput,
   ValidateClusterBackupSetResponse,
+  ValidationSummaryInfo,
 } from "../../../types/backups";
 
 type RestoreConfirmationKey =
@@ -801,6 +802,7 @@ function ClusterBackupStatusPanel({
               Cancellation has been requested for this backup.
             </Alert>
           )}
+          <BackupValidationSummaryPanel summary={current.validation} />
           {current.blockers.length > 0 && (
             <ClusterBackupBlockers blockers={current.blockers} />
           )}
@@ -937,6 +939,7 @@ function ClusterBackupHistoryPanel({
                 <TableHead className="px-4 py-3">Created</TableHead>
                 <TableHead className="px-4 py-3">Nodes</TableHead>
                 <TableHead className="px-4 py-3">Manifest</TableHead>
+                <TableHead className="px-4 py-3">Validation</TableHead>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
@@ -955,6 +958,11 @@ function ClusterBackupHistoryPanel({
                     {backup.nodes.length}/{backup.expectedNodes || 0}
                   </td>
                   <td className="px-4 py-3">{backup.manifestUri || "—"}</td>
+                  <td className="px-4 py-3">
+                    {backup.validation?.state
+                      ? `${formatEnumLabel(backup.validation.state)} (${backup.validation.validatedArtifactCount || 0}/${backup.validation.requiredArtifactCount || 0})`
+                      : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1026,6 +1034,7 @@ function ClusterBackupValidationPanel({
             : result.errors.join("; ") || "Backup set validation failed."}
         </Alert>
       )}
+      <BackupValidationSummaryPanel summary={result?.validation || result?.backupSet?.validation} />
       {result?.valid && result.backupSet && (
         <ClusterBackupRestoreGuide
           path={path}
@@ -1068,7 +1077,12 @@ function ClusterBackupRestoreGuide({
         <Metric label="Cluster" value={backupSet.clusterId || "Unknown"} />
         <Metric label="Expected nodes" value={String(backupSet.expectedNodes || backupSet.nodes.length)} />
         <Metric label="Completed" value={formatTimestamp(backupSet.completedAt)} />
+        <Metric label="Artifacts" value={String(backupSet.manifest?.artifactCount ?? backupSet.nodes.length)} />
+        <Metric label="Artifact bytes" value={formatBytes(backupSet.manifest?.totalArtifactBytes ?? backupSet.validation?.totalArtifactBytes ?? 0)} />
+        <Metric label="Compatibility" value={formatEnumLabel(backupSet.compatibility?.state, "Unknown")} />
+        <Metric label="Identity modes" value={backupSet.compatibility?.supportedIdentityModes?.map((mode) => formatEnumLabel(mode)).join(", ") || "Not published"} />
       </dl>
+      <BackupValidationSummaryPanel summary={backupSet.validation} />
       <div className="mt-5">
         <Text as="p" className="font-medium">
           Ordinal to archive mapping
@@ -1130,6 +1144,87 @@ function CommandBlock({ label, command }: { label: string; command: string }) {
   );
 }
 
+function BackupValidationSummaryPanel({
+  summary,
+}: {
+  summary?: ValidationSummaryInfo | null;
+}) {
+  if (!summary) return null;
+  const blockers = summary.blockers || [];
+  const warnings = summary.warnings || [];
+  const errors = summary.errors || [];
+  return (
+    <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
+      <Text as="p" className="font-medium">
+        Backup-set validation evidence
+      </Text>
+      <dl className="mt-3 grid gap-3 md:grid-cols-4">
+        <Metric label="State" value={formatEnumLabel(summary.state, "Unknown")} />
+        <Metric label="Checked" value={formatTimestamp(summary.checkedAt)} />
+        <Metric label="Validator" value={summary.validatorVersion || "Unknown"} />
+        <Metric label="Checksum" value={summary.checksumAlgorithm || "Unknown"} />
+        <Metric label="Nodes" value={`${summary.nodeArtifactCount || 0}/${summary.expectedNodeCount || 0}`} />
+        <Metric label="Required artifacts" value={`${summary.validatedArtifactCount || 0}/${summary.requiredArtifactCount || 0}`} />
+        <Metric label="Artifact bytes" value={formatBytes(summary.totalArtifactBytes || 0)} />
+        <Metric label="Blockers" value={String(blockers.length + errors.length)} />
+      </dl>
+      {(errors.length > 0 || blockers.length > 0) && (
+        <Alert className="mt-4">
+          {[...errors, ...blockers.map((blocker) => `${blocker.reason || "blocked"}: ${blocker.detail || blocker.fieldPath || "validation blocker"}`)].join("; ")}
+        </Alert>
+      )}
+      {warnings.length > 0 && (
+        <Text intent="muted" size="sm" className="mt-3">
+          Warnings: {warnings.join("; ")}
+        </Text>
+      )}
+    </div>
+  );
+}
+
+function QuiesceParticipantPanel({
+  participants,
+}: {
+  participants: NonNullable<BackupStatusResponse["status"]>["participants"];
+}) {
+  return (
+    <div className="mt-5 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+        <thead
+          className={`bg-slate-100 dark:bg-slate-950/50 text-left text-xs uppercase tracking-wide ${themeClasses.text.parts.mutedLight}`}
+        >
+          <tr>
+            <TableHead className="px-4 py-3">Participant</TableHead>
+            <TableHead className="px-4 py-3">Admission</TableHead>
+            <TableHead className="px-4 py-3">Active</TableHead>
+            <TableHead className="px-4 py-3">Profile</TableHead>
+            <TableHead className="px-4 py-3">Deadline</TableHead>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+          {participants.map((participant) => (
+            <tr key={participant.name}>
+              <td className="px-4 py-3 font-medium">{participant.name}</td>
+              <td className="px-4 py-3">
+                {participant.quiesced
+                  ? `Quiesced (reads ${participant.acceptingReadOnly ? "open" : "closed"}, writes ${participant.acceptingWrites ? "open" : "closed"})`
+                  : "Open"}
+              </td>
+              <td className="px-4 py-3">
+                {participant.active} total / {participant.activeReadOnly ?? 0} reads / {participant.activeWrites ?? 0} writes
+              </td>
+              <td className="px-4 py-3">
+                {formatEnumLabel(participant.readAllowlistProfile, "Control only")}
+              </td>
+              <td className="px-4 py-3">{formatTimestamp(participant.deadline)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function StatusPanel({ status }: { status: BackupStatusResponse | null }) {
   const current = status?.status;
   return (
@@ -1156,6 +1251,9 @@ function StatusPanel({ status }: { status: BackupStatusResponse | null }) {
         <Metric label="Active backup" value={current?.backupId || "None"} />
       </dl>
       {current?.error && <Alert className="mt-4">{current.error}</Alert>}
+      {current?.participants && current.participants.length > 0 && (
+        <QuiesceParticipantPanel participants={current.participants} />
+      )}
     </article>
   );
 }

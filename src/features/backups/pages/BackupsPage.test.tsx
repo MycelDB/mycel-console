@@ -39,7 +39,24 @@ const status: BackupStatusResponse = {
     archivePath: "/data/mycel/backups/backup-1.tar.zst",
     manifestPath: "/data/mycel/backups/backup-1.json",
     error: "",
-    participants: [],
+    participants: [
+      {
+        name: "api-ingress",
+        quiesced: true,
+        active: 3,
+        activeReadOnly: 2,
+        activeWrites: 1,
+        reason: "backup",
+        mode: "backup",
+        source: "backup-manager",
+        since: "2026-07-06T20:00:00Z",
+        deadline: "2026-07-06T20:00:30Z",
+        readAllowlistProfile: "control_only",
+        acceptingReadOnly: false,
+        acceptingWrites: false,
+        lastError: "",
+      },
+    ],
     lastSuccessAt: "2026-07-06T20:00:10Z",
     nextRunAt: "2026-07-06T21:00:00Z",
   },
@@ -73,6 +90,44 @@ const clusterBackupsResponse: ListClusterBackupsResponse = {
       expectedNodes: 3,
       manifestUri: "file:///backups/backup-set-1/backup-set.json",
       nodes: [],
+      validation: {
+        state: "BACKUP_VALIDATION_STATE_VALID",
+        checkedAt: "2026-07-06T20:00:11Z",
+        blockers: [],
+        warnings: [],
+        validatorVersion: "backup-set-v1",
+        expectedNodeCount: 3,
+        nodeArtifactCount: 3,
+        requiredArtifactCount: 3,
+        validatedArtifactCount: 3,
+        totalArtifactBytes: 4096,
+        checksumAlgorithm: "SHA256",
+        errors: [],
+      },
+      compatibility: {
+        state: "BACKUP_VALIDATION_STATE_VALID",
+        sourceVersion: "0.23.1",
+        daemonVersion: "0.23.1",
+        requiredFeatures: [],
+        blockers: [],
+        storageFormatVersions: { raft: "v1" },
+        minRestoreMycelVersion: "0.23.1",
+        maxRestoreMycelVersion: "0.23.x",
+        supportedRestoreTargetModes: ["NEW_CLUSTER_BOOTSTRAP"],
+        supportedIdentityModes: ["PRESERVE_BACKUP_ID"],
+        requiresSameTopology: true,
+        requiresSourceFencingForPreservedIdentity: true,
+      },
+      manifest: {
+        manifestVersion: 1,
+        manifestUri: "file:///backups/backup-set-1/backup-set.json",
+        manifestChecksumSha256: "abc",
+        completeMarkerUri: "file:///backups/backup-set-1/COMPLETE",
+        completeMarkerChecksumSha256: "def",
+        manifestSizeBytes: 1024,
+        totalArtifactBytes: 4096,
+        artifactCount: 3,
+      },
     },
   ],
   nextPageToken: "",
@@ -281,6 +336,8 @@ test("keeps backup data readable while hiding mutation actions without backup ma
   });
 
   expect(await screen.findByText("Succeeded")).toBeInTheDocument();
+  expect(screen.getByText(/3 total \/ 2 reads \/ 1 writes/i)).toBeInTheDocument();
+  expect(screen.getByText(/quiesced \(reads closed, writes closed\)/i)).toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: /trigger backup/i }),
   ).not.toBeInTheDocument();
@@ -344,6 +401,8 @@ test("starts and validates cluster backups", async () => {
     }),
   );
   expect(await screen.findByText(/cluster backup set is valid/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/backup-set validation evidence/i).length).toBeGreaterThan(0);
+  expect(screen.getAllByText("backup-set-v1").length).toBeGreaterThan(0);
 });
 
 test("renders guided restore plan and gates generated commands behind confirmations", async () => {

@@ -286,6 +286,16 @@ export function ClusterSummaryCard({
             </ul>
           </div>
         ) : null}
+        {readiness?.derivedReady === false ||
+        readiness?.restoredClusterReady === false ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <div className="font-medium">Derived artifacts need attention</div>
+            <p className="mt-1">
+              Restored derived subsystems may need rebuild before search or
+              derived-query behavior is fully ready.
+            </p>
+          </div>
+        ) : null}
         <ErrorGroup
           errors={errors}
           title="Cluster status unavailable"

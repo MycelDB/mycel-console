@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use mycel_sdk::proto::admin::v1::{
-    BackupArchiveFormat, BackupPolicy, BackupStatus, BackupSummary, ClusterBackupBlocker,
-    ClusterBackupNodeArtifact, ClusterBackupSetSummary, ClusterBackupState, ClusterBackupStatus,
-    QuiesceParticipantStatus, QuiesceStatus,
+    BackupArchiveFormat, BackupDeletionState, BackupPolicy, BackupRetentionClass,
+    BackupSetManifestSummary, BackupStatus, BackupSummary, BackupValidationState,
+    ClusterBackupBlocker, ClusterBackupNodeArtifact, ClusterBackupSetSummary, ClusterBackupState,
+    ClusterBackupStatus, CompatibilitySummary, QuiesceParticipantStatus, QuiesceStatus,
+    ValidationBlocker, ValidationSummary,
 };
 use tauri::State;
 
@@ -75,6 +77,12 @@ pub struct QuiesceParticipantStatusInfo {
     pub source: String,
     pub since: String,
     pub last_error: String,
+    pub active_read_only: i32,
+    pub active_writes: i32,
+    pub read_allowlist_profile: String,
+    pub deadline: String,
+    pub accepting_read_only: bool,
+    pub accepting_writes: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -188,6 +196,8 @@ pub struct ClusterBackupStatusInfo {
     pub cancel_requested: bool,
     pub current_phase: String,
     pub retry_after_seconds: i64,
+    pub repository_id: String,
+    pub validation: Option<ValidationSummaryInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -214,6 +224,12 @@ pub struct ClusterBackupSetSummaryInfo {
     pub expected_nodes: i32,
     pub manifest_uri: String,
     pub nodes: Vec<ClusterBackupNodeArtifactInfo>,
+    pub repository_id: String,
+    pub compatibility: Option<CompatibilitySummaryInfo>,
+    pub validation: Option<ValidationSummaryInfo>,
+    pub deletion_state: String,
+    pub retention_class: String,
+    pub manifest: Option<BackupSetManifestSummaryInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -230,6 +246,62 @@ pub struct ClusterBackupNodeArtifactInfo {
     pub size_bytes: i64,
     pub checksum_sha256: String,
     pub applied_indexes: HashMap<String, u64>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidationBlockerInfo {
+    pub reason: String,
+    pub detail: String,
+    pub retryable: bool,
+    pub field_path: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidationSummaryInfo {
+    pub state: String,
+    pub checked_at: String,
+    pub blockers: Vec<ValidationBlockerInfo>,
+    pub warnings: Vec<String>,
+    pub validator_version: String,
+    pub expected_node_count: i32,
+    pub node_artifact_count: i32,
+    pub required_artifact_count: i32,
+    pub validated_artifact_count: i32,
+    pub total_artifact_bytes: i64,
+    pub checksum_algorithm: String,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompatibilitySummaryInfo {
+    pub state: String,
+    pub source_version: String,
+    pub daemon_version: String,
+    pub required_features: Vec<String>,
+    pub blockers: Vec<ValidationBlockerInfo>,
+    pub storage_format_versions: HashMap<String, String>,
+    pub min_restore_mycel_version: String,
+    pub max_restore_mycel_version: String,
+    pub supported_restore_target_modes: Vec<String>,
+    pub supported_identity_modes: Vec<String>,
+    pub requires_same_topology: bool,
+    pub requires_source_fencing_for_preserved_identity: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSetManifestSummaryInfo {
+    pub manifest_version: i32,
+    pub manifest_uri: String,
+    pub manifest_checksum_sha256: String,
+    pub complete_marker_uri: String,
+    pub complete_marker_checksum_sha256: String,
+    pub manifest_size_bytes: i64,
+    pub total_artifact_bytes: i64,
+    pub artifact_count: i32,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -264,6 +336,7 @@ pub struct ValidateClusterBackupSetResponseInfo {
     pub valid: bool,
     pub errors: Vec<String>,
     pub backup_set: Option<ClusterBackupSetSummaryInfo>,
+    pub validation: Option<ValidationSummaryInfo>,
 }
 
 #[tauri::command]
@@ -535,6 +608,7 @@ pub async fn admin_validate_cluster_backup_set(
         valid: response.valid,
         errors: response.errors,
         backup_set: response.backup_set.map(cluster_backup_set_summary_info),
+        validation: response.validation.map(validation_summary_info),
     })
 }
 
@@ -582,6 +656,13 @@ fn backup_policy(policy: BackupPolicyInfo) -> Result<BackupPolicy, String> {
         weekdays: policy.weekdays,
         run_missed: policy.run_missed,
         archive_format: archive_format as i32,
+        default_repository_id: String::new(),
+        capture_provider: 0,
+        quiesce_read_profile: 0,
+        allow_read_only_during_quiesce: policy.allow_reads_during_backup,
+        derived_subsystems: Vec::new(),
+        retention_policy: None,
+        validation_options: None,
     })
 }
 
@@ -640,6 +721,27 @@ fn cluster_backup_state_name(value: i32) -> String {
         .to_string()
 }
 
+fn backup_validation_state_name(value: i32) -> String {
+    BackupValidationState::try_from(value)
+        .unwrap_or(BackupValidationState::Unspecified)
+        .as_str_name()
+        .to_string()
+}
+
+fn deletion_state_name(value: i32) -> String {
+    BackupDeletionState::try_from(value)
+        .unwrap_or(BackupDeletionState::Unspecified)
+        .as_str_name()
+        .to_string()
+}
+
+fn retention_class_name(value: i32) -> String {
+    BackupRetentionClass::try_from(value)
+        .unwrap_or(BackupRetentionClass::Unspecified)
+        .as_str_name()
+        .to_string()
+}
+
 fn cluster_backup_status_info(status: ClusterBackupStatus) -> ClusterBackupStatusInfo {
     ClusterBackupStatusInfo {
         backup_set_id: status.backup_set_id,
@@ -668,6 +770,8 @@ fn cluster_backup_status_info(status: ClusterBackupStatus) -> ClusterBackupStatu
         cancel_requested: status.cancel_requested,
         current_phase: status.current_phase,
         retry_after_seconds: status.retry_after_seconds,
+        repository_id: status.repository_id,
+        validation: status.validation.map(validation_summary_info),
     }
 }
 
@@ -700,6 +804,12 @@ fn cluster_backup_set_summary_info(
             .into_iter()
             .map(cluster_backup_node_artifact_info)
             .collect(),
+        repository_id: summary.repository_id,
+        compatibility: summary.compatibility.map(compatibility_summary_info),
+        validation: summary.validation.map(validation_summary_info),
+        deletion_state: deletion_state_name(summary.deletion_state),
+        retention_class: retention_class_name(summary.retention_class),
+        manifest: summary.manifest.map(backup_set_manifest_summary_info),
     }
 }
 
@@ -718,6 +828,73 @@ fn cluster_backup_node_artifact_info(
         size_bytes: node.size_bytes,
         checksum_sha256: node.checksum_sha256,
         applied_indexes: node.applied_indexes,
+    }
+}
+
+fn validation_blocker_info(blocker: ValidationBlocker) -> ValidationBlockerInfo {
+    ValidationBlockerInfo {
+        reason: blocker.reason,
+        detail: blocker.detail,
+        retryable: blocker.retryable,
+        field_path: blocker.field_path,
+    }
+}
+
+fn validation_summary_info(summary: ValidationSummary) -> ValidationSummaryInfo {
+    ValidationSummaryInfo {
+        state: backup_validation_state_name(summary.state),
+        checked_at: summary.checked_at,
+        blockers: summary
+            .blockers
+            .into_iter()
+            .map(validation_blocker_info)
+            .collect(),
+        warnings: summary.warnings,
+        validator_version: summary.validator_version,
+        expected_node_count: summary.expected_node_count,
+        node_artifact_count: summary.node_artifact_count,
+        required_artifact_count: summary.required_artifact_count,
+        validated_artifact_count: summary.validated_artifact_count,
+        total_artifact_bytes: summary.total_artifact_bytes,
+        checksum_algorithm: summary.checksum_algorithm,
+        errors: summary.errors,
+    }
+}
+
+fn compatibility_summary_info(summary: CompatibilitySummary) -> CompatibilitySummaryInfo {
+    CompatibilitySummaryInfo {
+        state: backup_validation_state_name(summary.state),
+        source_version: summary.source_version,
+        daemon_version: summary.daemon_version,
+        required_features: summary.required_features,
+        blockers: summary
+            .blockers
+            .into_iter()
+            .map(validation_blocker_info)
+            .collect(),
+        storage_format_versions: summary.storage_format_versions,
+        min_restore_mycel_version: summary.min_restore_mycel_version,
+        max_restore_mycel_version: summary.max_restore_mycel_version,
+        supported_restore_target_modes: summary.supported_restore_target_modes,
+        supported_identity_modes: summary.supported_identity_modes,
+        requires_same_topology: summary.requires_same_topology,
+        requires_source_fencing_for_preserved_identity: summary
+            .requires_source_fencing_for_preserved_identity,
+    }
+}
+
+fn backup_set_manifest_summary_info(
+    summary: BackupSetManifestSummary,
+) -> BackupSetManifestSummaryInfo {
+    BackupSetManifestSummaryInfo {
+        manifest_version: summary.manifest_version,
+        manifest_uri: summary.manifest_uri,
+        manifest_checksum_sha256: summary.manifest_checksum_sha256,
+        complete_marker_uri: summary.complete_marker_uri,
+        complete_marker_checksum_sha256: summary.complete_marker_checksum_sha256,
+        manifest_size_bytes: summary.manifest_size_bytes,
+        total_artifact_bytes: summary.total_artifact_bytes,
+        artifact_count: summary.artifact_count,
     }
 }
 
@@ -743,5 +920,11 @@ fn quiesce_participant_status_info(
         source: participant.source,
         since: participant.since,
         last_error: participant.last_error,
+        active_read_only: participant.active_read_only,
+        active_writes: participant.active_writes,
+        read_allowlist_profile: participant.read_allowlist_profile,
+        deadline: participant.deadline,
+        accepting_read_only: participant.accepting_read_only,
+        accepting_writes: participant.accepting_writes,
     }
 }

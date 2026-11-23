@@ -1,16 +1,18 @@
+use std::collections::HashMap;
+
 use tauri::State;
 
 use crate::{commands::command_error::authenticated_rpc, state::AppState};
 use mycel_sdk::proto::admin::v1::{
-    ClusterEngine, ClusterMember, ClusterMemberState, ClusterMode, ClusterNodeState, ClusterPeer,
-    ClusterPeerSource, ClusterPeerState, ClusterReadiness, GetClusterHealthRequest,
-    GetClusterRuntimeStatusRequest, GetClusterStatusRequest, GetGraphConsistencyReportRequest,
-    GetLocalGraphConsistencyRequest, GetLocalGraphForensicExportRequest, GraphConsistencyReplica,
-    GraphConsistencyStatus, GraphConsistencyWarning, GraphConsistencyWarningSeverity,
-    GraphForensicEntity, GraphForensicExportManifest, ListClusterMembersRequest,
-    ListRaftGroupsRequest, LocalGraphConsistencyStats, LookupSpaceRouteRequest, RaftGroupHealth,
-    RaftGroupKind, RaftGroupStatus, RaftReadDiagnostics, RaftTransportDiagnostics,
-    RaftTransportTargetDiagnostics,
+    ClusterDerivedSubsystemReadiness, ClusterEngine, ClusterMember, ClusterMemberState,
+    ClusterMode, ClusterNodeState, ClusterPeer, ClusterPeerSource, ClusterPeerState,
+    ClusterReadiness, GetClusterHealthRequest, GetClusterRuntimeStatusRequest,
+    GetClusterStatusRequest, GetGraphConsistencyReportRequest, GetLocalGraphConsistencyRequest,
+    GetLocalGraphForensicExportRequest, GraphConsistencyReplica, GraphConsistencyStatus,
+    GraphConsistencyWarning, GraphConsistencyWarningSeverity, GraphForensicEntity,
+    GraphForensicExportManifest, ListClusterMembersRequest, ListRaftGroupsRequest,
+    LocalGraphConsistencyStats, LookupSpaceRouteRequest, RaftGroupHealth, RaftGroupKind,
+    RaftGroupStatus, RaftReadDiagnostics, RaftTransportDiagnostics, RaftTransportTargetDiagnostics,
 };
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -75,6 +77,27 @@ pub struct ClusterReadinessInfo {
     pub local_cluster_id: Option<String>,
     pub expected_member_count: i32,
     pub readiness_blockers: Vec<String>,
+    pub derived_ready: bool,
+    pub restored_cluster_ready: bool,
+    pub derived_subsystems: Vec<ClusterDerivedSubsystemReadinessInfo>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterDerivedSubsystemReadinessInfo {
+    pub subsystem: String,
+    pub state: String,
+    pub ready: bool,
+    pub rebuild_required: bool,
+    pub reason: Option<String>,
+    pub artifact_id: Option<String>,
+    pub policy_mode: Option<String>,
+    pub restore_policy: Option<String>,
+    pub validation_state: Option<String>,
+    pub source_frontier_kind: Option<String>,
+    pub source_frontier_value: Option<String>,
+    pub evidence: HashMap<String, String>,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -637,6 +660,33 @@ fn readiness_info(readiness: ClusterReadiness) -> ClusterReadinessInfo {
         local_cluster_id: optional(readiness.local_cluster_id),
         expected_member_count: readiness.expected_member_count,
         readiness_blockers: readiness.readiness_blockers,
+        derived_ready: readiness.derived_ready,
+        restored_cluster_ready: readiness.restored_cluster_ready,
+        derived_subsystems: readiness
+            .derived_subsystems
+            .into_iter()
+            .map(derived_subsystem_readiness_info)
+            .collect(),
+    }
+}
+
+fn derived_subsystem_readiness_info(
+    subsystem: ClusterDerivedSubsystemReadiness,
+) -> ClusterDerivedSubsystemReadinessInfo {
+    ClusterDerivedSubsystemReadinessInfo {
+        subsystem: subsystem.subsystem,
+        state: subsystem.state,
+        ready: subsystem.ready,
+        rebuild_required: subsystem.rebuild_required,
+        reason: optional(subsystem.reason),
+        artifact_id: optional(subsystem.artifact_id),
+        policy_mode: optional(subsystem.policy_mode),
+        restore_policy: optional(subsystem.restore_policy),
+        validation_state: optional(subsystem.validation_state),
+        source_frontier_kind: optional(subsystem.source_frontier_kind),
+        source_frontier_value: optional(subsystem.source_frontier_value),
+        evidence: subsystem.evidence,
+        updated_at: optional(subsystem.updated_at),
     }
 }
 
@@ -936,6 +986,23 @@ mod tests {
 
             read_ready: false,
             write_ready: false,
+            derived_ready: false,
+            restored_cluster_ready: false,
+            derived_subsystems: vec![ClusterDerivedSubsystemReadiness {
+                subsystem: "LEXICAL_SEARCH".to_string(),
+                state: "rebuild_required".to_string(),
+                ready: false,
+                rebuild_required: true,
+                reason: "derived_artifact_omitted_rebuild_required".to_string(),
+                artifact_id: String::new(),
+                policy_mode: "omit".to_string(),
+                restore_policy: "rebuild".to_string(),
+                validation_state: "valid".to_string(),
+                source_frontier_kind: "graph_revision".to_string(),
+                source_frontier_value: "42".to_string(),
+                evidence: HashMap::new(),
+                updated_at: "2026-11-23T00:00:00Z".to_string(),
+            }],
             authoritative_cluster_id: "cluster-a".to_string(),
             local_cluster_id: "cluster-b".to_string(),
             expected_member_count: 3,
@@ -950,6 +1017,15 @@ mod tests {
         assert_eq!(info.local_cluster_id.as_deref(), Some("cluster-b"));
         assert_eq!(info.expected_member_count, 3);
         assert_eq!(info.readiness_blockers, vec!["metadata not validated"]);
+        assert!(!info.derived_ready);
+        assert!(!info.restored_cluster_ready);
+        assert_eq!(info.derived_subsystems.len(), 1);
+        assert_eq!(info.derived_subsystems[0].subsystem, "LEXICAL_SEARCH");
+        assert!(info.derived_subsystems[0].rebuild_required);
+        assert_eq!(
+            info.derived_subsystems[0].reason.as_deref(),
+            Some("derived_artifact_omitted_rebuild_required"),
+        );
     }
 
     #[test]

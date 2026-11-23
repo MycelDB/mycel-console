@@ -6,10 +6,23 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.24.0] - 2026-11-23
+
 ### Added
 
-- Added read-only backup/restore validation evidence presentation for Phase 4 backup sets, including manifest artifact counts, compatibility state, validation blockers, warnings, and artifact byte totals.
+- Added read-only backup/restore validation evidence presentation for v0.24 backup sets, including manifest artifact counts, compatibility state, validation blockers, warnings, and artifact byte totals.
 - Added quiesce participant admission evidence in the backup status view, including active read/write counts, read allowlist profile, deadline, and accepting-read/write state.
+- Added restored-derived subsystem readiness display in cluster readiness views so operators can see rebuild-required lexical/search/checkpoint artifacts after repository restore.
+
+### Changed
+
+- Updated Console package and Tauri versions to v0.24.0 and pinned the Tauri bridge to exact `mycel-sdk v0.24.0`.
+- Updated machine-readable compatibility metadata and CI validation for the coordinated Mycel v0.24 daemon/API and Rust SDK release line.
+
+### Compatibility
+
+- Console v0.24.0 is paired with exact `mycel-sdk v0.24.0` source revision `7030f0e0d6cef6309be87fd21cbbf5455018ebe6` and Mycel daemon/API v0.24.x. Older daemon lines are not certified.
+- This release consumes v0.24 backup/restore and quiesce evidence. Usage accounting and admission administration remain available through the daemon CLI and SDKs; Console does not add usage-limit management UI in this release.
 
 ## [v0.23.0] - 2026-11-17
 

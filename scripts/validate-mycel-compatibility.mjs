@@ -29,12 +29,12 @@ if (JSON.stringify(actualManifestKeys) !== JSON.stringify(expectedManifestKeys))
 }
 
 const expected = {
-  consoleVersion: "0.23.0",
-  consoleRelease: "v0.23.0",
-  consoleSource: "37bed11962f267089ca5433f9ad2d5fed3f09316",
-  rustSdkVersion: "0.23.1",
-  rustSdkSource: "1c8ca7de55b097d19890951effeedffb92c60786",
-  apiLine: "0.23",
+  consoleVersion: "0.24.0",
+  consoleRelease: "v0.24.0",
+  consoleSource: "a0c0efae9b8ce0bde6d53eb67761c301b8d5d007",
+  rustSdkVersion: "0.24.0",
+  rustSdkSource: "7030f0e0d6cef6309be87fd21cbbf5455018ebe6",
+  apiLine: "0.24",
 };
 
 if (manifest.schema_version !== 1) errors.push(`schema_version=${manifest.schema_version}`);
@@ -64,6 +64,14 @@ const expectedIncompatible = [
   {
     line: "0.22",
     contracts: ["semantic-projection-consistency-v1"],
+  },
+  {
+    line: "0.23",
+    contracts: [
+      "repository-backed-backup-restore-v1",
+      "backup-quiesce-admission-evidence-v1",
+      "restored-derived-readiness-v1",
+    ],
   },
 ];
 if (JSON.stringify(incompatible) !== JSON.stringify(expectedIncompatible)) {

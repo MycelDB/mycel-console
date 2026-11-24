@@ -6,6 +6,22 @@ export type ClusterEngine = "raft" | "static" | "unspecified" | string;
 export type RaftGroupKind = "system" | "partition" | "unspecified" | string;
 export type RaftGroupHealth = "healthy" | "no_leader" | "unknown" | "unspecified" | string;
 
+export type ClusterDerivedSubsystemReadinessInfo = {
+  subsystem: string;
+  state: string;
+  ready: boolean;
+  rebuildRequired: boolean;
+  reason?: string;
+  artifactId?: string;
+  policyMode?: string;
+  restorePolicy?: string;
+  validationState?: string;
+  sourceFrontierKind?: string;
+  sourceFrontierValue?: string;
+  evidence: Record<string, string>;
+  updatedAt?: string;
+};
+
 export type ClusterReadinessInfo = {
   clientReady: boolean;
   metadataApplied: boolean;
@@ -15,6 +31,9 @@ export type ClusterReadinessInfo = {
   localClusterId?: string;
   expectedMemberCount: number;
   readinessBlockers: string[];
+  derivedReady?: boolean;
+  restoredClusterReady?: boolean;
+  derivedSubsystems?: ClusterDerivedSubsystemReadinessInfo[];
 };
 
 export type RaftTransportTargetDiagnosticsInfo = {

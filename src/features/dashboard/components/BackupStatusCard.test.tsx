@@ -1,87 +1,83 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { BackupStatusCard } from "./BackupStatusCard";
-import type { BackupStatusResponse, ListBackupsResponse } from "../../../types/backups";
+import type { GetBackupObservabilityResponse, ListBackupSetsResponse } from "../../../types/backups";
 
-const status: BackupStatusResponse = {
-  status: {
-    backupId: "backup-2",
-    state: "succeeded",
-    startedAt: "2026-07-06T20:00:00Z",
-    completedAt: "2026-07-06T20:00:10Z",
-    archivePath: "/data/mycel/backups/backup-2.tar.zst",
-    manifestPath: "/data/mycel/backups/backup-2.json",
-    error: "",
-    participants: [],
-    lastSuccessAt: "2026-07-06T20:00:10Z",
-    nextRunAt: "2026-07-06T21:00:00Z",
+const observability: GetBackupObservabilityResponse = {
+  snapshot: {
+    observedAt: "2026-07-06T20:00:10Z",
+    repositoryId: "repo-1",
+    metrics: [],
+    alerts: [],
+    summaryState: "healthy",
   },
-  quiesce: { participants: [] },
 };
 
-const backups: ListBackupsResponse = {
-  backups: [
+const backupSets: ListBackupSetsResponse = {
+  backupSets: [
     {
-      backupId: "backup-2",
-      archiveName: "backup-2.tar.zst",
+      backupSetId: "backup-set-1",
+      repositoryId: "repo-1",
+      deploymentId: "deployment-1",
+      deploymentName: "dev",
+      deploymentMode: "BACKUP_DEPLOYMENT_MODE_STANDALONE",
+      state: "BACKUP_OPERATION_STATE_SUCCEEDED",
       createdAt: "2026-07-06T20:00:00Z",
       completedAt: "2026-07-06T20:00:10Z",
-      sizeBytes: 2048,
-      checksumSha256: "abc",
-      archiveFormat: "BACKUP_ARCHIVE_FORMAT_TAR_ZST",
-      includeLogs: true,
+      expectedNodeCount: 1,
+      manifestUri: "s3://repo/backup-set-1/backup-set.json",
+      nodes: [],
     },
   ],
   nextPageToken: "",
 };
 
-function renderCard(
-  getBackupStatusService = jest.fn().mockResolvedValue(status),
-  listBackupsService = jest.fn().mockResolvedValue(backups),
-) {
+function renderCard({
+  getBackupObservabilityService = jest.fn().mockResolvedValue(observability),
+  listBackupSetsService = jest.fn().mockResolvedValue(backupSets),
+} = {}) {
   render(
     <MemoryRouter>
       <BackupStatusCard
-        getBackupStatusService={getBackupStatusService}
-        listBackupsService={listBackupsService}
+        getBackupObservabilityService={getBackupObservabilityService}
+        listBackupSetsService={listBackupSetsService}
       />
     </MemoryRouter>,
   );
-  return { getBackupStatusService, listBackupsService };
+  return { getBackupObservabilityService, listBackupSetsService };
 }
 
-test("renders recent backup status and files", async () => {
+test("renders repository backup summary", async () => {
   renderCard();
 
-  expect(screen.getByText(/loading backup status/i)).toBeInTheDocument();
-  expect(await screen.findByText("succeeded")).toBeInTheDocument();
-  expect(screen.getAllByText("2026-07-06 20:00:10 UTC")).toHaveLength(2);
-  expect(screen.getByText("2026-07-06 21:00:00 UTC")).toBeInTheDocument();
-  expect(screen.getByText("backup-2.tar.zst")).toBeInTheDocument();
-  expect(screen.getByText("2.0 KB")).toBeInTheDocument();
-  expect(screen.getByText("TAR.ZST")).toBeInTheDocument();
+  expect(await screen.findByText("Repository health")).toBeInTheDocument();
+  expect(screen.getByText("healthy")).toBeInTheDocument();
+  expect(screen.getByText("backup-set-1")).toBeInTheDocument();
+  expect(screen.getByText("dev")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /manage backups/i })).toHaveAttribute(
     "href",
     "/backups",
   );
 });
 
-test("requests three recent backups", async () => {
-  const { listBackupsService } = renderCard();
+test("loads backup sets from observed repository", async () => {
+  const { listBackupSetsService } = renderCard();
 
-  await screen.findByText("backup-2.tar.zst");
-
-  expect(listBackupsService).toHaveBeenCalledWith({ pageSize: 3, pageToken: "" });
+  await waitFor(() => {
+    expect(listBackupSetsService).toHaveBeenCalledWith({
+      repositoryId: "repo-1",
+      pageSize: 3,
+      pageToken: "",
+    });
+  });
 });
 
-test("renders empty backup list", async () => {
-  renderCard(jest.fn().mockResolvedValue(status), jest.fn().mockResolvedValue({ backups: [], nextPageToken: "" }));
+test("renders empty repository backup-set state", async () => {
+  renderCard({
+    listBackupSetsService: jest
+      .fn()
+      .mockResolvedValue({ backupSets: [], nextPageToken: "" }),
+  });
 
-  expect(await screen.findByText(/no backup files found/i)).toBeInTheDocument();
-});
-
-test("renders backup loading errors", async () => {
-  renderCard(jest.fn().mockRejectedValue(new Error("Backup API unavailable")));
-
-  expect(await screen.findByRole("alert")).toHaveTextContent("Backup API unavailable");
+  expect(await screen.findByText(/no repository backup sets found/i)).toBeInTheDocument();
 });

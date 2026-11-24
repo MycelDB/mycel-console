@@ -18,6 +18,10 @@ export const readinessHelp = {
     "Whether local cluster ID equals the authoritative cluster ID from system Raft metadata. Possible values: pass means they match; fail means identity mismatch or one value is unavailable.",
   expectedMembers:
     "Expected member count from authoritative cluster metadata. Possible values: a positive number in raft mode, or blank when metadata has not supplied it.",
+  derivedReady:
+    "Whether restored derived subsystems such as lexical indexes, graph checkpoints/query indexes, and semantic views are ready. Fail means durable graph data can be available while derived artifacts still need rebuild or operator follow-up.",
+  restoredClusterReady:
+    "Whether post-restore derived-artifact checks are complete. Non-restored clusters report ready; restored clusters can report blocked until every derived subsystem is ready or explicitly resolved.",
 };
 
 export function formatClusterTime(value?: string) {

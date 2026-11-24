@@ -6,6 +6,16 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.25.1] - 2026-11-24
+
+### Fixed
+
+- Added an explicit development-only repository checkbox so Console can configure local HTTP/MinIO repositories without requiring CLI repair.
+- Preserved `devOnly`, path-style S3, and TLS-disabled repository flags when editing S3-compatible repositories.
+- Surfaced string backend repository-save failures directly instead of replacing them with a generic save error.
+
+## [v0.25.0] - 2026-11-24
+
 ### Changed
 
 - Aligned the Tauri bridge and UI with `mycel-sdk v0.25.0` / Mycel API v0.25 repository-only backup contracts.

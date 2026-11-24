@@ -513,6 +513,26 @@ export function ClusterPage() {
                       />
                       <CheckBadge ok={readiness.partitionGroupsStarted} />
                     </span>
+                    {readiness.derivedReady !== undefined && (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">
+                        Derived artifacts
+                        <HelpIcon
+                          label="Derived artifacts"
+                          description={readinessHelp.derivedReady}
+                        />
+                        <CheckBadge ok={readiness.derivedReady} />
+                      </span>
+                    )}
+                    {readiness.restoredClusterReady !== undefined && (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">
+                        Restored cluster
+                        <HelpIcon
+                          label="Restored cluster"
+                          description={readinessHelp.restoredClusterReady}
+                        />
+                        <CheckBadge ok={readiness.restoredClusterReady} />
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 dark:border-slate-800 dark:bg-slate-950/40">
                       Cluster ID match
                       <HelpIcon
@@ -534,7 +554,8 @@ export function ClusterPage() {
                   </div>
                   {(readiness.readinessBlockers.length > 0 ||
                     readiness.localClusterId ||
-                    readiness.authoritativeClusterId) && (
+                    readiness.authoritativeClusterId ||
+                    (readiness.derivedSubsystems?.length || 0) > 0) && (
                     <details className="mt-3 text-xs">
                       <summary
                         className={`cursor-pointer ${themeClasses.text.parts.subtleLight} ${themeClasses.text.hover.primary} ${themeClasses.text.parts.darkMuted}`}
@@ -593,6 +614,60 @@ export function ClusterPage() {
                             </ul>
                           </div>
                         )}
+                        {readiness.derivedSubsystems?.length ? (
+                          <div className="mt-3">
+                            <Text
+                              size="xs"
+                              className={`font-semibold ${themeClasses.text.primary}`}
+                            >
+                              Restored derived subsystems
+                            </Text>
+                            <div className="mt-2 space-y-2">
+                              {readiness.derivedSubsystems.map((subsystem) => (
+                                <div
+                                  key={`${subsystem.subsystem}-${subsystem.artifactId || subsystem.state}`}
+                                  className="rounded-md border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/50"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="font-medium">
+                                      {subsystem.subsystem}
+                                    </span>
+                                    <StatusBadge
+                                      value={
+                                        subsystem.ready
+                                          ? "ready"
+                                          : subsystem.rebuildRequired
+                                            ? "rebuild required"
+                                            : subsystem.state || "blocked"
+                                      }
+                                    />
+                                  </div>
+                                  <div className={`mt-1 grid gap-1 text-[11px] ${themeClasses.text.secondary} md:grid-cols-2`}>
+                                    <span>State: {subsystem.state || "—"}</span>
+                                    <span>
+                                      Reason: {subsystem.reason || "—"}
+                                    </span>
+                                    <span>
+                                      Policy: {subsystem.policyMode || "—"}
+                                    </span>
+                                    <span>
+                                      Restore: {subsystem.restorePolicy || "—"}
+                                    </span>
+                                    <span>
+                                      Validation: {subsystem.validationState || "—"}
+                                    </span>
+                                    <span>
+                                      Frontier: {subsystem.sourceFrontierKind || "—"}
+                                      {subsystem.sourceFrontierValue
+                                        ? ` ${subsystem.sourceFrontierValue}`
+                                        : ""}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </details>
                   )}

@@ -483,6 +483,65 @@ describe("ClusterPage", () => {
     expect(screen.getAllByText("Expected members").length).toBeGreaterThan(0);
   });
 
+  it("renders restored derived subsystem readiness", async () => {
+    mockedGetClusterStatus.mockResolvedValue({
+      node: {
+        nodeId: "node_a",
+        nodeName: "node-a",
+        state: "clustered",
+        admitted: true,
+        bootstrap: true,
+      },
+      cluster: {
+        clusterId: "cluster_a",
+        clusterName: "raft-dev",
+        mode: "clustered",
+      },
+      peers: [],
+      readiness: {
+        clientReady: true,
+        metadataApplied: true,
+        metadataValidated: true,
+        partitionGroupsStarted: true,
+        authoritativeClusterId: "cluster_a",
+        localClusterId: "cluster_a",
+        expectedMemberCount: 3,
+        readinessBlockers: [],
+        derivedReady: false,
+        restoredClusterReady: false,
+        derivedSubsystems: [
+          {
+            subsystem: "LEXICAL_SEARCH",
+            state: "rebuild_required",
+            ready: false,
+            rebuildRequired: true,
+            reason: "derived_artifact_omitted_rebuild_required",
+            policyMode: "omit",
+            restorePolicy: "rebuild",
+            validationState: "valid",
+            sourceFrontierKind: "graph_revision",
+            sourceFrontierValue: "42",
+            evidence: {},
+          },
+        ],
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <ClusterPage />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findAllByText("Derived artifacts")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Restored cluster").length).toBeGreaterThan(0);
+    expect(screen.getByText("Restored derived subsystems")).toBeInTheDocument();
+    expect(screen.getByText("LEXICAL_SEARCH")).toBeInTheDocument();
+    expect(
+      screen.getByText("Reason: derived_artifact_omitted_rebuild_required"),
+    ).toBeInTheDocument();
+  });
+
   it("renders blocked readiness from cluster health", async () => {
     mockedGetClusterStatus.mockResolvedValue({
       node: {

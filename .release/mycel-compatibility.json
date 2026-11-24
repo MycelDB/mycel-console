@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "component": "mycel-console",
-  "component_release": "v0.24.0",
-  "source_revision": "a0c0efae9b8ce0bde6d53eb67761c301b8d5d007",
-  "mycel_api_line": "0.24",
+  "component_release": "v0.25.0",
+  "source_revision": "b0e0fa8e668a43449ac8fe3bf60841e7ffe6434f",
+  "mycel_api_line": "0.25",
   "supported_daemon_api_lines": [
-    "0.24"
+    "0.25"
   ],
   "incompatible_daemon_api_lines": [
     {
@@ -28,7 +28,14 @@
         "backup-quiesce-admission-evidence-v1",
         "restored-derived-readiness-v1"
       ]
+    },
+    {
+      "line": "0.24",
+      "contracts": [
+        "repository-only-backup-api-v1",
+        "deployment-wide-backup-api-v1"
+      ]
     }
   ],
-  "published_at": "2026-11-23T23:06:42Z"
+  "published_at": "2026-11-24T17:36:21Z"
 }

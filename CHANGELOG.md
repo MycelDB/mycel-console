@@ -6,6 +6,22 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+### Changed
+
+- Aligned the Tauri bridge and UI with `mycel-sdk v0.25.0` / Mycel API v0.25 repository-only backup contracts.
+- Replaced cluster-specific backup/restore service names with deployment-wide repository-backed operations (`StartBackup`, `GetBackupOperation`, `ListBackupSets`, `ValidateBackupSet`, `PlanRestore`, etc.).
+- Made repository-backed backup sets the only Console backup artifact: the Backups page now centers repository CRUD/validation, deployment backup start/cancel/history, repository backup-set inventory, retention preview/apply, observability, and safe read-only restore planning.
+
+### Removed
+
+- Removed daemon-local backup files, local backup trigger/status/list/delete services, local output-directory fallback, and local backup-set path validation/restore guidance from the Console UI and Tauri command surface.
+- Removed local backup schedule/archive policy fields from Console policy editing; policy editing now exposes repository defaults, retention, capture provider, quiesce read profile, and validation options only.
+
+### Compatibility
+
+- Console v0.25 requires Mycel daemon/API v0.25.x and exact `mycel-sdk v0.25.0` source revision `e0499e4aa11fc36cee4a2e34063ea762893ed1ef`.
+- v0.24 daemons are incompatible with this Console line because public backup RPCs were renamed to deployment-wide repository-only names and local backup RPCs were removed.
+
 ## [v0.24.0] - 2026-11-23
 
 ### Added

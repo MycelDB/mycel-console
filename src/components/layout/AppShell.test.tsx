@@ -9,7 +9,7 @@ jest.mock("../../features/dashboard/components/BackupStatusCard", () => ({
 }));
 
 jest.mock("../../services/adminService", () => ({
-  getBackupStatus: jest.fn().mockResolvedValue({ status: null, quiesce: null }),
+  getBackupObservability: jest.fn().mockResolvedValue({ snapshot: null }),
   getClusterRuntimeStatus: jest.fn().mockResolvedValue({
     engine: "standalone",
     localNodeId: 1,
@@ -64,7 +64,7 @@ jest.mock("../../services/adminService", () => ({
     state: "SPACE_STATE_ACTIVE",
   }),
   listDomains: jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
-  listBackups: jest.fn().mockResolvedValue({ backups: [], nextPageToken: "" }),
+  listBackupSets: jest.fn().mockResolvedValue({ backupSets: [], nextPageToken: "" }),
   listActivityEvents: jest
     .fn()
     .mockResolvedValue({ events: [], nextPageToken: "" }),

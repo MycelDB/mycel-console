@@ -2,16 +2,15 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   AUTH_EXPIRED_EVENT,
   applyInferencePackage,
-  cancelClusterBackup,
+  cancelBackupOperation,
   connectionDiagnostics,
   createSpace,
-  deleteBackup,
+  deleteBackupSet,
   deleteSpace,
   disableGraphProcedure,
   enableGraphProcedure,
+  getBackupOperation,
   getBackupPolicy,
-  getBackupStatus,
-  getClusterBackupStatus,
   getClusterHealth,
   getClusterRuntimeStatus,
   getClusterStatus,
@@ -28,8 +27,8 @@ import {
   lexicalSearch,
   getLexicalIndexStatus,
   rebuildLexicalIndex,
-  listBackups,
-  listClusterBackups,
+  listBackupOperations,
+  listBackupSets,
   listPrincipalCapabilities,
   listPrincipalRoles,
   listPrincipalSessions,
@@ -56,10 +55,9 @@ import {
   setPrincipalCapabilitiesForScope,
   setPrincipalRolesForScope,
   listVectorStores,
-  startClusterBackup,
-  triggerBackup,
+  startBackup,
   updateBackupPolicy,
-  validateClusterBackupSet,
+  validateBackupSet,
   login,
   normalizeAppError,
 } from "./adminService";
@@ -130,22 +128,22 @@ test("emits auth expired event when refresh session renewal fails", async () => 
 });
 
 const policy: BackupPolicyInfo = {
-  enabled: true,
-  backupDir: "/data/mycel/backups",
-  intervalSeconds: 3600,
-  retentionCount: 10,
-  includeLogs: true,
-  quiesceDrainTimeoutSeconds: 30,
-  backupTimeoutSeconds: 600,
-  retryAfterSeconds: 300,
-  statusHistoryLimit: 25,
-  allowReadsDuringBackup: true,
-  scheduleKind: "interval",
-  timeOfDay: "02:00",
-  timezone: "UTC",
-  weekdays: [],
-  runMissed: true,
-  archiveFormat: "BACKUP_ARCHIVE_FORMAT_TAR_ZST",
+  defaultRepositoryId: "repo-1",
+  captureProvider: "BACKUP_CAPTURE_PROVIDER_AUTO",
+  quiesceReadProfile: "BACKUP_QUIESCE_READ_PROFILE_CONTROL_ONLY",
+  allowReadOnlyDuringQuiesce: true,
+  derivedSubsystems: [],
+  retentionPolicy: {
+    keepLastSuccessful: 10,
+    keepForSeconds: 604800,
+    deleteIncompleteAfterSeconds: 86400,
+  },
+  validationOptions: {
+    includeArtifactChecks: true,
+    includeExternalDependencyChecks: true,
+    includeCapacityEstimates: true,
+    requireCompleteMarker: true,
+  },
 };
 
 test("connectionDiagnostics invokes diagnostics command", async () => {
@@ -198,35 +196,12 @@ test("getBackupPolicy invokes backup policy command", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_get_backup_policy");
 });
 
-test("updateBackupPolicy sends policy input", async () => {
-  invokeMock.mockResolvedValue({ ...policy, enabled: false });
+test("updateBackupPolicy sends repository policy input", async () => {
+  invokeMock.mockResolvedValue({ ...policy, defaultRepositoryId: "repo-2" });
 
-  await expect(updateBackupPolicy(policy)).resolves.toMatchObject({ enabled: false });
+  await expect(updateBackupPolicy(policy)).resolves.toMatchObject({ defaultRepositoryId: "repo-2" });
 
   expect(invokeMock).toHaveBeenCalledWith("admin_update_backup_policy", { input: policy });
-});
-
-test("getBackupStatus invokes backup status command", async () => {
-  const status = {
-    status: {
-      backupId: "backup-1",
-      state: "succeeded",
-      startedAt: "2026-07-06T20:00:00Z",
-      completedAt: "2026-07-06T20:00:10Z",
-      archivePath: "/data/mycel/backups/backup-1.tar.zst",
-      manifestPath: "/data/mycel/backups/backup-1.json",
-      error: "",
-      participants: [],
-      lastSuccessAt: "2026-07-06T20:00:10Z",
-      nextRunAt: "2026-07-06T21:00:00Z",
-    },
-    quiesce: { participants: [] },
-  };
-  invokeMock.mockResolvedValue(status);
-
-  await expect(getBackupStatus()).resolves.toEqual(status);
-
-  expect(invokeMock).toHaveBeenCalledWith("admin_get_backup_status");
 });
 
 test("cluster status preserves readiness diagnostics", async () => {
@@ -377,88 +352,76 @@ test("local graph forensic export sends pagination input", async () => {
   expect(invokeMock).toHaveBeenCalledWith("admin_get_local_graph_forensic_export", { input });
 });
 
-test("listBackups sends pagination input", async () => {
-  const response = { backups: [], nextPageToken: "next" };
-  invokeMock.mockResolvedValue(response);
-
-  await expect(listBackups({ pageSize: 20, pageToken: "cursor" })).resolves.toEqual(response);
-
-  expect(invokeMock).toHaveBeenCalledWith("admin_list_backups", {
-    input: { pageSize: 20, pageToken: "cursor" },
-  });
-});
-
-test("triggerBackup sends optional reason", async () => {
-  const response = { status: null, backup: null };
-  invokeMock.mockResolvedValue(response);
-
-  await expect(triggerBackup({ reason: "manual test" })).resolves.toEqual(response);
-
-  expect(invokeMock).toHaveBeenCalledWith("admin_trigger_backup", {
-    input: { reason: "manual test" },
-  });
-});
-
-test("deleteBackup sends backup id", async () => {
-  const response = { backupId: "backup-1" };
-  invokeMock.mockResolvedValue(response);
-
-  await expect(deleteBackup("backup-1")).resolves.toEqual(response);
-
-  expect(invokeMock).toHaveBeenCalledWith("admin_delete_backup", { backupId: "backup-1" });
-});
-
-test("startClusterBackup sends async cluster backup input", async () => {
+test("startBackup sends repository-backed backup input", async () => {
   const input = {
-    outputDir: "/mnt/mycel-backups",
+    repositoryId: "repo-1",
     reason: "release backup",
     archiveFormat: "BACKUP_ARCHIVE_FORMAT_TAR_ZST" as const,
     convergenceTimeoutSeconds: 120,
   };
-  const response = { status: { backupSetId: "backup-set-1" }, backupSet: null };
+  const response = { operation: { backupSetId: "backup-set-1" }, backupSet: null };
   invokeMock.mockResolvedValue(response);
 
-  await expect(startClusterBackup(input)).resolves.toEqual(response);
+  await expect(startBackup(input)).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_start_cluster_backup", { input });
+  expect(invokeMock).toHaveBeenCalledWith("admin_start_backup", { input });
 });
 
-test("getClusterBackupStatus sends optional backup set id", async () => {
-  const response = { status: { backupSetId: "backup-set-1" } };
+test("getBackupOperation sends backup set id", async () => {
+  const response = { operation: { backupSetId: "backup-set-1" } };
   invokeMock.mockResolvedValue(response);
 
-  await expect(getClusterBackupStatus({ backupSetId: "backup-set-1" })).resolves.toEqual(response);
+  await expect(getBackupOperation({ backupSetId: "backup-set-1" })).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_get_cluster_backup_status", { input: { backupSetId: "backup-set-1" } });
+  expect(invokeMock).toHaveBeenCalledWith("admin_get_backup_operation", { input: { backupSetId: "backup-set-1" } });
 });
 
-test("cancelClusterBackup sends cancel reason", async () => {
+test("cancelBackupOperation sends cancel reason", async () => {
   const input = { backupSetId: "backup-set-1", reason: "operator requested" };
-  const response = { status: { backupSetId: "backup-set-1", state: "canceled" } };
+  const response = { operation: { backupSetId: "backup-set-1", state: "BACKUP_OPERATION_STATE_CANCELED" } };
   invokeMock.mockResolvedValue(response);
 
-  await expect(cancelClusterBackup(input)).resolves.toEqual(response);
+  await expect(cancelBackupOperation(input)).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_cancel_cluster_backup", { input });
+  expect(invokeMock).toHaveBeenCalledWith("admin_cancel_backup_operation", { input });
 });
 
-test("listClusterBackups sends pagination input", async () => {
+test("listBackupOperations sends pagination input", async () => {
+  const response = { operations: [], nextPageToken: "next" };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(listBackupOperations({ pageSize: 10, pageToken: "cursor" })).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_backup_operations", { input: { pageSize: 10, pageToken: "cursor" } });
+});
+
+test("listBackupSets sends repository pagination input", async () => {
   const response = { backupSets: [], nextPageToken: "next" };
   invokeMock.mockResolvedValue(response);
 
-  await expect(listClusterBackups({ pageSize: 10, pageToken: "cursor" })).resolves.toEqual(response);
+  await expect(listBackupSets({ repositoryId: "repo-1", pageSize: 10, pageToken: "cursor" })).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_list_cluster_backups", { input: { pageSize: 10, pageToken: "cursor" } });
+  expect(invokeMock).toHaveBeenCalledWith("admin_list_backup_sets", { input: { repositoryId: "repo-1", pageSize: 10, pageToken: "cursor" } });
 });
 
-test("validateClusterBackupSet sends manifest path", async () => {
-  const input = { backupSetPath: "/mnt/backups/backup-set-1" };
+test("validateBackupSet sends repository backup set id", async () => {
+  const input = { repositoryId: "repo-1", backupSetId: "backup-set-1" };
   const response = { valid: true, errors: [], backupSet: { backupSetId: "backup-set-1" } };
   invokeMock.mockResolvedValue(response);
 
-  await expect(validateClusterBackupSet(input)).resolves.toEqual(response);
+  await expect(validateBackupSet(input)).resolves.toEqual(response);
 
-  expect(invokeMock).toHaveBeenCalledWith("admin_validate_cluster_backup_set", { input });
+  expect(invokeMock).toHaveBeenCalledWith("admin_validate_backup_set", { input });
+});
+
+test("deleteBackupSet sends repository backup set id", async () => {
+  const input = { repositoryId: "repo-1", backupSetId: "backup-set-1", reason: "cleanup" };
+  const response = { repositoryId: "repo-1", backupSetId: "backup-set-1", state: "BACKUP_DELETION_STATE_DELETED" };
+  invokeMock.mockResolvedValue(response);
+
+  await expect(deleteBackupSet(input)).resolves.toEqual(response);
+
+  expect(invokeMock).toHaveBeenCalledWith("admin_delete_backup_set", { input });
 });
 
 test("getPrincipal sends principal id", async () => {

@@ -311,6 +311,59 @@ test("validates repository backup sets and shows safe restore planning", async (
   expect(screen.queryByText(/restore-local/i)).not.toBeInTheDocument();
 });
 
+test("preserves development MinIO repository flags when saving", async () => {
+  const minioRepository: BackupRepositoryInfo = {
+    ...repository,
+    s3: {
+      ...repository.s3!,
+      endpointUri: "http://minio:9000",
+      forcePathStyle: true,
+      disableTls: true,
+    },
+    devOnly: true,
+  };
+  const services = renderPage({
+    listBackupRepositoriesService: jest.fn().mockResolvedValue({
+      repositories: [minioRepository],
+      nextPageToken: "",
+    }),
+    updateBackupRepositoryService: jest.fn().mockResolvedValue(minioRepository),
+  });
+
+  await userEvent.click(await screen.findByRole("tab", { name: /repositories/i }));
+  expect(await screen.findByRole("checkbox", { name: /development-only repository/i })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: /force path-style s3/i })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: /disable tls/i })).toBeChecked();
+
+  await userEvent.click(screen.getByRole("button", { name: /update repository/i }));
+
+  await waitFor(() => {
+    expect(services.updateBackupRepositoryService).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repositoryId: "prod-repo",
+        devOnly: true,
+        s3: expect.objectContaining({
+          endpointUri: "http://minio:9000",
+          forcePathStyle: true,
+          disableTls: true,
+        }),
+      }),
+    );
+  });
+});
+
+test("shows string backend errors when repository save fails", async () => {
+  renderPage({
+    updateBackupRepositoryService: jest.fn().mockRejectedValue("dev_only is required for HTTP repository endpoints"),
+  });
+
+  await userEvent.click(await screen.findByRole("tab", { name: /repositories/i }));
+  await userEvent.click(await screen.findByRole("button", { name: /update repository/i }));
+
+  expect(await screen.findByText("dev_only is required for HTTP repository endpoints")).toBeInTheDocument();
+  expect(screen.queryByText("Failed to save backup repository")).not.toBeInTheDocument();
+});
+
 test("shows repository policy fields instead of local backup schedule fields", async () => {
   renderPage();
 

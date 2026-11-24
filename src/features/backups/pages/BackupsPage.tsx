@@ -485,7 +485,11 @@ export function BackupsPage({
       setNotice(`Backup repository saved: ${saved.repositoryId}`);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to save backup repository",
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Failed to save backup repository",
       );
     } finally {
       setSavingRepository(false);
@@ -1364,6 +1368,7 @@ function BackupRepositoryEditor({
   const [secretKeyEnv, setSecretKeyEnv] = useState("AWS_SECRET_ACCESS_KEY");
   const [forcePathStyle, setForcePathStyle] = useState(false);
   const [disableTls, setDisableTls] = useState(false);
+  const [devOnly, setDevOnly] = useState(false);
 
   useEffect(() => {
     if (!selected) return;
@@ -1380,6 +1385,7 @@ function BackupRepositoryEditor({
     setSecretKeyEnv(selected.credentialRef?.keys?.secret_access_key || "AWS_SECRET_ACCESS_KEY");
     setForcePathStyle(Boolean(selected.s3?.forcePathStyle));
     setDisableTls(Boolean(selected.s3?.disableTls));
+    setDevOnly(Boolean(selected.devOnly));
   }, [selected]);
 
   function buildInput(): BackupRepositoryInput {
@@ -1413,7 +1419,7 @@ function BackupRepositoryEditor({
             : null,
       encryption: null,
       tlsCaRef: null,
-      devOnly: false,
+      devOnly,
     };
   }
 
@@ -1446,6 +1452,7 @@ function BackupRepositoryEditor({
         )}
         <CheckboxField label="Force path-style S3" checked={forcePathStyle} disabled={saving} onChange={setForcePathStyle} hint="Use path-style addressing for S3-compatible providers that require it." />
         <CheckboxField label="Disable TLS" checked={disableTls} disabled={saving} onChange={setDisableTls} hint="Development-only option. Keep TLS enabled for production repositories." />
+        <CheckboxField label="Development-only repository" checked={devOnly} disabled={saving} onChange={setDevOnly} hint="Required for local HTTP endpoints and environment/file credential references. Do not use for production repositories." />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button onClick={() => onSave(buildInput())} disabled={saving || !repositoryId.trim() || !bucket.trim()}>
@@ -1467,6 +1474,7 @@ function BackupRepositoryEditor({
             setSecretKeyEnv("AWS_SECRET_ACCESS_KEY");
             setForcePathStyle(false);
             setDisableTls(false);
+            setDevOnly(false);
           }}
           disabled={saving}
         >

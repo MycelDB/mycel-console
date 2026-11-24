@@ -2,7 +2,7 @@
   "schema_version": 1,
   "component": "mycel-console",
   "component_release": "v0.25.0",
-  "source_revision": "243c8a36e6808d4af0703f0093b02d2b0a1842ab",
+  "source_revision": "b0e0fa8e668a43449ac8fe3bf60841e7ffe6434f",
   "mycel_api_line": "0.25",
   "supported_daemon_api_lines": [
     "0.25"

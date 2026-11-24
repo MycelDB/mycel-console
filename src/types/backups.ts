@@ -5,114 +5,166 @@ export type BackupArchiveFormat =
   | "BACKUP_ARCHIVE_FORMAT_TAR_GZ"
   | "BACKUP_ARCHIVE_FORMAT_TAR_ZST";
 
-export type BackupScheduleKind = "" | "interval" | "daily" | "weekly";
+export type BackupCaptureProvider =
+  | "BACKUP_CAPTURE_PROVIDER_UNSPECIFIED"
+  | "BACKUP_CAPTURE_PROVIDER_AUTO"
+  | "BACKUP_CAPTURE_PROVIDER_FILESYSTEM_IMMUTABLE_COPY"
+  | "BACKUP_CAPTURE_PROVIDER_CSI_VOLUME_SNAPSHOT"
+  | "BACKUP_CAPTURE_PROVIDER_AWS_EBS_SNAPSHOT";
+
+export type BackupQuiesceReadProfile =
+  | "BACKUP_QUIESCE_READ_PROFILE_UNSPECIFIED"
+  | "BACKUP_QUIESCE_READ_PROFILE_CONTROL_ONLY"
+  | "BACKUP_QUIESCE_READ_PROFILE_STRICT_READ_ONLY";
+
+export type BackupDeploymentMode =
+  | "BACKUP_DEPLOYMENT_MODE_UNSPECIFIED"
+  | "BACKUP_DEPLOYMENT_MODE_STANDALONE"
+  | "BACKUP_DEPLOYMENT_MODE_CLUSTERED";
+
+export type BackupOperationState =
+  | "BACKUP_OPERATION_STATE_UNSPECIFIED"
+  | "BACKUP_OPERATION_STATE_PENDING"
+  | "BACKUP_OPERATION_STATE_PREFLIGHTING"
+  | "BACKUP_OPERATION_STATE_WAITING_FOR_CONVERGENCE"
+  | "BACKUP_OPERATION_STATE_READY"
+  | "BACKUP_OPERATION_STATE_CHECKPOINTING"
+  | "BACKUP_OPERATION_STATE_QUIESCING"
+  | "BACKUP_OPERATION_STATE_CAPTURING"
+  | "BACKUP_OPERATION_STATE_UPLOADING"
+  | "BACKUP_OPERATION_STATE_VALIDATING"
+  | "BACKUP_OPERATION_STATE_RELEASING_QUIESCE"
+  | "BACKUP_OPERATION_STATE_FINALIZING"
+  | "BACKUP_OPERATION_STATE_SUCCEEDED"
+  | "BACKUP_OPERATION_STATE_FAILED"
+  | "BACKUP_OPERATION_STATE_CANCELING"
+  | "BACKUP_OPERATION_STATE_CANCELED";
+
+export type ValidationOptionsInfo = {
+  includeArtifactChecks: boolean;
+  includeExternalDependencyChecks: boolean;
+  includeCapacityEstimates: boolean;
+  requireCompleteMarker: boolean;
+};
+
+export type RetentionPolicyInfo = {
+  keepLastSuccessful: number;
+  keepForSeconds: number;
+  deleteIncompleteAfterSeconds: number;
+};
+
+export type DerivedSubsystemPolicyInfo = {
+  subsystem: string;
+  mode: string;
+};
 
 export type BackupPolicyInfo = {
-  enabled: boolean;
-  backupDir: string;
-  intervalSeconds: number;
-  retentionCount: number;
-  includeLogs: boolean;
-  quiesceDrainTimeoutSeconds: number;
-  backupTimeoutSeconds: number;
-  retryAfterSeconds: number;
-  statusHistoryLimit: number;
-  allowReadsDuringBackup: boolean;
-  scheduleKind: BackupScheduleKind;
-  timeOfDay: string;
-  timezone: string;
-  weekdays: number[];
-  runMissed: boolean;
-  archiveFormat: BackupArchiveFormat;
+  defaultRepositoryId: string;
+  captureProvider: BackupCaptureProvider;
+  quiesceReadProfile: BackupQuiesceReadProfile;
+  allowReadOnlyDuringQuiesce: boolean;
+  derivedSubsystems: DerivedSubsystemPolicyInfo[];
+  retentionPolicy?: RetentionPolicyInfo | null;
+  validationOptions?: ValidationOptionsInfo | null;
 };
 
-export type QuiesceParticipantStatusInfo = {
+export type SecretReferenceInfo = {
+  scheme: string;
   name: string;
-  quiesced: boolean;
-  active: number;
-  reason: string;
+  namespace: string;
+  path: string;
+  keys: Record<string, string>;
+  description: string;
+};
+
+export type EncryptionPolicyInfo = {
   mode: string;
-  source: string;
-  since: string;
-  lastError: string;
-  activeReadOnly?: number;
-  activeWrites?: number;
-  readAllowlistProfile?: string;
-  deadline?: string;
-  acceptingReadOnly?: boolean;
-  acceptingWrites?: boolean;
+  keyRef?: SecretReferenceInfo | null;
+  kmsKeyId: string;
+  requireBucketDefaultEncryption: boolean;
 };
 
-export type BackupStatusInfo = {
-  backupId: string;
+export type S3CompatibleRepositoryConfigInfo = {
+  bucket: string;
+  prefix: string;
+  region: string;
+  endpointUri: string;
+  forcePathStyle: boolean;
+  disableTls: boolean;
+};
+
+export type ValidationBlockerInfo = {
+  reason: string;
+  detail: string;
+  retryable: boolean;
+  fieldPath: string;
+};
+
+export type ValidationProbeResultInfo = {
+  name: string;
   state: string;
-  startedAt: string;
-  completedAt: string;
-  archivePath: string;
-  manifestPath: string;
-  error: string;
-  participants: QuiesceParticipantStatusInfo[];
-  lastSuccessAt: string;
-  nextRunAt: string;
+  detail: string;
+  checkedAt: string;
 };
 
-export type BackupSummaryInfo = {
-  backupId: string;
-  archiveName: string;
-  createdAt: string;
-  completedAt: string;
-  sizeBytes: number;
-  checksumSha256: string;
-  includeLogs: boolean;
-  archiveFormat: BackupArchiveFormat;
+export type BackupRepositoryValidationSummaryInfo = {
+  state: string;
+  checkedAt: string;
+  probes: ValidationProbeResultInfo[];
+  blockers: ValidationBlockerInfo[];
+  sanitizedError: string;
 };
 
-export type QuiesceStatusInfo = {
-  participants: QuiesceParticipantStatusInfo[];
+export type BackupRepositoryInfo = {
+  repositoryId: string;
+  displayName: string;
+  provider: string;
+  s3?: S3CompatibleRepositoryConfigInfo | null;
+  credentialRef?: SecretReferenceInfo | null;
+  encryption?: EncryptionPolicyInfo | null;
+  tlsCaRef?: SecretReferenceInfo | null;
+  devOnly: boolean;
+  createTime: string;
+  updateTime: string;
+  validation?: BackupRepositoryValidationSummaryInfo | null;
 };
 
-export type BackupStatusResponse = {
-  status?: BackupStatusInfo | null;
-  quiesce?: QuiesceStatusInfo | null;
-};
-
-export type ListBackupsInput = {
+export type ListBackupRepositoriesInput = {
   pageSize?: number;
   pageToken?: string;
 };
 
-export type ListBackupsResponse = {
-  backups: BackupSummaryInfo[];
+export type ListBackupRepositoriesResponse = {
+  repositories: BackupRepositoryInfo[];
   nextPageToken: string;
 };
 
-export type TriggerBackupInput = {
-  reason?: string;
+export type ValidateBackupRepositoryInput = {
+  repositoryId: string;
 };
 
-export type TriggerBackupResponse = {
-  status?: BackupStatusInfo | null;
-  backup?: BackupSummaryInfo | null;
+export type ValidateBackupRepositoryResponse = {
+  repository?: BackupRepositoryInfo | null;
+  validation?: BackupRepositoryValidationSummaryInfo | null;
 };
 
-export type DeleteBackupResponse = {
-  backupId: string;
+export type BackupRepositoryInput = {
+  repositoryId: string;
+  displayName?: string;
+  provider?: string;
+  s3?: S3CompatibleRepositoryConfigInfo | null;
+  credentialRef?: SecretReferenceInfo | null;
+  encryption?: EncryptionPolicyInfo | null;
+  tlsCaRef?: SecretReferenceInfo | null;
+  devOnly?: boolean;
 };
 
-export type ClusterBackupState =
-  | "CLUSTER_BACKUP_STATE_UNSPECIFIED"
-  | "CLUSTER_BACKUP_STATE_PENDING"
-  | "CLUSTER_BACKUP_STATE_WAITING_FOR_CLUSTER_CONVERGENCE"
-  | "CLUSTER_BACKUP_STATE_READY"
-  | "CLUSTER_BACKUP_STATE_QUIESCING"
-  | "CLUSTER_BACKUP_STATE_CAPTURING"
-  | "CLUSTER_BACKUP_STATE_VALIDATING"
-  | "CLUSTER_BACKUP_STATE_SUCCEEDED"
-  | "CLUSTER_BACKUP_STATE_FAILED"
-  | "CLUSTER_BACKUP_STATE_CANCELING"
-  | "CLUSTER_BACKUP_STATE_CANCELED";
+export type DeleteBackupRepositoryResponse = {
+  repositoryId: string;
+  state: string;
+};
 
-export type ClusterBackupNodeArtifactInfo = {
+export type BackupNodeArtifactInfo = {
   podName: string;
   nodeId: string;
   ordinal: number;
@@ -126,7 +178,7 @@ export type ClusterBackupNodeArtifactInfo = {
   appliedIndexes: Record<string, number>;
 };
 
-export type ClusterBackupBlockerInfo = {
+export type BackupOperationBlockerInfo = {
   nodeName: string;
   nodeId: string;
   raftNodeId: number;
@@ -135,37 +187,6 @@ export type ClusterBackupBlockerInfo = {
   appliedIndex: number;
   commitIndex: number;
   detail: string;
-};
-
-export type ClusterBackupStatusInfo = {
-  backupSetId: string;
-  state: string;
-  clusterId: string;
-  reason: string;
-  createdAt: string;
-  updatedAt: string;
-  completedAt: string;
-  expectedNodes: number;
-  manifestUri: string;
-  nodes: ClusterBackupNodeArtifactInfo[];
-  failedPhase: string;
-  error: string;
-  raftBarriers: Record<string, number>;
-  stateCode: ClusterBackupState;
-  blockers: ClusterBackupBlockerInfo[];
-  cancelRequested: boolean;
-  currentPhase: string;
-  retryAfterSeconds: number;
-  repositoryId?: string;
-  cleanupTasks?: unknown[];
-  validation?: ValidationSummaryInfo | null;
-};
-
-export type ValidationBlockerInfo = {
-  reason: string;
-  detail: string;
-  retryable: boolean;
-  fieldPath: string;
 };
 
 export type ValidationSummaryInfo = {
@@ -209,16 +230,44 @@ export type BackupSetManifestSummaryInfo = {
   artifactCount: number;
 };
 
-export type ClusterBackupSetSummaryInfo = {
+export type BackupOperationInfo = {
+  backupOperationId: string;
   backupSetId: string;
-  state: string;
-  clusterId: string;
+  repositoryId: string;
+  deploymentId: string;
+  deploymentName: string;
+  deploymentMode: BackupDeploymentMode;
+  state: BackupOperationState;
+  phase: string;
+  reason: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string;
+  expectedNodeCount: number;
+  manifestUri: string;
+  nodes: BackupNodeArtifactInfo[];
+  raftBarriers: Record<string, number>;
+  blockers: BackupOperationBlockerInfo[];
+  cleanupTasks?: unknown[];
+  validation?: ValidationSummaryInfo | null;
+  cancelRequested: boolean;
+  retryAfterSeconds: number;
+  failedPhase: string;
+  error: string;
+};
+
+export type BackupSetSummaryInfo = {
+  backupSetId: string;
+  repositoryId: string;
+  deploymentId: string;
+  deploymentName: string;
+  deploymentMode: BackupDeploymentMode;
+  state: BackupOperationState;
   createdAt: string;
   completedAt: string;
-  expectedNodes: number;
+  expectedNodeCount: number;
   manifestUri: string;
-  nodes: ClusterBackupNodeArtifactInfo[];
-  repositoryId?: string;
+  nodes: BackupNodeArtifactInfo[];
   compatibility?: CompatibilitySummaryInfo | null;
   validation?: ValidationSummaryInfo | null;
   deletionState?: string;
@@ -226,53 +275,196 @@ export type ClusterBackupSetSummaryInfo = {
   manifest?: BackupSetManifestSummaryInfo | null;
 };
 
-export type StartClusterBackupInput = {
+export type StartBackupInput = {
   reason?: string;
-  outputDir: string;
   archiveFormat?: BackupArchiveFormat;
   idempotencyKey?: string;
   convergenceTimeoutSeconds?: number;
+  repositoryId?: string;
+  captureProvider?: BackupCaptureProvider;
+  quiesceReadProfile?: BackupQuiesceReadProfile;
+  validationOptions?: ValidationOptionsInfo | null;
 };
 
-export type StartClusterBackupResponse = {
-  status?: ClusterBackupStatusInfo | null;
-  backupSet?: ClusterBackupSetSummaryInfo | null;
+export type StartBackupResponse = {
+  operation?: BackupOperationInfo | null;
+  backupSet?: BackupSetSummaryInfo | null;
 };
 
-export type GetClusterBackupStatusInput = {
+export type GetBackupOperationInput = {
   backupSetId?: string;
+  backupOperationId?: string;
 };
 
-export type GetClusterBackupStatusResponse = {
-  status?: ClusterBackupStatusInfo | null;
+export type GetBackupOperationResponse = {
+  operation?: BackupOperationInfo | null;
 };
 
-export type CancelClusterBackupInput = {
+export type CancelBackupOperationInput = {
   backupSetId: string;
+  backupOperationId?: string;
   reason?: string;
 };
 
-export type CancelClusterBackupResponse = {
-  status?: ClusterBackupStatusInfo | null;
+export type CancelBackupOperationResponse = {
+  operation?: BackupOperationInfo | null;
 };
 
-export type ListClusterBackupsInput = {
+export type ListBackupOperationsInput = {
   pageSize?: number;
   pageToken?: string;
 };
 
-export type ListClusterBackupsResponse = {
-  backupSets: ClusterBackupSetSummaryInfo[];
+export type ListBackupOperationsResponse = {
+  operations: BackupOperationInfo[];
   nextPageToken: string;
 };
 
-export type ValidateClusterBackupSetInput = {
-  backupSetPath: string;
+export type ListBackupSetsInput = {
+  repositoryId?: string;
+  pageSize?: number;
+  pageToken?: string;
 };
 
-export type ValidateClusterBackupSetResponse = {
+export type ListBackupSetsResponse = {
+  backupSets: BackupSetSummaryInfo[];
+  nextPageToken: string;
+};
+
+export type ValidateBackupSetInput = {
+  repositoryId: string;
+  backupSetId: string;
+  validationOptions?: ValidationOptionsInfo | null;
+};
+
+export type ValidateBackupSetResponse = {
   valid: boolean;
   errors: string[];
-  backupSet?: ClusterBackupSetSummaryInfo | null;
+  backupSet?: BackupSetSummaryInfo | null;
   validation?: ValidationSummaryInfo | null;
+};
+
+export type DeleteBackupSetInput = {
+  repositoryId: string;
+  backupSetId: string;
+  reason?: string;
+};
+
+export type DeleteBackupSetResponse = {
+  repositoryId: string;
+  backupSetId: string;
+  state: string;
+};
+
+export type PlanRepositoryRetentionInput = {
+  repositoryId: string;
+  retentionPolicy?: RetentionPolicyInfo | null;
+  now?: string;
+};
+
+export type ApplyRepositoryRetentionInput = {
+  repositoryId: string;
+  retentionPolicy?: RetentionPolicyInfo | null;
+  reason?: string;
+  now?: string;
+};
+
+export type RepositoryRetentionActionInfo = {
+  backupSetId: string;
+  prefix: string;
+  action: string;
+  reason: string;
+  createdAt: string;
+  completedAt: string;
+  objectCount: number;
+  deletedObjects: number;
+  retryable: boolean;
+  blocked: boolean;
+  error: string;
+  retentionCutoff: string;
+};
+
+export type RepositoryRetentionPlanInfo = {
+  repositoryId: string;
+  plannedAt: string;
+  retentionPolicy?: RetentionPolicyInfo | null;
+  dryRun: boolean;
+  actions: RepositoryRetentionActionInfo[];
+  warnings: string[];
+  deletedObjects: number;
+};
+
+export type RepositoryRetentionResponse = {
+  plan?: RepositoryRetentionPlanInfo | null;
+};
+
+export type GetBackupObservabilityInput = {
+  repositoryId?: string;
+  includeRetentionProbe?: boolean;
+  staleOperationAfterSeconds?: number;
+  backupFreshnessAfterSeconds?: number;
+  incompleteBackupAfterSeconds?: number;
+};
+
+export type BackupMetricInfo = {
+  name: string;
+  description: string;
+  unit: string;
+  value: number;
+  labels: Record<string, string>;
+};
+
+export type BackupAlertConditionInfo = {
+  name: string;
+  severity: string;
+  firing: boolean;
+  reason: string;
+  expression: string;
+  labels: Record<string, string>;
+  evidence: string[];
+};
+
+export type BackupObservabilitySnapshotInfo = {
+  observedAt: string;
+  repositoryId: string;
+  metrics: BackupMetricInfo[];
+  alerts: BackupAlertConditionInfo[];
+  summaryState: string;
+};
+
+export type GetBackupObservabilityResponse = {
+  snapshot?: BackupObservabilitySnapshotInfo | null;
+};
+
+export type CapacityEstimateInfo = {
+  requiredBytes: number;
+  availableBytes: number;
+  blockers: ValidationBlockerInfo[];
+  warnings: string[];
+};
+
+export type RestorePlanSummaryInfo = {
+  restorePlanId: string;
+  repositoryId: string;
+  backupSetId: string;
+  targetMode: string;
+  identityMode: string;
+  authSessionPolicy: string;
+  restorable: boolean;
+  validation?: ValidationSummaryInfo | null;
+  compatibility?: CompatibilitySummaryInfo | null;
+  capacity?: CapacityEstimateInfo | null;
+  derivedActions: DerivedSubsystemPolicyInfo[];
+  blockers: ValidationBlockerInfo[];
+  plannedAt: string;
+};
+
+export type PlanRestoreInput = {
+  repositoryId: string;
+  backupSetId: string;
+  validationOptions?: ValidationOptionsInfo | null;
+};
+
+export type PlanRestoreResponse = {
+  plan?: RestorePlanSummaryInfo | null;
 };

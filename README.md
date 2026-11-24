@@ -17,6 +17,8 @@ Console release lines are certified with one exact Rust SDK contract and matchin
 | `v0.21.1` | exact `mycel-sdk v0.21.1` at `f8c9b1d95d976f8b12b0acba22cba4a1f81d44a7` | `v0.21.x` | Uses channel-owned Search queries and enum-only semantic trigger events. Older daemon lines are not certified. |
 | `v0.22.x` | exact `mycel-sdk v0.22.0` at `87de6c921dbc175bf6b2dc20213855b58e2912c2` | `v0.22.x` | Adds provider-budget configuration and certifies the v0.22 API/daemon contract. |
 | `v0.23.x` | exact `mycel-sdk v0.23.0` at `ab54de0ad8c17819a0ad67bd39cffc46a3c85454` | `v0.23.x` | Adds hybrid semantic projection consistency controls and per-channel search diagnostics. Older daemon lines are not certified. |
+| `v0.24.x` | exact `mycel-sdk v0.24.0` at `7030f0e0d6cef6309be87fd21cbbf5455018ebe6` | `v0.24.x` | Adds backup validation, quiesce admission, and restored-derived readiness evidence for the v0.24 production backup/restore contract. Older daemon lines are not certified. |
+| `v0.25.x` | exact `mycel-sdk v0.25.0` at `e0499e4aa11fc36cee4a2e34063ea762893ed1ef` | `v0.25.x` | Uses the repository-only, deployment-wide backup API. Local backup files/trigger/list/delete and cluster-specific backup helper names are not part of this Console line. |
 
 Semantic trigger events are mapped to generated `SemanticTriggerEventType` values at the Tauri boundary. The Console never reads or dual-writes legacy trigger strings, preserves unknown numeric projections as unsupported diagnostics, and refuses to save unresolved values. Search uses strict semantic projection consistency by default; relaxed bounded-stale or best-effort policies are opt-in per hybrid request and affect retrieval freshness only, not graph authorization or visibility.
 
@@ -27,6 +29,12 @@ npm run validate:mycel-compatibility
 ```
 
 Missing metadata, unknown schema/API lines, mismatched Console or SDK versions, mutable SDK refs, and contradictory compatibility declarations fail closed.
+
+## Backup UX model
+
+Console v0.25 makes repository-backed backup sets the only operator-facing backup artifact. The Backups page supports repository catalog CRUD/validation, deployment-wide backup start/cancel/operation history, repository backup-set inventory, validation, explicit-confirmation retention actions, observability, and read-only restore planning. It intentionally does not expose daemon-local backup files, local output directories, local backup trigger/status/list/delete calls, or destructive restore execution.
+
+Credential handling is reference-only: Console may collect environment variable names, Kubernetes Secret names, external secret references, KMS key references, and TLS CA references, but it must not collect, render, persist, or log raw object-store credentials.
 
 ## Repository layout
 

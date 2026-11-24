@@ -1,36 +1,40 @@
 import { useEffect, useState } from "react";
 import { Text, TextLink, themeClasses } from "../../../components/typography";
-import { getBackupStatus, listBackups } from "../../../services/adminService";
+import { getBackupObservability, listBackupSets } from "../../../services/adminService";
 import type {
-  BackupStatusResponse,
-  BackupSummaryInfo,
-  ListBackupsInput,
-  ListBackupsResponse,
+  BackupObservabilitySnapshotInfo,
+  BackupSetSummaryInfo,
+  GetBackupObservabilityInput,
+  GetBackupObservabilityResponse,
+  ListBackupSetsInput,
+  ListBackupSetsResponse,
 } from "../../../types/backups";
 
 export type BackupStatusCardProps = {
-  getBackupStatusService?: () => Promise<BackupStatusResponse>;
-  listBackupsService?: (
-    input?: ListBackupsInput,
-  ) => Promise<ListBackupsResponse>;
+  getBackupObservabilityService?: (
+    input?: GetBackupObservabilityInput,
+  ) => Promise<GetBackupObservabilityResponse>;
+  listBackupSetsService?: (
+    input: ListBackupSetsInput,
+  ) => Promise<ListBackupSetsResponse>;
 };
 
 type LoadState = {
   loading: boolean;
   error: string | null;
-  status: BackupStatusResponse | null;
-  backups: BackupSummaryInfo[];
+  snapshot: BackupObservabilitySnapshotInfo | null;
+  backupSets: BackupSetSummaryInfo[];
 };
 
 export function BackupStatusCard({
-  getBackupStatusService = getBackupStatus,
-  listBackupsService = listBackups,
+  getBackupObservabilityService = getBackupObservability,
+  listBackupSetsService = listBackupSets,
 }: BackupStatusCardProps) {
   const [state, setState] = useState<LoadState>({
     loading: true,
     error: null,
-    status: null,
-    backups: [],
+    snapshot: null,
+    backupSets: [],
   });
 
   useEffect(() => {
@@ -39,16 +43,23 @@ export function BackupStatusCard({
     async function load() {
       setState((current) => ({ ...current, loading: true, error: null }));
       try {
-        const [status, backups] = await Promise.all([
-          getBackupStatusService(),
-          listBackupsService({ pageSize: 3, pageToken: "" }),
-        ]);
+        const observability = await getBackupObservabilityService({
+          includeRetentionProbe: true,
+        });
+        const repositoryId = observability.snapshot?.repositoryId || "";
+        const backupSets = repositoryId
+          ? await listBackupSetsService({
+              repositoryId,
+              pageSize: 3,
+              pageToken: "",
+            })
+          : { backupSets: [], nextPageToken: "" };
         if (!cancelled) {
           setState({
             loading: false,
             error: null,
-            status,
-            backups: backups.backups,
+            snapshot: observability.snapshot || null,
+            backupSets: backupSets.backupSets,
           });
         }
       } catch (error) {
@@ -56,8 +67,8 @@ export function BackupStatusCard({
           setState({
             loading: false,
             error: error instanceof Error ? error.message : String(error),
-            status: null,
-            backups: [],
+            snapshot: null,
+            backupSets: [],
           });
         }
       }
@@ -68,15 +79,11 @@ export function BackupStatusCard({
     return () => {
       cancelled = true;
     };
-  }, [getBackupStatusService, listBackupsService]);
+  }, [getBackupObservabilityService, listBackupSetsService]);
 
-  const currentStatus = state.status?.status;
-  const lastBackup = state.backups[0];
-  const lastSuccessAt =
-    currentStatus?.lastSuccessAt || lastBackup?.completedAt || "";
-  const nextRunAt = currentStatus?.nextRunAt || "";
-  const statusLabel =
-    currentStatus?.state || (lastBackup ? "Available" : "Unknown");
+  const lastBackup = state.backupSets[0];
+  const statusLabel = state.snapshot?.summaryState || "Unknown";
+  const firingAlerts = state.snapshot?.alerts.filter((alert) => alert.firing) ?? [];
 
   return (
     <article
@@ -112,15 +119,12 @@ export function BackupStatusCard({
       ) : (
         <div className="mt-5 space-y-5">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Metric label="Current state" value={statusLabel} badge />
+            <Metric label="Repository health" value={statusLabel} badge />
             <Metric
-              label="Last successful backup"
-              value={formatTimestamp(lastSuccessAt)}
+              label="Last backup set"
+              value={formatTimestamp(lastBackup?.completedAt || lastBackup?.createdAt)}
             />
-            <Metric
-              label="Next scheduled run"
-              value={formatTimestamp(nextRunAt)}
-            />
+            <Metric label="Firing alerts" value={String(firingAlerts.length)} />
           </div>
 
           <div>
@@ -129,19 +133,19 @@ export function BackupStatusCard({
               size="sm"
               className={`font-medium ${themeClasses.text.parts.strongLight} ${themeClasses.text.parts.darkStrong}`}
             >
-              Recent backup files
+              Recent repository backup sets
             </Text>
-            {state.backups.length === 0 ? (
+            {state.backupSets.length === 0 ? (
               <div className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/40 p-4">
                 <Text intent="muted" size="sm">
-                  No backup files found.
+                  No repository backup sets found.
                 </Text>
               </div>
             ) : (
               <ul className="mt-3 divide-y divide-slate-200 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30">
-                {state.backups.map((backup) => (
+                {state.backupSets.map((backup) => (
                   <li
-                    key={backup.backupId}
+                    key={backup.backupSetId}
                     className="flex items-center justify-between gap-4 p-3"
                   >
                     <div className="min-w-0">
@@ -150,24 +154,18 @@ export function BackupStatusCard({
                         size="sm"
                         className={`truncate font-medium ${themeClasses.text.parts.primaryLight} ${themeClasses.text.parts.darkPrimary}`}
                       >
-                        {backup.archiveName || backup.backupId}
+                        {backup.backupSetId}
                       </Text>
                       <Text intent="muted" size="sm" className="mt-1">
-                        {formatTimestamp(
-                          backup.completedAt || backup.createdAt,
-                        )}
+                        {backup.deploymentName || backup.deploymentId || backup.repositoryId}
                       </Text>
                     </div>
-                    <Text
-                      intent="muted"
-                      size="sm"
-                      className="shrink-0 text-right"
-                    >
+                    <Text intent="muted" size="sm" className="shrink-0 text-right">
                       <span className="block">
-                        {formatBytes(backup.sizeBytes)}
+                        {formatTimestamp(backup.completedAt || backup.createdAt)}
                       </span>
                       <span className="block text-xs">
-                        {formatArchiveFormat(backup.archiveFormat)}
+                        {formatBackupState(backup.state)}
                       </span>
                     </Text>
                   </li>
@@ -208,7 +206,7 @@ function Metric({ label, value, badge = false }: MetricProps) {
   );
 }
 
-function formatTimestamp(value: string): string {
+function formatTimestamp(value?: string): string {
   if (!value) {
     return "Not available";
   }
@@ -218,23 +216,7 @@ function formatTimestamp(value: string): string {
     .replace(/Z$/, " UTC");
 }
 
-function formatArchiveFormat(format: string): string {
-  if (!format || format === "BACKUP_ARCHIVE_FORMAT_UNSPECIFIED") {
-    return "Format unknown";
-  }
-  return format.replace("BACKUP_ARCHIVE_FORMAT_", "").replace(/_/g, ".");
-}
-
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "Size unknown";
-  }
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+function formatBackupState(state: string): string {
+  if (!state) return "Unknown";
+  return state.replace("BACKUP_OPERATION_STATE_", "").replace(/_/g, " ");
 }

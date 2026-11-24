@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "component": "mycel-console",
-  "component_release": "v0.23.0",
-  "source_revision": "37bed11962f267089ca5433f9ad2d5fed3f09316",
-  "mycel_api_line": "0.23",
+  "component_release": "v0.25.0",
+  "source_revision": "243c8a36e6808d4af0703f0093b02d2b0a1842ab",
+  "mycel_api_line": "0.25",
   "supported_daemon_api_lines": [
-    "0.23"
+    "0.25"
   ],
   "incompatible_daemon_api_lines": [
     {
@@ -20,7 +20,22 @@
       "contracts": [
         "semantic-projection-consistency-v1"
       ]
+    },
+    {
+      "line": "0.23",
+      "contracts": [
+        "repository-backed-backup-restore-v1",
+        "backup-quiesce-admission-evidence-v1",
+        "restored-derived-readiness-v1"
+      ]
+    },
+    {
+      "line": "0.24",
+      "contracts": [
+        "repository-only-backup-api-v1",
+        "deployment-wide-backup-api-v1"
+      ]
     }
   ],
-  "published_at": "2026-11-17T19:47:24Z"
+  "published_at": "2026-11-24T17:36:21Z"
 }

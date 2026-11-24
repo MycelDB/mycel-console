@@ -35,23 +35,35 @@ import type {
   ProcedureInferenceAttemptInfo,
 } from "../types/procedureInference";
 import type {
+  ApplyRepositoryRetentionInput,
   BackupPolicyInfo,
-  BackupStatusResponse,
-  CancelClusterBackupInput,
-  CancelClusterBackupResponse,
-  DeleteBackupResponse,
-  GetClusterBackupStatusInput,
-  GetClusterBackupStatusResponse,
-  ListBackupsInput,
-  ListBackupsResponse,
-  ListClusterBackupsInput,
-  ListClusterBackupsResponse,
-  StartClusterBackupInput,
-  StartClusterBackupResponse,
-  TriggerBackupInput,
-  TriggerBackupResponse,
-  ValidateClusterBackupSetInput,
-  ValidateClusterBackupSetResponse,
+  BackupRepositoryInfo,
+  BackupRepositoryInput,
+  CancelBackupOperationInput,
+  CancelBackupOperationResponse,
+  DeleteBackupRepositoryResponse,
+  DeleteBackupSetInput,
+  DeleteBackupSetResponse,
+  GetBackupObservabilityInput,
+  GetBackupObservabilityResponse,
+  GetBackupOperationInput,
+  GetBackupOperationResponse,
+  ListBackupOperationsInput,
+  ListBackupOperationsResponse,
+  ListBackupRepositoriesInput,
+  ListBackupRepositoriesResponse,
+  ListBackupSetsInput,
+  ListBackupSetsResponse,
+  PlanRepositoryRetentionInput,
+  PlanRestoreInput,
+  PlanRestoreResponse,
+  RepositoryRetentionResponse,
+  StartBackupInput,
+  StartBackupResponse,
+  ValidateBackupRepositoryInput,
+  ValidateBackupRepositoryResponse,
+  ValidateBackupSetInput,
+  ValidateBackupSetResponse,
 } from "../types/backups";
 import type {
   GetMyAccessInput,
@@ -1115,68 +1127,125 @@ export async function updateBackupPolicy(
   return invoke<BackupPolicyInfo>("admin_update_backup_policy", { input });
 }
 
-export async function getBackupStatus(): Promise<BackupStatusResponse> {
-  return invoke<BackupStatusResponse>("admin_get_backup_status");
-}
-
-export async function listBackups(
-  input: ListBackupsInput = {},
-): Promise<ListBackupsResponse> {
-  return invoke<ListBackupsResponse>("admin_list_backups", { input });
-}
-
-export async function triggerBackup(
-  input: TriggerBackupInput = {},
-): Promise<TriggerBackupResponse> {
-  return invoke<TriggerBackupResponse>("admin_trigger_backup", { input });
-}
-
-export async function deleteBackup(
-  backupId: string,
-): Promise<DeleteBackupResponse> {
-  return invoke<DeleteBackupResponse>("admin_delete_backup", { backupId });
-}
-
-export async function startClusterBackup(
-  input: StartClusterBackupInput,
-): Promise<StartClusterBackupResponse> {
-  return invoke<StartClusterBackupResponse>("admin_start_cluster_backup", {
-    input,
-  });
-}
-
-export async function getClusterBackupStatus(
-  input: GetClusterBackupStatusInput = {},
-): Promise<GetClusterBackupStatusResponse> {
-  return invoke<GetClusterBackupStatusResponse>(
-    "admin_get_cluster_backup_status",
+export async function listBackupRepositories(
+  input: ListBackupRepositoriesInput = {},
+): Promise<ListBackupRepositoriesResponse> {
+  return invoke<ListBackupRepositoriesResponse>(
+    "admin_list_backup_repositories",
     { input },
   );
 }
 
-export async function cancelClusterBackup(
-  input: CancelClusterBackupInput,
-): Promise<CancelClusterBackupResponse> {
-  return invoke<CancelClusterBackupResponse>("admin_cancel_cluster_backup", {
-    input,
-  });
+export async function createBackupRepository(
+  input: BackupRepositoryInput,
+): Promise<BackupRepositoryInfo> {
+  return invoke<BackupRepositoryInfo>("admin_create_backup_repository", { input });
 }
 
-export async function listClusterBackups(
-  input: ListClusterBackupsInput = {},
-): Promise<ListClusterBackupsResponse> {
-  return invoke<ListClusterBackupsResponse>("admin_list_cluster_backups", {
-    input,
-  });
+export async function updateBackupRepository(
+  input: BackupRepositoryInput,
+): Promise<BackupRepositoryInfo> {
+  return invoke<BackupRepositoryInfo>("admin_update_backup_repository", { input });
 }
 
-export async function validateClusterBackupSet(
-  input: ValidateClusterBackupSetInput,
-): Promise<ValidateClusterBackupSetResponse> {
-  return invoke<ValidateClusterBackupSetResponse>(
-    "admin_validate_cluster_backup_set",
+export async function validateBackupRepository(
+  input: ValidateBackupRepositoryInput,
+): Promise<ValidateBackupRepositoryResponse> {
+  return invoke<ValidateBackupRepositoryResponse>(
+    "admin_validate_backup_repository",
     { input },
   );
+}
+
+export async function deleteBackupRepository(
+  input: ValidateBackupRepositoryInput,
+): Promise<DeleteBackupRepositoryResponse> {
+  return invoke<DeleteBackupRepositoryResponse>(
+    "admin_delete_backup_repository",
+    { input },
+  );
+}
+
+export async function planRepositoryRetention(
+  input: PlanRepositoryRetentionInput,
+): Promise<RepositoryRetentionResponse> {
+  return invoke<RepositoryRetentionResponse>("admin_plan_repository_retention", {
+    input,
+  });
+}
+
+export async function applyRepositoryRetention(
+  input: ApplyRepositoryRetentionInput,
+): Promise<RepositoryRetentionResponse> {
+  return invoke<RepositoryRetentionResponse>(
+    "admin_apply_repository_retention",
+    { input },
+  );
+}
+
+export async function getBackupObservability(
+  input: GetBackupObservabilityInput = {},
+): Promise<GetBackupObservabilityResponse> {
+  return invoke<GetBackupObservabilityResponse>(
+    "admin_get_backup_observability",
+    { input },
+  );
+}
+
+export async function planRestore(
+  input: PlanRestoreInput,
+): Promise<PlanRestoreResponse> {
+  return invoke<PlanRestoreResponse>("admin_plan_restore", { input });
+}
+
+export async function startBackup(
+  input: StartBackupInput,
+): Promise<StartBackupResponse> {
+  return invoke<StartBackupResponse>("admin_start_backup", { input });
+}
+
+export async function getBackupOperation(
+  input: GetBackupOperationInput = {},
+): Promise<GetBackupOperationResponse> {
+  return invoke<GetBackupOperationResponse>("admin_get_backup_operation", {
+    input,
+  });
+}
+
+export async function cancelBackupOperation(
+  input: CancelBackupOperationInput,
+): Promise<CancelBackupOperationResponse> {
+  return invoke<CancelBackupOperationResponse>("admin_cancel_backup_operation", {
+    input,
+  });
+}
+
+export async function listBackupOperations(
+  input: ListBackupOperationsInput = {},
+): Promise<ListBackupOperationsResponse> {
+  return invoke<ListBackupOperationsResponse>("admin_list_backup_operations", {
+    input,
+  });
+}
+
+export async function listBackupSets(
+  input: ListBackupSetsInput = {},
+): Promise<ListBackupSetsResponse> {
+  return invoke<ListBackupSetsResponse>("admin_list_backup_sets", { input });
+}
+
+export async function validateBackupSet(
+  input: ValidateBackupSetInput,
+): Promise<ValidateBackupSetResponse> {
+  return invoke<ValidateBackupSetResponse>("admin_validate_backup_set", {
+    input,
+  });
+}
+
+export async function deleteBackupSet(
+  input: DeleteBackupSetInput,
+): Promise<DeleteBackupSetResponse> {
+  return invoke<DeleteBackupSetResponse>("admin_delete_backup_set", { input });
 }
 
 export async function listInferencePackages(

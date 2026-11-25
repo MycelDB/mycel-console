@@ -42,6 +42,10 @@ import {
   getSemanticMaintenanceStatus,
   getSemanticReliabilityStatus,
   rebuildSemanticRule,
+  getUsage,
+  getUsageAccountingHealth,
+  listUsage,
+  batchGetUsage,
   listSemanticMaintenanceWork,
   retrySemanticMaintenanceWork,
   listModels,
@@ -186,6 +190,31 @@ test("principal grant mutations invoke access commands", async () => {
 
   await setPrincipalCapabilitiesForScope({ principalId: "prn_alice", capabilities: ["CAPABILITY_GRAPH_READ"], scope: { type: "space", spaceId: "sp_main" }, reason: "sync capabilities" });
   expect(invokeMock).toHaveBeenLastCalledWith("admin_set_principal_capabilities_for_scope", { input: { principalId: "prn_alice", capabilities: ["CAPABILITY_GRAPH_READ"], scope: { type: "space", spaceId: "sp_main" }, reason: "sync capabilities" } });
+});
+
+test("usage accounting commands invoke Tauri usage bridge", async () => {
+  const snapshot = {
+    scope: { kind: "space", spaceId: "sp_main", domainId: "" },
+    metrics: [],
+    blockers: [],
+    warnings: [],
+  };
+  invokeMock.mockResolvedValue(snapshot);
+
+  await expect(getUsage({ scope: { kind: "space", spaceId: "sp_main" } })).resolves.toEqual(snapshot);
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_get_usage", { input: { scope: { kind: "space", spaceId: "sp_main" } } });
+
+  invokeMock.mockResolvedValue({ results: [] });
+  await expect(batchGetUsage({ requests: [{ scope: { kind: "space", spaceId: "sp_main" } }] })).resolves.toEqual({ results: [] });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_batch_get_usage", { input: { requests: [{ scope: { kind: "space", spaceId: "sp_main" } }] } });
+
+  invokeMock.mockResolvedValue({ snapshots: [snapshot], nextPageToken: "" });
+  await expect(listUsage({ mode: "USAGE_LIST_MODE_SPACES" })).resolves.toMatchObject({ snapshots: [snapshot] });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_list_usage", { input: { mode: "USAGE_LIST_MODE_SPACES" } });
+
+  invokeMock.mockResolvedValue({ state: "USAGE_ACCOUNTING_STATE_READY" });
+  await expect(getUsageAccountingHealth({ includeDiagnosticCollectors: true })).resolves.toEqual({ state: "USAGE_ACCOUNTING_STATE_READY" });
+  expect(invokeMock).toHaveBeenLastCalledWith("admin_get_usage_accounting_health", { input: { includeDiagnosticCollectors: true } });
 });
 
 test("getBackupPolicy invokes backup policy command", async () => {

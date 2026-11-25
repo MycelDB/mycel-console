@@ -16,6 +16,7 @@ import {
 import { VectorStoresPage } from "../../features/intelligence/vector-stores";
 import { LexicalSearchPage } from "../../features/search";
 import { SpaceDetailPage, SpacesPage } from "../../features/spaces";
+import { UsagePage } from "../../features/usage";
 import { UserDetailPage, UsersPage } from "../../features/users";
 import { Text, themeClasses } from "../typography";
 import {
@@ -189,6 +190,17 @@ export function AppShell({
                   ]}
                 >
                   <LexicalSearchPage principalContext={principalContext} />
+                </RequireCapabilities>
+              }
+            />
+            <Route
+              path="/usage"
+              element={
+                <RequireCapabilities
+                  principalContext={principalContext}
+                  requirements={[requirement("usage.read")]}
+                >
+                  <UsagePage principalContext={principalContext} />
                 </RequireCapabilities>
               }
             />

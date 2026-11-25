@@ -5,7 +5,7 @@
 
 Desktop and web console UI for MycelDB daemon and cluster operations.
 
-Mycel Console is a React/Vite application packaged with Tauri. It connects to `myceld` through the Rust SDK and provides operator-facing views for authentication, spaces/domains, graph/query workflows, semantic/inference setup, backups, activity, and raft/cluster reliability. Semantic generation rules use dedicated list, create, and edit pages; semantic-assisted queries remain in Search.
+Mycel Console is a React/Vite application packaged with Tauri. It connects to `myceld` through the Rust SDK and provides operator-facing views for authentication, spaces/domains, graph/query workflows, semantic/inference setup, usage accounting visibility, backups, activity, and raft/cluster reliability. Semantic generation rules use dedicated list, create, and edit pages; semantic-assisted queries remain in Search.
 
 ## Compatibility
 
@@ -18,7 +18,7 @@ Console release lines are certified with one exact Rust SDK contract and matchin
 | `v0.22.x` | exact `mycel-sdk v0.22.0` at `87de6c921dbc175bf6b2dc20213855b58e2912c2` | `v0.22.x` | Adds provider-budget configuration and certifies the v0.22 API/daemon contract. |
 | `v0.23.x` | exact `mycel-sdk v0.23.0` at `ab54de0ad8c17819a0ad67bd39cffc46a3c85454` | `v0.23.x` | Adds hybrid semantic projection consistency controls and per-channel search diagnostics. Older daemon lines are not certified. |
 | `v0.24.x` | exact `mycel-sdk v0.24.0` at `7030f0e0d6cef6309be87fd21cbbf5455018ebe6` | `v0.24.x` | Adds backup validation, quiesce admission, and restored-derived readiness evidence for the v0.24 production backup/restore contract. Older daemon lines are not certified. |
-| `v0.25.x` | exact `mycel-sdk v0.25.0` at `e0499e4aa11fc36cee4a2e34063ea762893ed1ef` | `v0.25.x` | Uses the repository-only, deployment-wide backup API. Local backup files/trigger/list/delete and cluster-specific backup helper names are not part of this Console line. |
+| `v0.25.x` | exact `mycel-sdk v0.25.0` at `e0499e4aa11fc36cee4a2e34063ea762893ed1ef` | `v0.25.x` | Uses the repository-only, deployment-wide backup API and surfaces the usage-accounting visibility APIs introduced in v0.24 for read-only space/domain snapshots, health, diagnostic labeling, and explicit reconciliation checks. Local backup files/trigger/list/delete and cluster-specific backup helper names are not part of this Console line. |
 
 Semantic trigger events are mapped to generated `SemanticTriggerEventType` values at the Tauri boundary. The Console never reads or dual-writes legacy trigger strings, preserves unknown numeric projections as unsupported diagnostics, and refuses to save unresolved values. Search uses strict semantic projection consistency by default; relaxed bounded-stale or best-effort policies are opt-in per hybrid request and affect retrieval freshness only, not graph authorization or visibility.
 

@@ -232,6 +232,16 @@ import type {
   RevokePrincipalSessionsResponse,
   SetPrincipalPasswordInput,
 } from "../types/users";
+import type {
+  BatchGetUsageInput,
+  BatchGetUsageResponseInfo,
+  GetUsageAccountingHealthInput,
+  GetUsageInput,
+  ListUsageInput,
+  ListUsageResponseInfo,
+  UsageAccountingHealthInfo,
+  UsageSnapshotInfo,
+} from "../types/usage";
 
 export const AUTH_EXPIRED_EVENT = "mycel-console:auth-expired";
 
@@ -727,6 +737,33 @@ export async function deleteSpace(
   spaceId: string,
 ): Promise<DeleteSpaceResponse> {
   return invoke<DeleteSpaceResponse>("admin_delete_space", { spaceId });
+}
+
+export async function getUsage(
+  input: GetUsageInput,
+): Promise<UsageSnapshotInfo> {
+  return invoke<UsageSnapshotInfo>("admin_get_usage", { input });
+}
+
+export async function batchGetUsage(
+  input: BatchGetUsageInput,
+): Promise<BatchGetUsageResponseInfo> {
+  return invoke<BatchGetUsageResponseInfo>("admin_batch_get_usage", { input });
+}
+
+export async function listUsage(
+  input: ListUsageInput = {},
+): Promise<ListUsageResponseInfo> {
+  return invoke<ListUsageResponseInfo>("admin_list_usage", { input });
+}
+
+export async function getUsageAccountingHealth(
+  input: GetUsageAccountingHealthInput = {},
+): Promise<UsageAccountingHealthInfo> {
+  return invoke<UsageAccountingHealthInfo>(
+    "admin_get_usage_accounting_health",
+    { input },
+  );
 }
 
 export async function listDomains(

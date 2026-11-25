@@ -65,6 +65,16 @@ export const currentConsoleFeatures: ConsoleFeature[] = [
     order: 10,
   },
   {
+    id: "usage",
+    label: "Usage",
+    route: "/usage",
+    navGroup: "operations",
+    requirements: [{ capability: "usage.read" }],
+    fallback: "hide",
+    description: "Read-only space and domain usage accounting snapshots.",
+    order: 10,
+  },
+  {
     id: "backups",
     label: "Backups",
     route: "/backups",

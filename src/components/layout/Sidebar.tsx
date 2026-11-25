@@ -28,6 +28,7 @@ type IconKey =
   | "models"
   | "automations"
   | "semantic"
+  | "usage"
   | "cluster"
   | "backups";
 
@@ -67,6 +68,7 @@ const navIconPaths: Record<IconKey, string[]> = {
     "M15 17v3",
     "M9 20h6",
   ],
+  usage: ["M5 19V9", "M12 19V5", "M19 19v-7", "M4 19h16"],
   cluster: [
     "M6 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
     "M18 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",

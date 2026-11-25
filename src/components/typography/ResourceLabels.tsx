@@ -24,6 +24,13 @@ const enumLabelOverrides: Record<string, string> = {
   SEARCH_INDEX_STATE_MISSING: "Missing",
   SEARCH_INDEX_STATE_ERROR: "Error",
   SEARCH_INDEX_STATE_UNSPECIFIED: "Unspecified",
+  USAGE_ACCOUNTING_STATE_READY: "Ready",
+  USAGE_ACCOUNTING_STATE_REBUILDING: "Rebuilding",
+  USAGE_ACCOUNTING_STATE_RECONCILING: "Reconciling",
+  USAGE_ACCOUNTING_STATE_STALE: "Stale",
+  USAGE_ACCOUNTING_STATE_DRIFT_DETECTED: "Drift detected",
+  USAGE_ACCOUNTING_STATE_UNAVAILABLE: "Unavailable",
+  USAGE_ACCOUNTING_STATE_UNSPECIFIED: "Unspecified",
 };
 
 const enumPrefixes = [
@@ -41,6 +48,13 @@ const enumPrefixes = [
   "ACTIVITY_EVENT_TYPE_",
   "ACCESS_SCOPE_TYPE_",
   "SESSION_STATE_",
+  "USAGE_ACCOUNTING_STATE_",
+  "USAGE_STATUS_REASON_",
+  "USAGE_STATUS_SEVERITY_",
+  "USAGE_AUTHORITY_",
+  "USAGE_UNIT_",
+  "DOMAIN_INCLUSION_MODE_",
+  "USAGE_LIST_MODE_",
 ];
 
 export function formatEnumLabel(value?: string | null, empty = "—") {
@@ -212,6 +226,8 @@ function toneFor(value: string) {
     normalized.includes("failed") ||
     normalized.includes("denied") ||
     normalized.includes("deleted") ||
+    normalized.includes("drift") ||
+    normalized.includes("unavailable") ||
     normalized === "fail"
   ) {
     return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/50 dark:text-rose-300";
@@ -225,6 +241,7 @@ function toneFor(value: string) {
     normalized.includes("mixed") ||
     normalized.includes("degraded") ||
     normalized.includes("missing") ||
+    normalized.includes("reconciling") ||
     normalized.includes("warning")
   ) {
     return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/50 dark:text-amber-300";

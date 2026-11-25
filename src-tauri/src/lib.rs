@@ -72,6 +72,9 @@ use commands::semantic_maintenance::{
 use commands::spaces::{
     admin_create_space, admin_delete_space, admin_get_space, admin_list_spaces,
 };
+use commands::usage::{
+    admin_batch_get_usage, admin_get_usage, admin_get_usage_accounting_health, admin_list_usage,
+};
 use commands::users::{
     admin_create_principal, admin_delete_principal, admin_disable_principal,
     admin_enable_principal, admin_get_principal, admin_grant_principal_capability,
@@ -118,6 +121,10 @@ pub fn run() {
             admin_get_space,
             admin_create_space,
             admin_delete_space,
+            admin_get_usage,
+            admin_batch_get_usage,
+            admin_list_usage,
+            admin_get_usage_accounting_health,
             admin_get_domain_schema,
             admin_delete_domain_schema,
             admin_list_automations,

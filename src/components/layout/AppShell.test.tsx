@@ -64,6 +64,31 @@ jest.mock("../../services/adminService", () => ({
     state: "SPACE_STATE_ACTIVE",
   }),
   listDomains: jest.fn().mockResolvedValue({ domains: [], nextPageToken: "" }),
+  listUsage: jest.fn().mockResolvedValue({ snapshots: [], nextPageToken: "" }),
+  getUsage: jest.fn().mockResolvedValue({
+    scope: { kind: "space", spaceId: "sp_main", domainId: "" },
+    domainInclusion: "DOMAIN_INCLUSION_MODE_RETAINED_NON_SYSTEM",
+    observedAt: "",
+    asOfRevision: null,
+    accountingState: "USAGE_ACCOUNTING_STATE_READY",
+    quotaSafeComplete: true,
+    metrics: [],
+    blockers: [],
+    warnings: [],
+  }),
+  getUsageAccountingHealth: jest.fn().mockResolvedValue({
+    scope: null,
+    observedAt: "",
+    state: "USAGE_ACCOUNTING_STATE_READY",
+    asOfRevision: null,
+    quotaSafeReady: true,
+    blockers: [],
+    warnings: [],
+    rebuildingScopeCount: 0,
+    staleScopeCount: 0,
+    driftScopeCount: 0,
+    diagnosticCollectorUnavailableCount: 0,
+  }),
   listBackupSets: jest.fn().mockResolvedValue({ backupSets: [], nextPageToken: "" }),
   listActivityEvents: jest
     .fn()
@@ -337,6 +362,13 @@ test("renders space detail route", async () => {
   expect(
     await screen.findByRole("heading", { name: "Main" }),
   ).toBeInTheDocument();
+});
+
+test("renders usage route", async () => {
+  renderShell("/usage");
+
+  expect(screen.getByRole("heading", { name: "Usage" })).toBeInTheDocument();
+  expect(await screen.findByText("No usage snapshots matched this query.")).toBeInTheDocument();
 });
 
 test("redirects inference route to Models", async () => {

@@ -13,4 +13,5 @@ pub mod schemas;
 pub mod semantic;
 pub mod semantic_maintenance;
 pub mod spaces;
+pub mod usage;
 pub mod users;

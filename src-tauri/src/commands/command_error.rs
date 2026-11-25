@@ -108,6 +108,7 @@ mod tests {
             include_str!("semantic.rs"),
             include_str!("semantic_maintenance.rs"),
             include_str!("spaces.rs"),
+            include_str!("usage.rs"),
             include_str!("users.rs"),
         ];
         for source in guarded_sources {

@@ -117,6 +117,7 @@ export function capabilityNameSatisfies(grantCapability: string, requiredCapabil
   if (grantCapability === "identity.principal.update" && requiredCapability === "identity.principal.read") return true;
   if (grantCapability === "semantic.manage" && requiredCapability === "semantic.search") return true;
   if (grantCapability === "backup.manage" && requiredCapability === "backup.read") return true;
+  if (grantCapability === "usage.limit.manage" && requiredCapability === "usage.read") return true;
   return false;
 }
 
@@ -236,6 +237,21 @@ export function canonicalCapabilityName(capabilityName: string): string {
     case "CAPABILITY_AUDIT_WRITE":
     case "audit.write":
       return "audit.write";
+    case "CAPABILITY_USAGE_READ":
+    case "usage.read":
+      return "usage.read";
+    case "CAPABILITY_USAGE_DIAGNOSTIC_READ":
+    case "usage.diagnostic.read":
+      return "usage.diagnostic.read";
+    case "CAPABILITY_USAGE_RECONCILE":
+    case "usage.reconcile":
+      return "usage.reconcile";
+    case "CAPABILITY_USAGE_LIMIT_MANAGE":
+    case "usage.limit.manage":
+      return "usage.limit.manage";
+    case "CAPABILITY_USAGE_LIMIT_OVERRIDE":
+    case "usage.limit.override":
+      return "usage.limit.override";
     case "CAPABILITY_DAEMON_CONFIGURE":
     case "daemon.configure":
       return "daemon.configure";

@@ -83,5 +83,18 @@ test("manage capabilities satisfy matching read requirements", () => {
   expect(hasCapability(completeCapabilities([capability("CAPABILITY_MESH_MANAGE")]), requirement("cluster.read"))).toBe(true);
   expect(hasCapability(completeCapabilities([capability("inference.catalog.manage")]), requirement("inference.catalog.read"))).toBe(true);
   expect(hasCapability(completeCapabilities([capability("backup.manage")]), requirement("backup.read"))).toBe(true);
+  expect(hasCapability(completeCapabilities([capability("usage.limit.manage")]), requirement("usage.read"))).toBe(true);
   expect(hasCapability(completeCapabilities([capability("backup.read")]), requirement("backup.manage"))).toBe(false);
+});
+
+test("maps usage accounting capabilities", () => {
+  const state = completeCapabilities([
+    capability("CAPABILITY_USAGE_READ"),
+    capability("CAPABILITY_USAGE_DIAGNOSTIC_READ"),
+    capability("CAPABILITY_USAGE_RECONCILE"),
+  ]);
+
+  expect(hasCapability(state, requirement("usage.read"))).toBe(true);
+  expect(hasCapability(state, requirement("usage.diagnostic.read"))).toBe(true);
+  expect(hasCapability(state, requirement("usage.reconcile"))).toBe(true);
 });

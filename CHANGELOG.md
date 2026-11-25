@@ -10,6 +10,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 - Added a read-only Usage operations page backed by the usage-accounting APIs introduced in v0.24 and present in the v0.25 contract. Operators can inspect space/domain usage snapshots, accounting health, quota-safe logical metrics, diagnostic-only observations, explicit reconciliation health checks, and evidence exports without adding usage-limit management UI.
 
+### Changed
+
+- Clarified `graph.logical_bytes` in the Usage page as quota-safe logical graph payload bytes and visually separated it from diagnostic physical graph store byte observations.
+
 ## [v0.25.1] - 2026-11-24
 
 ### Fixed

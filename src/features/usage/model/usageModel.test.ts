@@ -3,10 +3,13 @@ import {
   buildUsageCliEquivalent,
   formatUsageValue,
   healthNeedsAttention,
+  isDiagnosticGraphStoreMetric,
+  isGraphLogicalBytesMetric,
   metricGroups,
   metricsCsv,
   parseMetricNames,
   stateNeedsFailClosedCopy,
+  usageMetricInsight,
 } from "./usageModel";
 
 const snapshot: UsageSnapshotInfo = {
@@ -30,7 +33,19 @@ const snapshot: UsageSnapshotInfo = {
       labels: {},
     },
     {
-      name: "diagnostic.physical_bytes",
+      name: "graph.logical_bytes",
+      metricVersion: 1,
+      value: 42,
+      unit: "USAGE_UNIT_BYTES",
+      authority: "USAGE_AUTHORITY_RAFT_COMMITTED_EXACT",
+      quotaSafe: true,
+      hardLimitEligible: false,
+      observedAt: "1700000000",
+      asOfRevision: null,
+      labels: {},
+    },
+    {
+      name: "diagnostic.local_graph_store_bytes",
       metricVersion: 1,
       value: 2048,
       unit: "USAGE_UNIT_BYTES",
@@ -49,13 +64,21 @@ const snapshot: UsageSnapshotInfo = {
 test("groups quota-safe and diagnostic metrics without mixing hard-limit evidence", () => {
   const groups = metricGroups(snapshot.metrics);
 
-  expect(groups.quotaSafe.map((metric) => metric.name)).toEqual(["graph.node_count"]);
-  expect(groups.diagnostic.map((metric) => metric.name)).toEqual(["diagnostic.physical_bytes"]);
+  expect(groups.quotaSafe.map((metric) => metric.name)).toEqual(["graph.node_count", "graph.logical_bytes"]);
+  expect(groups.diagnostic.map((metric) => metric.name)).toEqual(["diagnostic.local_graph_store_bytes"]);
 });
 
 test("formats usage values by unit", () => {
   expect(formatUsageValue(snapshot.metrics[0])).toBe("7");
-  expect(formatUsageValue(snapshot.metrics[1])).toBe("2 KiB");
+  expect(formatUsageValue(snapshot.metrics[1])).toBe("42 B");
+  expect(formatUsageValue(snapshot.metrics[2])).toBe("2 KiB");
+});
+
+test("identifies graph logical bytes and diagnostic graph store metrics", () => {
+  expect(isGraphLogicalBytesMetric(snapshot.metrics[1])).toBe(true);
+  expect(isDiagnosticGraphStoreMetric(snapshot.metrics[2])).toBe(true);
+  expect(usageMetricInsight(snapshot.metrics[1])).toContain("Logical node payload content bytes");
+  expect(usageMetricInsight(snapshot.metrics[2])).toContain("Diagnostic physical graph store observation");
 });
 
 test("state helpers identify fail-closed accounting states", () => {
@@ -82,7 +105,7 @@ test("parses metric filters and builds evidence exports", () => {
     "blob.active_logical_bytes",
   ]);
 
-  expect(metricsCsv(snapshot)).toContain("diagnostic.physical_bytes");
+  expect(metricsCsv(snapshot)).toContain("diagnostic.local_graph_store_bytes");
   expect(buildUsageCliEquivalent({
     mode: "USAGE_LIST_MODE_DOMAINS_IN_SPACE",
     parent: { kind: "space", spaceId: "sp main" },

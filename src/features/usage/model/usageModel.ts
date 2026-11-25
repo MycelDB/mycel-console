@@ -14,6 +14,8 @@ export type MetricGroups = {
 };
 
 const diagnosticMetricPattern = /(^|[._-])(diagnostic|physical|pvc|index|vector)([._-]|$)/i;
+const graphLogicalBytesMetricName = "graph.logical_bytes";
+const diagnosticLocalGraphStoreMetricName = "diagnostic.local_graph_store_bytes";
 
 export function metricGroups(metrics: UsageMetricInfo[]): MetricGroups {
   return metrics.reduce<MetricGroups>(
@@ -32,6 +34,24 @@ export function isDiagnosticMetric(metric: UsageMetricInfo): boolean {
     metric.authority === "USAGE_AUTHORITY_OBSERVED_APPROXIMATE" ||
     diagnosticMetricPattern.test(metric.name)
   );
+}
+
+export function isGraphLogicalBytesMetric(metric: UsageMetricInfo): boolean {
+  return metric.name === graphLogicalBytesMetricName;
+}
+
+export function isDiagnosticGraphStoreMetric(metric: UsageMetricInfo): boolean {
+  return metric.name === diagnosticLocalGraphStoreMetricName;
+}
+
+export function usageMetricInsight(metric: UsageMetricInfo): string | null {
+  if (isGraphLogicalBytesMetric(metric)) {
+    return "Logical node payload content bytes. Excludes labels, properties, metadata, edge payloads, blob bytes, and physical graph store overhead.";
+  }
+  if (isDiagnosticGraphStoreMetric(metric)) {
+    return "Diagnostic physical graph store observation. Not quota-safe and may include storage, index, WAL, or filesystem overhead.";
+  }
+  return null;
 }
 
 export function stateNeedsFailClosedCopy(state?: string | null): boolean {

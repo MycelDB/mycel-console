@@ -4,15 +4,21 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    branches: [develop, main]
 
 permissions:
-  contents: write
+  contents: read
 
 env:
-  MYCEL_RUST_SDK_REF: e0499e4aa11fc36cee4a2e34063ea762893ed1ef
+  MYCEL_RUST_SDK_REF: 33c7e643b679111398dcaf8a340572cc3cce56f5
 
 jobs:
   build-macos-dmg:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/')))
     name: Build ${{ matrix.arch }} DMG
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -55,15 +61,24 @@ jobs:
         working-directory: mycel-console
         run: npm ci
 
+      - name: Verify package and release versions
+        working-directory: mycel-console
+        run: |
+          npm run validate:mycel-compatibility
+          version=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+
       - name: Build DMG
         working-directory: mycel-console
-        run: npm run tauri build -- --bundles dmg --target ${{ matrix.rust-target }}
+        run: npm run tauri build -- --bundles dmg --target ${{ matrix.rust-target }} -- --locked
 
       - name: Normalize release artifact name
         working-directory: mycel-console
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
+          version=$(node -p "require('./package.json').version")
           dmg_dir="src-tauri/target/${{ matrix.rust-target }}/release/bundle/dmg"
           dmg="$(find "$dmg_dir" -maxdepth 1 -name '*.dmg' -print -quit)"
           if [ -z "$dmg" ]; then
@@ -85,7 +100,10 @@ jobs:
           if-no-files-found: error
 
   publish-release:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     name: Publish GitHub Release assets
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     needs: build-macos-dmg
     steps:

@@ -6,13 +6,19 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 
 ## [Unreleased]
 
+## [v0.26.0] - 2026-11-27
+
 ### Added
 
 - Added a read-only Usage operations page backed by the usage-accounting APIs introduced in v0.24 and present in the v0.25 contract. Operators can inspect space/domain usage snapshots, accounting health, quota-safe logical metrics, diagnostic-only observations, explicit reconciliation health checks, and evidence exports without adding usage-limit management UI.
 
 ### Changed
 
-- Clarified `graph.logical_bytes` in the Usage page as quota-safe logical graph payload bytes and visually separated it from diagnostic physical graph store byte observations.
+- Clarified `graph.logical_bytes` in the Usage page as quota-safe logical graph payload bytes and visually separated it from diagnostic physical graph store byte observations. These metrics do not represent billing or hard limits.
+
+### Compatibility
+
+- Targets Mycel daemon/API v0.26.x and pins the published Rust SDK `v0.26.0` at `33c7e643b679111398dcaf8a340572cc3cce56f5` for both CI and macOS builds.
 
 ## [v0.25.1] - 2026-11-24
 

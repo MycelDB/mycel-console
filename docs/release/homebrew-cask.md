@@ -12,7 +12,7 @@ Homebrew maps `myceldb/tap` to the GitHub repository `MycelDB/homebrew-tap`.
 
 ## Release assets
 
-The `Release macOS DMGs` GitHub Actions workflow runs only when a `v*` tag is pushed to `MycelDB/mycel-console`. It builds both macOS architectures and uploads stable asset names to the matching GitHub Release:
+The `Release macOS DMGs` GitHub Actions workflow builds both macOS architectures. Same-repository `release/*` and `hotfix/*` pull requests to `develop` or `main` produce CI artifacts only. Pushing a matching `v*` version tag publishes the builds to the GitHub Release with these asset names:
 
 ```text
 mycel-console_<version>_aarch64.dmg
@@ -31,7 +31,7 @@ mycel-console_0.9.0_x86_64.dmg
 ## Tagging flow
 
 1. Ensure the `MYCEL_RUST_SDK_REF` pinned in `.github/workflows/ci.yml` and `.github/workflows/release-macos-dmg.yml` names the compatible published Rust SDK release. Console and SDK patch versions may differ when the SDK receives a wire-compatible correction.
-2. Push a console tag:
+2. Verify both non-publishing DMG build checks on the release PR. After release approval, push a console tag:
 
    ```sh
    git checkout main

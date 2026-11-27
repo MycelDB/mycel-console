@@ -6,6 +6,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 const manifest = JSON.parse(read(".release/mycel-compatibility.json"));
 const packageJson = JSON.parse(read("package.json"));
+const packageLock = JSON.parse(read("package-lock.json"));
+const tauriConfig = JSON.parse(read("src-tauri/tauri.conf.json"));
 const cargoToml = read("src-tauri/Cargo.toml");
 const workflow = read(".github/workflows/ci.yml");
 const releaseWorkflow = read(".github/workflows/release-macos-dmg.yml");
@@ -29,12 +31,12 @@ if (JSON.stringify(actualManifestKeys) !== JSON.stringify(expectedManifestKeys))
 }
 
 const expected = {
-  consoleVersion: "0.25.1",
-  consoleRelease: "v0.25.1",
-  consoleSource: "04900359bc75df025a35519e80871e24804ca7a2",
-  rustSdkVersion: "0.25.0",
-  rustSdkSource: "e0499e4aa11fc36cee4a2e34063ea762893ed1ef",
-  apiLine: "0.25",
+  consoleVersion: "0.26.0",
+  consoleRelease: "v0.26.0",
+  consoleSource: "03b494e7fce76428292a56c8036f6a4e1a58f4c8",
+  rustSdkVersion: "0.26.0",
+  rustSdkSource: "33c7e643b679111398dcaf8a340572cc3cce56f5",
+  apiLine: "0.26",
 };
 
 if (manifest.schema_version !== 1) errors.push(`schema_version=${manifest.schema_version}`);
@@ -91,11 +93,15 @@ if (JSON.stringify(incompatible) !== JSON.stringify(expectedIncompatible)) {
   }
 }
 
-if (packageJson.version !== expected.consoleVersion) {
-  errors.push(`package.json version=${packageJson.version}`);
+for (const [artifact, version] of [
+  ["package.json", packageJson.version],
+  ["package-lock.json", packageLock.version],
+  ["package-lock.json root package", packageLock.packages?.[""]?.version],
+  ["Tauri bundle", tauriConfig.version],
+  ["Console Cargo package", cargoToml.match(/^version = "([^"]+)"/m)?.[1]],
+]) {
+  if (version !== expected.consoleVersion) errors.push(`${artifact} version=${version}`);
 }
-const tauriVersion = cargoToml.match(/^version = "([^"]+)"/m)?.[1];
-if (tauriVersion !== expected.consoleVersion) errors.push(`Tauri version=${tauriVersion}`);
 
 const sdkDependency = cargoToml.match(
   /^mycel-sdk = \{ version = "=([^"]+)", path = "([^"]+)" \}$/m,

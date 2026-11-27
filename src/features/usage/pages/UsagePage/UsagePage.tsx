@@ -41,12 +41,15 @@ import {
   buildUsageCliEquivalent,
   formatUsageValue,
   healthNeedsAttention,
+  isDiagnosticGraphStoreMetric,
+  isGraphLogicalBytesMetric,
   metricGroups,
   metricsCsv,
   parseMetricNames,
   scopeLabel,
   snapshotJson,
   stateNeedsFailClosedCopy,
+  usageMetricInsight,
   statusSummary,
   statusTone,
 } from "../../model/usageModel";
@@ -743,6 +746,7 @@ function SnapshotDrilldown({
         <SummaryCard label="Diagnostic metrics" value={String(groups.diagnostic.length)} tone={groups.diagnostic.length ? "warning" : "normal"} />
         <SummaryCard label="Domain inclusion" value={formatEnumLabel(String(domainInclusion))} />
       </div>
+      <GraphLogicalBytesExplanation metrics={snapshot.metrics} />
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
           <thead>
@@ -756,26 +760,50 @@ function SnapshotDrilldown({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-            {snapshot.metrics.map((metric) => (
-              <tr key={`${metric.name}:${metric.metricVersion}`}>
-                <td className="px-4 py-3 align-top">
-                  <Text className="font-mono text-sm">{metric.name}</Text>
-                  <Text size="xs" intent="muted">version {metric.metricVersion}</Text>
-                </td>
-                <td className="px-4 py-3 align-top font-medium">{formatUsageValue(metric)}</td>
-                <td className="px-4 py-3 align-top"><EnumBadge value={metric.authority} /></td>
-                <td className="px-4 py-3 align-top"><MetricSafety metric={metric} /></td>
-                <td className="px-4 py-3 align-top">
-                  <Text size="sm">{formatTimestamp(metric.observedAt)}</Text>
-                  <RevisionLabel revisionToken={metric.asOfRevision?.revisionToken} />
-                </td>
-                <td className="px-4 py-3 align-top"><Labels labels={metric.labels} /></td>
-              </tr>
-            ))}
+            {snapshot.metrics.map((metric) => {
+              const insight = usageMetricInsight(metric);
+              const logicalGraphBytes = isGraphLogicalBytesMetric(metric);
+              return (
+                <tr key={`${metric.name}:${metric.metricVersion}`}>
+                  <td className="px-4 py-3 align-top">
+                    <Text className="font-mono text-sm">{metric.name}</Text>
+                    {logicalGraphBytes ? (
+                      <span className="mt-1 inline-flex rounded-full border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/50 dark:text-emerald-200">Logical graph payload bytes</span>
+                    ) : null}
+                    {insight ? <Text size="xs" intent="muted" className="mt-1 max-w-md">{insight}</Text> : null}
+                    <Text size="xs" intent="muted">version {metric.metricVersion}</Text>
+                  </td>
+                  <td className="px-4 py-3 align-top font-medium">{formatUsageValue(metric)}</td>
+                  <td className="px-4 py-3 align-top"><EnumBadge value={metric.authority} /></td>
+                  <td className="px-4 py-3 align-top"><MetricSafety metric={metric} /></td>
+                  <td className="px-4 py-3 align-top">
+                    <Text size="sm">{formatTimestamp(metric.observedAt)}</Text>
+                    <RevisionLabel revisionToken={metric.asOfRevision?.revisionToken} />
+                  </td>
+                  <td className="px-4 py-3 align-top"><Labels labels={metric.labels} /></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+function GraphLogicalBytesExplanation({ metrics }: { metrics: UsageMetricInfo[] }) {
+  const hasLogicalGraphBytes = metrics.some(isGraphLogicalBytesMetric);
+  const hasPhysicalGraphBytes = metrics.some(isDiagnosticGraphStoreMetric);
+  if (!hasLogicalGraphBytes && !hasPhysicalGraphBytes) return null;
+  return (
+    <div className="px-5 pb-5">
+      <Alert variant="info">
+        <Text size="sm" className="font-medium">Graph byte metrics are split by safety and authority.</Text>
+        <Text size="sm" className="mt-1">
+          <span className="font-mono">graph.logical_bytes</span> is quota-safe logical payload content from committed node payload values. <span className="font-mono">diagnostic.local_graph_store_bytes</span> is a non-quota-safe physical observation that may include storage, index, WAL, or filesystem overhead.
+        </Text>
+      </Alert>
+    </div>
   );
 }
 
@@ -805,12 +833,23 @@ function MetricList({ metrics, empty, diagnostic = false }: { metrics: UsageMetr
       {diagnostic ? (
         <Text size="xs" className="font-semibold text-amber-700 dark:text-amber-300">Diagnostic only / non-quota-safe</Text>
       ) : null}
-      {metrics.slice(0, 4).map((metric) => (
-        <div key={`${metric.name}:${metric.metricVersion}`} className={`rounded-lg border p-2 ${diagnostic ? "border-amber-300/70 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/30" : `${themeClasses.border.default} ${themeClasses.surface.sunken}`}`}>
-          <Text className="font-mono text-xs">{metric.name}</Text>
-          <Text size="sm" className="mt-1 font-medium">{formatUsageValue(metric)}</Text>
-        </div>
-      ))}
+      {metrics.slice(0, 4).map((metric) => {
+        const insight = usageMetricInsight(metric);
+        const logicalGraphBytes = isGraphLogicalBytesMetric(metric);
+        const cardClasses = diagnostic
+          ? "border-amber-300/70 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/30"
+          : logicalGraphBytes
+            ? "border-emerald-300/70 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-950/30"
+            : `${themeClasses.border.default} ${themeClasses.surface.sunken}`;
+        return (
+          <div key={`${metric.name}:${metric.metricVersion}`} className={`rounded-lg border p-2 ${cardClasses}`}>
+            <Text className="font-mono text-xs">{metric.name}</Text>
+            {logicalGraphBytes ? <Text size="xs" className="mt-1 font-semibold text-emerald-700 dark:text-emerald-300">Logical graph payload bytes</Text> : null}
+            <Text size="sm" className="mt-1 font-medium">{formatUsageValue(metric)}</Text>
+            {insight ? <Text size="xs" intent="muted" className="mt-1">{insight}</Text> : null}
+          </div>
+        );
+      })}
       {metrics.length > 4 ? <Text intent="muted" size="xs">+ {metrics.length - 4} more metrics</Text> : null}
     </div>
   );

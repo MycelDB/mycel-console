@@ -37,7 +37,19 @@ const snapshot: UsageSnapshotInfo = {
       labels: {},
     },
     {
-      name: "diagnostic.physical_bytes",
+      name: "graph.logical_bytes",
+      metricVersion: 1,
+      value: 42,
+      unit: "USAGE_UNIT_BYTES",
+      authority: "USAGE_AUTHORITY_RAFT_COMMITTED_EXACT",
+      quotaSafe: true,
+      hardLimitEligible: false,
+      observedAt: "1700000000",
+      asOfRevision: null,
+      labels: {},
+    },
+    {
+      name: "diagnostic.local_graph_store_bytes",
       metricVersion: 1,
       value: 4096,
       unit: "USAGE_UNIT_BYTES",
@@ -56,7 +68,7 @@ const snapshot: UsageSnapshotInfo = {
       severity: "USAGE_STATUS_SEVERITY_WARNING",
       message: "physical bytes are diagnostic only",
       scope: null,
-      metricName: "diagnostic.physical_bytes",
+      metricName: "diagnostic.local_graph_store_bytes",
       evidence: {},
     },
   ],
@@ -89,6 +101,11 @@ test("renders usage snapshots with state badges and diagnostic labels", async ()
   );
 
   expect((await screen.findAllByText("graph.node_count")).length).toBeGreaterThan(0);
+  expect(screen.getAllByText("graph.logical_bytes").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("42 B").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Logical graph payload bytes").length).toBeGreaterThan(0);
+  expect(screen.getByText(/Graph byte metrics are split by safety and authority/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/Diagnostic physical graph store observation/i).length).toBeGreaterThan(0);
   expect(screen.getAllByText("Ready").length).toBeGreaterThan(0);
   expect(screen.getAllByText("Diagnostic only / non-quota-safe").length).toBeGreaterThan(0);
   expect(screen.getByText("Hard-limit eligible")).toBeInTheDocument();

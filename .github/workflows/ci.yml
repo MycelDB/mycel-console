@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  MYCEL_RUST_SDK_REF: e0499e4aa11fc36cee4a2e34063ea762893ed1ef
+  MYCEL_RUST_SDK_REF: 33c7e643b679111398dcaf8a340572cc3cce56f5
 
 jobs:
   test:
@@ -23,25 +23,11 @@ jobs:
         with:
           path: mycel-console
 
-      - name: Checkout Rust SDK at matching or release-pinned ref
-        id: checkout-rust-sdk
-        uses: actions/checkout@v4
-        continue-on-error: true
-        with:
-          repository: MycelDB/mycel-rust-sdk
-          ref: ${{ github.ref_type == 'tag' && env.MYCEL_RUST_SDK_REF || (github.head_ref || github.ref_name) }}
-          path: mycel-rust-sdk
-
-      - name: Remove incomplete Rust SDK checkout
-        if: steps.checkout-rust-sdk.outcome == 'failure'
-        run: rm -rf mycel-rust-sdk
-
-      - name: Checkout Rust SDK at develop fallback
-        if: steps.checkout-rust-sdk.outcome == 'failure'
+      - name: Checkout Rust SDK at pinned release revision
         uses: actions/checkout@v4
         with:
           repository: MycelDB/mycel-rust-sdk
-          ref: develop
+          ref: ${{ env.MYCEL_RUST_SDK_REF }}
           path: mycel-rust-sdk
 
       - name: Install Tauri Linux dependencies
@@ -85,4 +71,4 @@ jobs:
 
       - name: Tauri/Rust tests
         working-directory: mycel-console
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
